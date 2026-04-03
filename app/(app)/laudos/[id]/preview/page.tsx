@@ -2,6 +2,24 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PreviewPDFWrapper from '@/components/pdf/PreviewPDFWrapper'
 
+/**
+ * Baixa uma imagem a partir de uma URL e retorna como data URI base64.
+ */
+async function urlParaBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(15000) })
+    if (!response.ok) return null
+
+    const contentType = response.headers.get('content-type') || 'image/jpeg'
+    const arrayBuffer = await response.arrayBuffer()
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
+    return `data:${contentType};base64,${base64}`
+  } catch (err) {
+    console.error('[Preview] Falha ao converter imagem para base64:', err)
+    return null
+  }
+}
+
 export default async function PreviewLaudoPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -49,16 +67,20 @@ export default async function PreviewLaudoPage({ params }: { params: { id: strin
     })
   }
 
-  // Gerar URLs assinadas para fotos
+  // Gerar URLs assinadas e converter para base64 (data URI)
   const fotosUrl: Record<string, string> = {}
+  const tarefas: { chave: string; urlPromise: Promise<string | null> }[] = []
+
   for (const eq of (laudo.equipamentos ?? [])) {
-    // Foto geral do equipamento
     if (eq.foto_geral_url) {
       const { data: urlData } = await supabase.storage
         .from('fotos-nc')
         .createSignedUrl(eq.foto_geral_url, 3600)
       if (urlData?.signedUrl) {
-        fotosUrl[`eq_${eq.id}`] = urlData.signedUrl
+        tarefas.push({
+          chave: `eq_${eq.id}`,
+          urlPromise: urlParaBase64(urlData.signedUrl),
+        })
       }
     }
     for (const nc of (eq.nao_conformidades ?? [])) {
@@ -67,11 +89,24 @@ export default async function PreviewLaudoPage({ params }: { params: { id: strin
           .from('fotos-nc')
           .createSignedUrl(foto.storage_path, 3600)
         if (urlData?.signedUrl) {
-          fotosUrl[foto.id] = urlData.signedUrl
+          tarefas.push({
+            chave: foto.id,
+            urlPromise: urlParaBase64(urlData.signedUrl),
+          })
         }
       }
     }
   }
 
+  const resultados = await Promise.all(
+    tarefas.map(async (t) => ({ chave: t.chave, base64: await t.urlPromise }))
+  )
+  for (const r of resultados) {
+    if (r.base64) {
+      fotosUrl[r.chave] = r.base64
+    }
+  }
+
   return <PreviewPDFWrapper laudo={laudo} perfil={perfil} fotosUrl={fotosUrl} />
 }
+

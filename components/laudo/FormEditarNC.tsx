@@ -28,6 +28,7 @@ export default function FormEditarNC({ nc, laudoId, onSalva, onCancelar }: FormE
   const [erro, setErro] = useState('')
 
   const [capituloApoio, setCapituloApoio] = useState('')
+  const [alineaSelecionada, setAlineaSelecionada] = useState('')
   const itensDoCapitulo = capituloApoio ? itensPorCapitulo(capituloApoio) : []
 
   function handleAdicionarAlinea(codigo: string) {
@@ -43,7 +44,8 @@ export default function FormEditarNC({ nc, laudoId, onSalva, onCancelar }: FormE
     const novoTitulo = tituloNc ? `${tituloNc} / ${itemEscolhido.titulo}` : itemEscolhido.titulo
     setTituloNc(novoTitulo)
     
-    // Reseta o seletor para o usuário poder adicionar outro
+    // Reseta os seletores para não bugar no mobile
+    setAlineaSelecionada('')
     setCapituloApoio('')
   }
 
@@ -96,18 +98,29 @@ export default function FormEditarNC({ nc, laudoId, onSalva, onCancelar }: FormE
           </select>
 
           {capituloApoio && (
-            <select
-              value=""
-              onChange={e => handleAdicionarAlinea(e.target.value)}
-              className="input text-sm"
-            >
-              <option value="">Selecione a não conformidade para incluir...</option>
-              {itensDoCapitulo.map(item => (
-                <option key={item.codigo} value={item.codigo}>
-                  {item.codigo} — {item.titulo}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={alineaSelecionada}
+                onChange={e => setAlineaSelecionada(e.target.value)}
+                className="input text-sm flex-1 truncate max-w-[70%]"
+              >
+                <option value="">Selecione a não conformidade para incluir...</option>
+                {itensDoCapitulo.map(item => (
+                  <option key={item.codigo} value={item.codigo}>
+                    {item.codigo} — {item.titulo}
+                  </option>
+                ))}
+              </select>
+              
+              <button
+                type="button"
+                className="btn-primary text-xs px-3 whitespace-nowrap"
+                onClick={() => handleAdicionarAlinea(alineaSelecionada)}
+                disabled={!alineaSelecionada}
+              >
+                Adicionar
+              </button>
+            </div>
           )}
         </div>
       </div>
