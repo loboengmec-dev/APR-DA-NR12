@@ -336,6 +336,7 @@ export default function EditarLaudoPage() {
                   equipamentoId={eq.id}
                   laudoId={laudoId}
                   onCriada={() => { setNcAberta(null); carregarLaudo() }}
+                  onCriarOutra={() => { carregarLaudo() }}
                   onCancelar={() => setNcAberta(null)}
                 />
               </div>

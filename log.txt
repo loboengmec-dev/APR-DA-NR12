@@ -1,0 +1,252 @@
+commit e8a30c00e796cc8ae4cbc6f02fe07f5d9df5c17c
+Author: loboengmec-dev <loboengmec-dev@users.noreply.github.com>
+Date:   Thu Apr 2 23:23:44 2026 -0300
+
+    Initial commit com as atualizacoes do PDF
+
+diff --git a/components/laudo/FormNC.tsx b/components/laudo/FormNC.tsx
+new file mode 100644
+index 0000000..94e6ab4
+--- /dev/null
++++ b/components/laudo/FormNC.tsx
+@@ -0,0 +1,240 @@
++'use client'
++
++import { useState } from 'react'
++import { criarNC } from '@/lib/actions/nao-conformidades'
++import { buscarTextosPorItem } from '@/lib/banco-textos'
++import { CAPITULOS_NR12, ITENS_NR12, itensPorCapitulo } from '@/lib/nr12-itens'
++import CalculadoraHRN from './CalculadoraHRN'
++import type { NaoConformidade, BancoTextoNR12 } from '@/types'
++
++interface FormNCProps {
++  equipamentoId: string
++  laudoId: string
++  onCriada: (nc: NaoConformidade) => void
++  onCancelar: () => void
++}
++
++export default function FormNC({ equipamentoId, laudoId, onCriada, onCancelar }: FormNCProps) {
++  const [capitulo, setCapitulo] = useState('')
++  const [itemNR12, setItemNR12] = useState('')
++  const [tituloNC, setTituloNC] = useState('')
++  const [risco, setRisco] = useState('')
++  const [lo, setLo] = useState<number | null>(null)
++  const [fe, setFe] = useState<number | null>(null)
++  const [dph, setDph] = useState<number | null>(null)
++  const [np, setNp] = useState<number | null>(null)
++  const [textoIdentificacao, setTextoIdentificacao] = useState('')
++  const [textoRecomendacao, setTextoRecomendacao] = useState('')
++  const [medidaControle, setMedidaControle] = useState('')
++  const [temTextoBanco, setTemTextoBanco] = useState(false)
++  const [salvando, setSalvando] = useState(false)
++  const [erro, setErro] = useState('')
++
++  const itensDoCapitulo = capitulo ? itensPorCapitulo(capitulo) : []
++
++  function resetCampos() {
++    setItemNR12(''); setTituloNC(''); setRisco('')
++    setLo(null); setFe(null); setDph(null); setNp(null)
++    setTextoIdentificacao(''); setTextoRecomendacao(''); setMedidaControle('')
++    setTemTextoBanco(false)
++  }
++
++  // Ao selecionar um item da lista estática: busca texto no banco e auto-popula
++  async function handleSelecionarItem(codigo: string) {
++    const itemEscolhido = ITENS_NR12.find(i => i.codigo === codigo)
++    if (!itemEscolhido) { resetCampos(); return }
++
++    setItemNR12(codigo)
++    setTituloNC(itemEscolhido.titulo)
++
++    // Busca texto pré-cadastrado no banco para este item
++    const textos = await buscarTextosPorItem(codigo)
++    const texto: BancoTextoNR12 | undefined = textos[0]
++
++    if (texto) {
++      setTemTextoBanco(true)
++      setRisco(texto.risco ?? '')
++      setTextoIdentificacao(texto.texto_identificacao ?? '')
++      setTextoRecomendacao(texto.texto_recomendacao ?? '')
++      setMedidaControle(texto.medida_controle ?? '')
++      if (texto.hrn_tipico_json) {
++        const hrn = texto.hrn_tipico_json as Record<string, number>
++        if (hrn.LO) setLo(hrn.LO)
++        if (hrn.FE) setFe(hrn.FE)
++        if (hrn.DPH) setDph(hrn.DPH)
++        if (hrn.NP) setNp(hrn.NP)
++      }
++    } else {
++      // Sem texto no banco — campos em branco para preenchimento manual
++      setTemTextoBanco(false)
++      setRisco(''); setTextoIdentificacao(''); setTextoRecomendacao(''); setMedidaControle('')
++      setLo(null); setFe(null); setDph(null); setNp(null)
++    }
++  }
++
++  function handleHRNChange(campo: 'lo' | 'fe' | 'dph' | 'np', valor: number) {
++    if (campo === 'lo') setLo(valor)
++    if (campo === 'fe') setFe(valor)
++    if (campo === 'dph') setDph(valor)
++    if (campo === 'np') setNp(valor)
++  }
++
++  async function handleSubmit(e: React.FormEvent) {
++    e.preventDefault()
++    if (!itemNR12 || !tituloNC) {
++      setErro('Selecione um item da norma.')
++      return
++    }
++    setErro('')
++    setSalvando(true)
++
++    const { data, error } = await criarNC(equipamentoId, laudoId, {
++      item_nr12: itemNR12,
++      titulo_nc: tituloNC,
++      descricao: '',
++      risco,
++      lo, fe, dph, np,
++      texto_identificacao: textoIdentificacao,
++      texto_recomendacao: textoRecomendacao,
++      medida_controle: medidaControle,
++    })
++
++    if (error || !data) {
++      setErro('Erro ao salvar NC: ' + error)
++      setSalvando(false)
++      return
++    }
++
++    onCriada(data)
++  }
++
++  return (
++    <form onSubmit={handleSubmit} className="space-y-4">
++
++      {/* PASSO 1 — Capítulo */}
++      <div>
++        <label className="label">Capítulo da NR-12</label>
++        <select
++          value={capitulo}
++          onChange={e => { setCapitulo(e.target.value); resetCampos() }}
++          className="input"
++        >
++          <option value="">Selecione o capítulo...</option>
++          {CAPITULOS_NR12.map(c => (
++            <option key={c.codigo} value={c.codigo}>{c.nome}</option>
++          ))}
++        </select>
++      </div>
++
++      {/* PASSO 2 — Item específico da lista estática */}
++      {capitulo && (
++        <div>
++          <label className="label">Não Conformidade</label>
++          <select
++            value={itemNR12}
++            onChange={e => handleSelecionarItem(e.target.value)}
++            className="input"
++          >
++            <option value="">Selecione a não conformidade...</option>
++            {itensDoCapitulo.map(item => (
++              <option key={item.codigo} value={item.codigo}>
++                {item.codigo} — {item.titulo}
++              </option>
++            ))}
++          </select>
++        </div>
++      )}
++
++      {/* Confirmação visual do item + indicador de banco */}
++      {itemNR12 && (
++        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-sm flex items-center justify-between gap-2">
++          <div className="min-w-0">
++            <span className="font-mono text-blue-800 font-semibold">{itemNR12}</span>
++            <span className="text-blue-900 ml-2 text-xs">{tituloNC}</span>
++          </div>
++          {temTextoBanco
++            ? <span className="text-xs text-green-600 font-medium shrink-0">✓ texto automático</span>
++            : <span className="text-xs text-amber-600 shrink-0">preencha os textos</span>
++          }
++        </div>
++      )}
++
++      {/* Risco — sempre digitado pelo usuário */}
++      {itemNR12 && (
++        <div>
++          <label className="label">Risco identificado</label>
++          <input
++            type="text"
++            value={risco}
++            onChange={e => setRisco(e.target.value)}
++            className="input"
++            placeholder="Ex: Choque elétrico, aprisionamento, queda..."
++          />
++        </div>
++      )}
++
++      {/* Calculadora HRN */}
++      {itemNR12 && (
++        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
++          <CalculadoraHRN lo={lo} fe={fe} dph={dph} np={np} onChange={handleHRNChange} />
++        </div>
++      )}
++
++      {/* Textos técnicos */}
++      {itemNR12 && (
++        <div className="space-y-3">
++          <p className="text-sm font-semibold text-gray-700">Textos Técnicos</p>
++          <div>
++            <label className="label text-xs">Identificação do Risco</label>
++            <textarea
++              value={textoIdentificacao}
++              onChange={e => setTextoIdentificacao(e.target.value)}
++              className="input min-h-[80px] resize-y text-sm"
++              placeholder="Descreva a não conformidade identificada..."
++              rows={3}
++            />
++          </div>
++          <div>
++            <label className="label text-xs">Recomendação</label>
++            <textarea
++              value={textoRecomendacao}
++              onChange={e => setTextoRecomendacao(e.target.value)}
++              className="input min-h-[70px] resize-y text-sm"
++              placeholder="Ação corretiva recomendada..."
++              rows={3}
++            />
++          </div>
++          <div>
++            <label className="label text-xs">Medida de Controle</label>
++            <input
++              type="text"
++              value={medidaControle}
++              onChange={e => setMedidaControle(e.target.value)}
++              className="input text-sm"
++              placeholder="Ex: Instalação de botão de emergência tipo cogumelo"
++            />
++          </div>
++        </div>
++      )}
++
++      {erro && (
++        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-sm">
++          {erro}
++        </div>
++      )}
++
++      <div className="flex gap-2">
++        <button
++          type="submit"
++          disabled={salvando || !itemNR12}
++          className="btn-primary flex-1"
++        >
++          {salvando ? 'Salvando...' : 'Adicionar NC'}
++        </button>
++        <button type="button" onClick={onCancelar} className="btn-secondary">
++          Cancelar
++        </button>
++      </div>
++    </form>
++  )
++}

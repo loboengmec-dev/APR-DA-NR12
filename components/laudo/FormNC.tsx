@@ -11,10 +11,11 @@ interface FormNCProps {
   equipamentoId: string
   laudoId: string
   onCriada: (nc: NaoConformidade) => void
+  onCriarOutra?: (nc: NaoConformidade) => void
   onCancelar: () => void
 }
 
-export default function FormNC({ equipamentoId, laudoId, onCriada, onCancelar }: FormNCProps) {
+export default function FormNC({ equipamentoId, laudoId, onCriada, onCriarOutra, onCancelar }: FormNCProps) {
   const [capitulo, setCapitulo] = useState('')
   const [itemNR12, setItemNR12] = useState('')
   const [tituloNC, setTituloNC] = useState('')
@@ -28,15 +29,22 @@ export default function FormNC({ equipamentoId, laudoId, onCriada, onCancelar }:
   const [medidaControle, setMedidaControle] = useState('')
   const [temTextoBanco, setTemTextoBanco] = useState(false)
   const [salvando, setSalvando] = useState(false)
+  const [salvarEContinuar, setSalvarEContinuar] = useState(false)
   const [erro, setErro] = useState('')
 
+  const [capituloApoio, setCapituloApoio] = useState('')
+  const [alineaSelecionada, setAlineaSelecionada] = useState('')
+
   const itensDoCapitulo = capitulo ? itensPorCapitulo(capitulo) : []
+  const itensDoCapituloApoio = capituloApoio ? itensPorCapitulo(capituloApoio) : []
 
   function resetCampos() {
     setItemNR12(''); setTituloNC(''); setRisco('')
     setLo(null); setFe(null); setDph(null); setNp(null)
     setTextoIdentificacao(''); setTextoRecomendacao(''); setMedidaControle('')
     setTemTextoBanco(false)
+    setAlineaSelecionada('')
+    setCapituloApoio('')
   }
 
   // Ao selecionar um item da lista estática: busca texto no banco e auto-popula
@@ -72,6 +80,42 @@ export default function FormNC({ equipamentoId, laudoId, onCriada, onCancelar }:
     }
   }
 
+  // Permite adicionar mais alíneas à NC que está sendo criada
+  async function handleAdicionarAlinea(codigo: string) {
+    const itemEscolhido = ITENS_NR12.find(i => i.codigo === codigo)
+    if (!itemEscolhido) return
+
+    setItemNR12(prev => {
+      if (!prev) return codigo
+      const lista = prev.split(',').map((s: string) => s.trim())
+      if (!lista.includes(codigo)) lista.push(codigo)
+      return lista.join(', ')
+    })
+
+    setTituloNC(prev => {
+      if (!prev) return itemEscolhido.titulo
+      return prev + ' / ' + itemEscolhido.titulo
+    })
+
+    // Busca se essa alínea extra tem textos adicionais para somar
+    const textos = await buscarTextosPorItem(codigo)
+    const texto = textos[0]
+    if (texto) {
+      if (texto.texto_identificacao) setTextoIdentificacao(prev => prev ? prev + '\n\n' + texto.texto_identificacao : (texto.texto_identificacao || ''))
+      if (texto.texto_recomendacao) setTextoRecomendacao(prev => prev ? prev + '\n\n' + texto.texto_recomendacao : (texto.texto_recomendacao || ''))
+      if (texto.medida_controle) setMedidaControle(prev => prev ? prev + '\n\n' + texto.medida_controle : (texto.medida_controle || ''))
+      if (texto.risco && !risco) setRisco(texto.risco)
+      if (texto.hrn_tipico_json && lo === null) {
+        const hrn = texto.hrn_tipico_json as Record<string, number>
+        if (hrn.LO) setLo(hrn.LO)
+        if (hrn.FE) setFe(hrn.FE)
+        if (hrn.DPH) setDph(hrn.DPH)
+        if (hrn.NP) setNp(hrn.NP)
+      }
+    }
+    setAlineaSelecionada('')
+  }
+
   function handleHRNChange(campo: 'lo' | 'fe' | 'dph' | 'np', valor: number) {
     if (campo === 'lo') setLo(valor)
     if (campo === 'fe') setFe(valor)
@@ -102,10 +146,19 @@ export default function FormNC({ equipamentoId, laudoId, onCriada, onCancelar }:
     if (error || !data) {
       setErro('Erro ao salvar NC: ' + error)
       setSalvando(false)
+      setSalvarEContinuar(false)
       return
     }
 
-    onCriada(data)
+    if (salvarEContinuar && onCriarOutra) {
+      onCriarOutra(data)
+      resetCampos()
+      setCapitulo('')
+      setSalvando(false)
+      setSalvarEContinuar(false)
+    } else {
+      onCriada(data)
+    }
   }
 
   return (
@@ -128,34 +181,90 @@ export default function FormNC({ equipamentoId, laudoId, onCriada, onCancelar }:
 
       {/* PASSO 2 — Item específico da lista estática */}
       {capitulo && (
-        <div>
-          <label className="label">Não Conformidade</label>
-          <select
-            value={itemNR12}
-            onChange={e => handleSelecionarItem(e.target.value)}
-            className="input"
-          >
-            <option value="">Selecione a não conformidade...</option>
-            {itensDoCapitulo.map(item => (
-              <option key={item.codigo} value={item.codigo}>
-                {item.codigo} — {item.titulo}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="label">Item Principal da NR-12</label>
+            <select
+              value={itemNR12.split(',')[0] || ''}
+              onChange={e => handleSelecionarItem(e.target.value)}
+              className="input"
+            >
+              <option value="">Selecione o item principal...</option>
+              {itensDoCapitulo.map(item => (
+                <option key={item.codigo} value={item.codigo}>
+                  {item.codigo} — {item.titulo}
+                </option>
+              ))}
+            </select>
+            {temTextoBanco && <p className="text-xs text-green-600 mt-1">✓ Texto automático carregado</p>}
+          </div>
+
+          {/* Adicionador de múltiplas alíneas */}
+          {itemNR12 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <label className="label text-xs font-semibold text-blue-900 mb-2">Adicionar mais itens a este risco</label>
+              <div className="space-y-2">
+                <select
+                  value={capituloApoio}
+                  onChange={e => setCapituloApoio(e.target.value)}
+                  className="input text-sm"
+                >
+                  <option value="">Mudar capítulo (opcional)...</option>
+                  {CAPITULOS_NR12.map(c => (
+                    <option key={c.codigo} value={c.codigo}>{c.nome}</option>
+                  ))}
+                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={alineaSelecionada}
+                    onChange={e => setAlineaSelecionada(e.target.value)}
+                    className="input text-sm flex-1 truncate"
+                  >
+                    <option value="">Selecione a alínea extra...</option>
+                    {(capituloApoio ? itensDoCapituloApoio : itensDoCapitulo).map(item => (
+                      <option key={item.codigo} value={item.codigo}>
+                        {item.codigo} — {item.titulo}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn-primary text-xs px-3 whitespace-nowrap"
+                    onClick={() => handleAdicionarAlinea(alineaSelecionada)}
+                    disabled={!alineaSelecionada}
+                  >
+                    Somar (+1)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Confirmação visual do item + indicador de banco */}
+      {/* Confirmação e Edição Manuais de Item e Título (Agregando múltiplas) */}
       {itemNR12 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-sm flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <span className="font-mono text-blue-800 font-semibold">{itemNR12}</span>
-            <span className="text-blue-900 ml-2 text-xs">{tituloNC}</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="md:col-span-1">
+            <label className="label">Itens da NR-12 Mapeados</label>
+            <input
+              type="text"
+              value={itemNR12}
+              onChange={e => setItemNR12(e.target.value)}
+              className="input font-mono text-blue-800"
+              required
+            />
           </div>
-          {temTextoBanco
-            ? <span className="text-xs text-green-600 font-medium shrink-0">✓ texto automático</span>
-            : <span className="text-xs text-amber-600 shrink-0">preencha os textos</span>
-          }
+          <div className="md:col-span-2">
+            <label className="label">Título(s) da Não Conformidade</label>
+            <input
+              type="text"
+              value={tituloNC}
+              onChange={e => setTituloNC(e.target.value)}
+              className="input text-blue-900"
+              required
+            />
+          </div>
         </div>
       )}
 
@@ -223,16 +332,30 @@ export default function FormNC({ equipamentoId, laudoId, onCriada, onCancelar }:
         </div>
       )}
 
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={salvando || !itemNR12}
-          className="btn-primary flex-1"
-        >
-          {salvando ? 'Salvando...' : 'Adicionar NC'}
-        </button>
-        <button type="button" onClick={onCancelar} className="btn-secondary">
-          Cancelar
+      <div className="flex flex-col gap-3 pt-2">
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            onClick={() => setSalvarEContinuar(false)}
+            disabled={salvando || !itemNR12}
+            className="btn-primary flex-1"
+          >
+            {salvando && !salvarEContinuar ? 'Salvando...' : 'Adicionar NC e Fechar'}
+          </button>
+          
+          {onCriarOutra && (
+            <button
+              type="submit"
+              onClick={() => setSalvarEContinuar(true)}
+              disabled={salvando || !itemNR12}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg flex-1 transition-colors"
+            >
+              {salvando && salvarEContinuar ? 'Salvando...' : 'Salvar e Adicionar Outra'}
+            </button>
+          )}
+        </div>
+        <button type="button" onClick={onCancelar} className="btn-secondary w-full">
+          Cancelar Adição
         </button>
       </div>
     </form>
