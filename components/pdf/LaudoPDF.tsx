@@ -377,9 +377,17 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                   Categoria NBR 14153: {eq.categoria_resultado ?? '—'} | S{eq.categoria_s ?? '?'} · F{eq.categoria_f ?? '?'} · P{eq.categoria_p ?? '?'}
                 </Text>
                 
+                {/* Foto geral do equipamento */}
+                {fotosUrl[`eq_${eq.id}`] ? (
+                  <View style={{ marginBottom: 12, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
+                    <PDFImage src={fotosUrl[`eq_${eq.id}`]} style={{ width: '100%', height: 200, objectFit: 'cover' }} />
+                    <Text style={{ fontSize: 8, color: THEME.textSecondary, padding: 6, backgroundColor: THEME.greyCard }}>Vista geral — {eq.nome}</Text>
+                  </View>
+                ) : null}
+
                 {/* As NCs agora seguem diretamente dentro deste fluxo ou como "cartões embutidos" */}
                 {ncs.map((nc: any, ncIdx: number) => {
-                  const fotoPrincipal = (nc.fotos_nc ?? [])[0]
+                  const fotosNC = nc.fotos_nc ?? []
                   const colorHex = nc.nivel_hrn ? COR_HRN[nc.nivel_hrn] : THEME.redMain
                   
                   return (
@@ -391,8 +399,8 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                         <View style={styles.ncColLeft}>
                           <View style={styles.photoCard}>
                             <View style={styles.photoWrapper}>
-                              {fotoPrincipal && fotosUrl[fotoPrincipal.id] ? (
-                                <PDFImage src={fotosUrl[fotoPrincipal.id]} style={styles.fotoNC} />
+                              {fotosNC.length > 0 && fotosUrl[fotosNC[0].id] ? (
+                                <PDFImage src={fotosUrl[fotosNC[0].id]} style={styles.fotoNC} />
                               ) : (
                                 <View style={styles.semFotoBox}>
                                   <Text style={{color: '#94a3b8', fontSize: 10}}>Sem Imagem</Text>
@@ -400,7 +408,7 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                               )}
                             </View>
                             <Text style={styles.photoCaption}>
-                              {fotoPrincipal?.legenda || nc.texto_identificacao || 'Ponto de perigo não especificado'}
+                              {fotosNC[0]?.legenda || nc.texto_identificacao || 'Ponto de perigo não especificado'}
                             </Text>
                           </View>
                         </View>
@@ -429,6 +437,22 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                           </View>
                         </View>
                       </View>
+
+                      {/* FOTOS ADICIONAIS DA NC (2ª em diante) */}
+                      {fotosNC.length > 1 ? (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8, marginHorizontal: -2 }}>
+                          {fotosNC.slice(1).map((foto: any) => (
+                            fotosUrl[foto.id] ? (
+                              <View key={foto.id} style={{ width: '50%', paddingHorizontal: 2, marginBottom: 4 }}>
+                                <View style={{ borderRadius: 6, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
+                                  <PDFImage src={fotosUrl[foto.id]} style={{ width: '100%', height: 100, objectFit: 'cover' }} />
+                                  {foto.legenda ? <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 4 }}>{foto.legenda}</Text> : null}
+                                </View>
+                              </View>
+                            ) : null
+                          ))}
+                        </View>
+                      ) : null}
 
                       {/* PAINEL INFERIOR DETALHES DA NC */}
                       <View style={styles.ncDetailsBox}>
