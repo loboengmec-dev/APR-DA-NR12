@@ -374,16 +374,67 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                 </View>
                 
                 <Text style={styles.eqSub}>
-                  Categoria NBR 14153: {eq.categoria_resultado ?? '—'} | S{eq.categoria_s ?? '?'} · F{eq.categoria_f ?? '?'} · P{eq.categoria_p ?? '?'}
+                  Categoria NBR 14153: {eq.categoria_resultado ?? '—'} | {eq.categoria_s ?? 'S?'} · {eq.categoria_f ?? 'F?'} · {eq.categoria_p ?? 'P?'}
                 </Text>
                 
                 {/* Foto geral do equipamento */}
                 {fotosUrl[`eq_${eq.id}`] ? (
-                  <View style={{ marginBottom: 12, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
+                  <View style={{ marginBottom: 16, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
                     <PDFImage src={fotosUrl[`eq_${eq.id}`]} style={{ width: '100%', height: 200, objectFit: 'cover' }} />
                     <Text style={{ fontSize: 8, color: THEME.textSecondary, padding: 6, backgroundColor: THEME.greyCard }}>Vista geral — {eq.nome}</Text>
                   </View>
                 ) : null}
+
+                {/* Resumo Dinâmico do Equipamento */}
+                <View style={{ marginBottom: 24, backgroundColor: THEME.bg, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: THEME.borderLight }} wrap={false}>
+                  <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, marginBottom: 10 }}>Resumo de Diagnóstico — {eq.nome}</Text>
+                  
+                  {/* Cards KPIs */}
+                  <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+                    <View style={{ flex: 1, backgroundColor: THEME.cardBg, padding: 10, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight, marginRight: 8 }}>
+                      <Text style={{ fontSize: 8, color: THEME.textSecondary, textTransform: 'uppercase' }}>Volume de Riscos</Text>
+                      <Text style={{ fontSize: 18, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, marginTop: 4 }}>{ncs.length} <Text style={{ fontSize: 9, color: THEME.textSecondary, fontFamily: 'Helvetica' }}>NCs</Text></Text>
+                    </View>
+                    <View style={{ flex: 1, backgroundColor: THEME.cardBg, padding: 10, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight, marginRight: 8, borderLeftWidth: 3, borderLeftColor: THEME.redMain }}>
+                      <Text style={{ fontSize: 8, color: THEME.textSecondary, textTransform: 'uppercase' }}>Maior Índice HRN</Text>
+                      <Text style={{ fontSize: 18, fontFamily: 'Helvetica-Bold', color: THEME.redMain, marginTop: 4 }}>
+                        {ncs.length > 0 ? Math.max(...ncs.map((nc: any) => parseFloat(nc.hrn || '0'))) : '0'}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, backgroundColor: THEME.cardBg, padding: 10, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight, borderLeftWidth: 3, borderLeftColor: THEME.blue }}>
+                      <Text style={{ fontSize: 8, color: THEME.textSecondary, textTransform: 'uppercase' }}>Categoria NBR</Text>
+                      <Text style={{ fontSize: 18, fontFamily: 'Helvetica-Bold', color: THEME.blue, marginTop: 4 }}>
+                        {eq.categoria_resultado ?? 'N/A'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Tabela Resumo das NCs */}
+                  {ncs.length > 0 ? (
+                    <View style={[styles.table, { marginBottom: 0 }]}>
+                      <View style={styles.tableHeader}>
+                        <Text style={[styles.tableCellHeader, { flex: 0.15 }]}>Item</Text>
+                        <Text style={[styles.tableCellHeader, { flex: 0.65 }]}>Não Conformidade Encontrada</Text>
+                        <Text style={[styles.tableCellHeader, { flex: 0.2 }]}>HRN</Text>
+                      </View>
+                      {ncs.map((nc: any, nIdx: number) => {
+                        const rowColorHex = nc.nivel_hrn ? COR_HRN[nc.nivel_hrn] : THEME.redMain;
+                        return (
+                          <View key={nc.id} style={nIdx % 2 === 1 ? styles.tableRowAlt : styles.tableRow}>
+                            <Text style={[styles.tableCell, { flex: 0.15, fontFamily: 'Helvetica-Bold' }]}>{nc.item_nr12 || '--'}</Text>
+                            <Text style={[styles.tableCell, { flex: 0.65, color: THEME.textPrimary }]}>{nc.titulo_nc || 'Risco identificado'}</Text>
+                            <View style={{ flex: 0.2, flexDirection: 'row', alignItems: 'center' }}>
+                              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: rowColorHex, marginRight: 4 }} />
+                              <Text style={{ fontSize: 8, color: THEME.textPrimary, fontFamily: 'Helvetica-Bold' }}>{nc.hrn ?? '--'}</Text>
+                            </View>
+                          </View>
+                        )
+                      })}
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 9, color: THEME.textSecondary, fontStyle: 'italic' }}>Nenhuma não conformidade registrada neste equipamento.</Text>
+                  )}
+                </View>
 
                 {/* As NCs agora seguem diretamente dentro deste fluxo ou como "cartões embutidos" */}
                 {ncs.map((nc: any, ncIdx: number) => {
