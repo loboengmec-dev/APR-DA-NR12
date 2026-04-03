@@ -391,143 +391,119 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                   const colorHex = nc.nivel_hrn ? COR_HRN[nc.nivel_hrn] : THEME.redMain
                   
                   return (
-                    <View key={nc.id} style={{ marginBottom: 24 }} wrap={false}>
+                    <View key={nc.id} style={{ marginBottom: 24, backgroundColor: THEME.cardBg, borderRadius: 8, borderWidth: 1, borderColor: THEME.borderLight, overflow: 'hidden' }} wrap={false}>
                       
-                      {/* PAINEL DUPLO FOTO + HRN */}
-                      <View style={styles.ncGrid}>
-                        {/* Esquerda: Foto */}
-                        <View style={styles.ncColLeft}>
-                          <View style={styles.photoCard}>
-                            <View style={styles.photoWrapper}>
-                              {fotosNC.length > 0 && fotosUrl[fotosNC[0].id] ? (
-                                <PDFImage src={fotosUrl[fotosNC[0].id]} style={styles.fotoNC} />
-                              ) : (
-                                <View style={styles.semFotoBox}>
-                                  <Text style={{color: '#94a3b8', fontSize: 10}}>Sem Imagem</Text>
-                                </View>
-                              )}
-                            </View>
-                            <Text style={styles.photoCaption}>
-                              {fotosNC[0]?.legenda || nc.texto_identificacao || 'Ponto de perigo não especificado'}
-                            </Text>
-                          </View>
-                        </View>
-                        
-                        {/* Direita: Card HRN */}
-                        <View style={styles.ncColRight}>
-                          <View style={styles.hrnCard}>
-                            <Text style={styles.ncLabelMini}>NC {String(ncIdx + 1).padStart(2, '0')}</Text>
-                            <Text style={styles.ncTitleMini}>{nc.titulo_nc || 'Risco indentificado'}</Text>
-                            
-                            <View style={[styles.hrnBoxRed, { backgroundColor: colorHex }]}>
-                              <Text style={styles.hrnBoxLabel}>HRN:</Text>
-                              <View style={{ alignItems: 'flex-end' }}>
-                                <Text style={styles.hrnBoxValueText}>{nc.hrn ?? '---'}</Text>
-                                <Text style={styles.hrnBoxRisk}>{nc.nivel_hrn ? labelNivelHRN(nc.nivel_hrn as NivelHRN) : 'N/A'}</Text>
-                              </View>
-                            </View>
-                            
-                            <View style={{ marginTop: 2 }}>
-                              <HRNBars label="Probabilidade" value={nc.lo} max={5} />
-                              <HRNBars label="LO" value={nc.lo} max={5} />
-                              <HRNBars label="FE" value={nc.fe} max={5} />
-                              <HRNBars label="NP" value={nc.np} max={5} />
-                              <HRNBars label="DPH" value={nc.dph} max={5} />
-                            </View>
-                          </View>
-                        </View>
+                      {/* TOP: CANVAS DA FOTO PRINCIPAL (Otimizado Retrato) */}
+                      <View style={{ width: '100%', height: 260, backgroundColor: THEME.greyCard, justifyContent: 'center', alignItems: 'center' }}>
+                        {fotosNC.length > 0 && fotosUrl[fotosNC[0].id] ? (
+                          <PDFImage src={fotosUrl[fotosNC[0].id]} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        ) : (
+                          <Text style={{color: '#94a3b8', fontSize: 12}}>Sem Imagem</Text>
+                        )}
                       </View>
-
-                      {/* FOTOS ADICIONAIS DA NC (2ª em diante) */}
-                      {fotosNC.length > 1 ? (
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8, marginHorizontal: -2 }}>
-                          {fotosNC.slice(1).map((foto: any) => (
-                            fotosUrl[foto.id] ? (
-                              <View key={foto.id} style={{ width: '50%', paddingHorizontal: 2, marginBottom: 4 }}>
-                                <View style={{ borderRadius: 6, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
-                                  <PDFImage src={fotosUrl[foto.id]} style={{ width: '100%', height: 100, objectFit: 'cover' }} />
-                                  {foto.legenda ? <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 4 }}>{foto.legenda}</Text> : null}
-                                </View>
-                              </View>
-                            ) : null
-                          ))}
-                        </View>
-                      ) : null}
-
-                      {/* PAINEL INFERIOR DETALHES DA NC */}
-                      <View style={styles.ncDetailsBox}>
-                        
-                        <View style={styles.ncSubtitleRow}>
-                          <Text style={styles.ncSubtitle}>
-                            NC {String(ncIdx + 1).padStart(2, '0')} — {nc.titulo_nc}
-                          </Text>
-                          <View style={[styles.hrnPill, { backgroundColor: THEME.redLight }]}>
-                            <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.redDark }}>
-                              HRN: {nc.hrn ?? '--'} <Text style={{ fontSize: 7 }}>{nc.nivel_hrn ? labelNivelHRN(nc.nivel_hrn as NivelHRN) : ''}</Text>
+                      
+                      <View style={{ padding: 16 }}>
+                        {/* CABEÇALHO E METADADOS */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingBottom: 10 }}>
+                          <View style={{ flex: 1, paddingRight: 10 }}>
+                            <Text style={{ fontSize: 13, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>
+                              NC {String(ncIdx + 1).padStart(2, '0')} — {nc.titulo_nc || 'Risco identificado'}
+                            </Text>
+                            <Text style={{ fontSize: 9, color: THEME.textSecondary, marginTop: 4 }}>
+                              Legenda: {fotosNC[0]?.legenda || 'Nenhuma legenda informada para a foto principal.'}
                             </Text>
                           </View>
-                        </View>
-                        
-                        <View style={styles.ncMetaRow}>
-                          <Text style={styles.ncMetaItem}>NR-12: <Text style={styles.ncMetaValue}>{nc.item_nr12 || '--'}</Text></Text>
-                          <Text style={styles.ncMetaItem}>Risco: <Text style={styles.ncMetaValue}>{nc.risco || '--'}</Text></Text>
+                          <View style={{ alignItems: 'flex-end', backgroundColor: THEME.bg, padding: 6, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight }}>
+                            <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Referência Normativa</Text>
+                            <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.blue, marginTop: 2 }}>Item {nc.item_nr12 || '--'}</Text>
+                          </View>
                         </View>
 
-                        {/* Diagnóstico */}
-                        {nc.texto_identificacao ? (
-                          <View style={styles.detailSection}>
-                            <View style={styles.detailTitleBox}>
-                              <Text style={styles.detailTitle}>Diagnóstico</Text>
+                        {/* DUAS COLUNAS: ESQUERDA (TEXTOS) | DIREITA (HRN) */}
+                        <View style={{ flexDirection: 'row', marginHorizontal: -8 }}>
+                          
+                          {/* Coluna Esquerda: Textos descritivos */}
+                          <View style={{ flex: 0.65, paddingHorizontal: 8 }}>
+                            <View style={{ flexDirection: 'row', marginBottom: 10, alignItems: 'center' }}>
+                              <Text style={{ fontSize: 9, color: THEME.textSecondary, marginRight: 6 }}>Risco Associado:</Text>
+                              <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{nc.risco || 'Não informado'}</Text>
                             </View>
-                            <Text style={[styles.detailText, { marginLeft: 0 }]}>{nc.texto_identificacao}</Text>
-                          </View>
-                        ) : null}
-                        
-                        {/* Recomendação */}
-                        {nc.texto_recomendacao ? (
-                          <View style={styles.detailSection}>
-                            <View style={styles.detailTitleBox}>
-                              <View style={styles.iconCircle}><Text style={styles.iconCheck}>✓</Text></View>
-                              <Text style={styles.detailTitle}>Recomendação</Text>
-                            </View>
-                            
-                            <View style={styles.bulletList}>
-                              <View style={styles.bulletItem}>
-                                <Text style={styles.bulletArrow}>→</Text>
-                                <Text style={styles.bulletText}>{nc.texto_recomendacao}</Text>
+
+                            {/* Diagnóstico */}
+                            {nc.texto_identificacao ? (
+                              <View style={{ marginBottom: 12 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                  <View style={{ width: 4, height: 10, backgroundColor: THEME.blue, marginRight: 6, borderRadius: 2 }} />
+                                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Diagnóstico da Situação</Text>
+                                </View>
+                                <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 10 }}>{nc.texto_identificacao}</Text>
                               </View>
-                              
-                              {/* Quadradinhos Visuais Decorativos */}
-                              <View style={[styles.bulletItem, { marginTop: 4 }]}>
-                                <Text style={styles.bulletArrowSub}>→</Text>
-                                <View style={styles.recBlocks}>
-                                  <View style={styles.recBlockRed} />
-                                  <View style={styles.recBlockOrange} />
-                                  <View style={styles.recBlockYellow} />
-                                  <View style={styles.recBlockGrey} />
+                            ) : null}
+
+                            {/* Recomendação */}
+                            {nc.texto_recomendacao ? (
+                              <View style={{ marginBottom: 12 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                  <View style={{ width: 4, height: 10, backgroundColor: '#ea580c', marginRight: 6, borderRadius: 2 }} />
+                                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Ação Recomendada (NR-12)</Text>
+                                </View>
+                                <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 10 }}>{nc.texto_recomendacao}</Text>
+                              </View>
+                            ) : null}
+
+                            {/* Medidas Complementares */}
+                            {nc.medida_controle ? (
+                              <View style={{ marginBottom: 12 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                  <View style={{ width: 4, height: 10, backgroundColor: '#22c55e', marginRight: 6, borderRadius: 2 }} />
+                                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Medidas Complementares de Controle</Text>
+                                </View>
+                                <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 10 }}>{nc.medida_controle}</Text>
+                              </View>
+                            ) : null}
+
+                            {/* FOTOS ADICIONAIS */}
+                            {fotosNC.length > 1 ? (
+                              <View style={{ marginTop: 8, borderTopWidth: 1, borderTopColor: THEME.borderLight, paddingTop: 10 }}>
+                                <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, marginBottom: 8 }}>Fotos Adicionais da NC</Text>
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -3 }}>
+                                  {fotosNC.slice(1).map((foto: any) => (
+                                    fotosUrl[foto.id] ? (
+                                      <View key={foto.id} style={{ width: '50%', paddingHorizontal: 3, marginBottom: 6 }}>
+                                        <View style={{ borderRadius: 6, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
+                                          <PDFImage src={fotosUrl[foto.id]} style={{ width: '100%', height: 110, objectFit: 'cover' }} />
+                                          {foto.legenda ? <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 5 }}>{foto.legenda}</Text> : null}
+                                        </View>
+                                      </View>
+                                    ) : null
+                                  ))}
                                 </View>
                               </View>
-                            </View>
+                            ) : null}
                           </View>
-                        ) : null}
 
-                        {/* Medidas Complementares */}
-                        {nc.medida_controle ? (
-                          <View style={styles.detailSection}>
-                            <View style={styles.detailTitleBox}>
-                              <View style={styles.iconCircle}><Text style={styles.iconCheck}>✓</Text></View>
-                              <Text style={styles.detailTitle}>Medidas Complementares</Text>
-                            </View>
-                            
-                            <View style={styles.bulletList}>
-                              <View style={styles.bulletItem}>
-                                <Text style={styles.bulletArrow}>→</Text>
-                                <Text style={styles.bulletText}>{nc.medida_controle}</Text>
+                          {/* Coluna Direita: HRN Card Compactado */}
+                          <View style={{ flex: 0.35, paddingHorizontal: 8 }}>
+                            <View style={{ backgroundColor: THEME.bg, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: THEME.borderLight }}>
+                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, marginBottom: 8, textAlign: 'center' }}>Classificação HRN</Text>
+                              
+                              <View style={{ backgroundColor: colorHex, borderRadius: 6, paddingVertical: 12, paddingHorizontal: 10, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text style={{ color: '#ffffff', fontSize: 11, fontFamily: 'Helvetica-Bold' }}>ÍNDICE</Text>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                  <Text style={{ color: '#ffffff', fontSize: 20, fontFamily: 'Helvetica-Bold' }}>{nc.hrn ?? '---'}</Text>
+                                  <Text style={{ color: '#ffffff', fontSize: 7, textTransform: 'uppercase' }}>{nc.nivel_hrn ? labelNivelHRN(nc.nivel_hrn as NivelHRN) : 'N/A'}</Text>
+                                </View>
+                              </View>
+
+                              <View style={{ gap: 4 }}>
+                                <HRNBars label="Probab. (LO)" value={nc.lo} max={5} />
+                                <HRNBars label="Frequê. (FE)" value={nc.fe} max={5} />
+                                <HRNBars label="Danos (DPH)" value={nc.dph} max={5} />
+                                <HRNBars label="Pessoas (NP)" value={nc.np} max={5} />
                               </View>
                             </View>
                           </View>
-                        ) : null}
-                        
+                        </View>
                       </View>
                     </View>
                   )
