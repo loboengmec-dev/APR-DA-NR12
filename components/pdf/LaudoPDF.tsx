@@ -6,9 +6,18 @@ import {
   View,
   StyleSheet,
   Image as PDFImage,
+  Font,
 } from '@react-pdf/renderer'
 import { labelNivelHRN } from '@/lib/hrn'
 import type { NivelHRN } from '@/types'
+
+Font.register({
+  family: 'Roboto',
+  fonts: [
+    { src: 'https://fonts.gstatic.com/s/roboto/v29/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf', fontWeight: 400 },
+    { src: 'https://fonts.gstatic.com/s/roboto/v29/KFOlCnqEu92Fr1MmWUlvAx05IsDqlA.ttf', fontWeight: 700 },
+  ]
+})
 
 const THEME = {
   bg: '#f8fafc',
@@ -26,9 +35,9 @@ const THEME = {
 
 const styles = StyleSheet.create({
   page: {
-    fontFamily: 'Helvetica',
+    fontFamily: 'Roboto',
     fontSize: 10,
-    backgroundColor: THEME.bg,
+    backgroundColor: THEME.cardBg, // White background overall for cleaner borderless look
     color: THEME.textPrimary,
     paddingTop: 60,
     paddingBottom: 50,
@@ -37,18 +46,18 @@ const styles = StyleSheet.create({
   pageContent: { marginHorizontal: 40 },
   
   // Headings globais
-  h1: { fontSize: 18, fontFamily: 'Helvetica-Bold', color: THEME.blue, marginBottom: 4, textAlign: 'center' },
-  h2: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: THEME.blue, marginBottom: 8, marginTop: 12, borderBottomWidth: 1, borderBottomColor: THEME.border, paddingBottom: 4 },
-  h3: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, marginBottom: 6, marginTop: 8 },
-  p: { fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, marginBottom: 6, textAlign: 'justify' },
+  h1: { fontSize: 24, fontWeight: 700, color: THEME.textPrimary, marginBottom: 4 },
+  h2: { fontSize: 13, fontWeight: 700, color: THEME.blue, marginBottom: 8, marginTop: 16, borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingBottom: 4 },
+  h3: { fontSize: 11, fontWeight: 700, color: THEME.textPrimary, marginBottom: 6, marginTop: 8 },
+  p: { fontSize: 9, color: THEME.textSecondary, lineHeight: 1.6, marginBottom: 8, textAlign: 'justify' },
   
   // Cabeçalho Fixo
   header: {
     position: 'absolute', top: 20, left: 40, right: 40,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-    borderBottomWidth: 1, borderBottomColor: THEME.border, paddingBottom: 6,
+    borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingBottom: 8,
   },
-  headerTitle: { fontSize: 9, color: THEME.blue, fontFamily: 'Helvetica-Bold' },
+  headerTitle: { fontSize: 9, color: THEME.blue, fontWeight: 700 },
   headerSub: { fontSize: 7, color: THEME.textSecondary, marginTop: 2 },
   
   // Rodapé Fixo
@@ -59,20 +68,20 @@ const styles = StyleSheet.create({
   },
   footerText: { fontSize: 7, color: THEME.textSecondary },
 
-  // Cartão Genérico e Tabelas Antigas
+  // Cartão Genérico e Tabelas Modernizadas
   card: {
-    backgroundColor: THEME.cardBg,
-    borderRadius: 8, borderWidth: 1, borderColor: THEME.borderLight,
+    backgroundColor: THEME.bg, // Grayish background to highlight block without borders
+    borderRadius: 8,
     padding: 16, marginBottom: 16,
   },
-  table: { width: '100%', marginBottom: 12, borderRadius: 6, borderWidth: 1, borderColor: THEME.border, overflow: 'hidden' },
-  tableHeader: { flexDirection: 'row', backgroundColor: THEME.borderLight, padding: 6, borderBottomWidth: 1, borderBottomColor: THEME.border },
-  tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: THEME.border, padding: 6, backgroundColor: THEME.cardBg },
-  tableRowAlt: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: THEME.border, padding: 6, backgroundColor: THEME.bg },
-  tableCell: { fontSize: 8, flex: 1, paddingHorizontal: 2, color: THEME.textSecondary },
-  tableCellHeader: { fontSize: 8, flex: 1, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, paddingHorizontal: 2 },
-  hierarquiaItem: { flexDirection: 'row', marginBottom: 6, backgroundColor: THEME.cardBg, padding: 8, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight },
-  hierarquiaOrd: { fontSize: 10, fontFamily: 'Helvetica-Bold', width: 24, color: THEME.blue },
+  table: { width: '100%', marginBottom: 12 },
+  tableHeader: { flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 2, borderBottomColor: THEME.border },
+  tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingVertical: 8 },
+  tableRowAlt: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingVertical: 8 },
+  tableCell: { fontSize: 8, flex: 1, paddingHorizontal: 4, color: THEME.textSecondary },
+  tableCellHeader: { fontSize: 8, flex: 1, fontWeight: 700, color: THEME.textPrimary, paddingHorizontal: 4 },
+  hierarquiaItem: { flexDirection: 'row', marginBottom: 8, backgroundColor: THEME.bg, padding: 12, borderRadius: 6 },
+  hierarquiaOrd: { fontSize: 10, fontWeight: 700, width: 24, color: THEME.blue },
 
   // Estrutura Base de Equipamento (O Grande Card)
   eqContainer: {
@@ -89,15 +98,15 @@ const styles = StyleSheet.create({
   },
   eqHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
   tagPill: {
-    backgroundColor: THEME.border, paddingVertical: 4, paddingHorizontal: 7,
+    backgroundColor: THEME.blue, paddingVertical: 4, paddingHorizontal: 7,
     borderRadius: 4, marginRight: 8,
   },
-  tagText: { fontSize: 9, color: THEME.textSecondary, fontFamily: 'Helvetica-Bold' },
-  eqTitle: { fontSize: 14, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary },
+  tagText: { fontSize: 9, color: '#ffffff', fontWeight: 700 },
+  eqTitle: { fontSize: 14, fontWeight: 700, color: THEME.textPrimary },
   
   riskBadge: { flexDirection: 'row', alignItems: 'center' },
   dotRisk: { width: 8, height: 8, borderRadius: 4, backgroundColor: THEME.redDark, marginRight: 4 },
-  riskText: { fontSize: 9, color: THEME.redDark, fontFamily: 'Helvetica-Bold', textTransform: 'uppercase' },
+  riskText: { fontSize: 9, color: THEME.redDark, fontWeight: 700, textTransform: 'uppercase' },
   eqSub: { fontSize: 9, color: THEME.textSecondary, marginTop: 2, marginLeft: 2, borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingBottom: 10, marginBottom: 16 },
 
   // Card Duplo da Não Conformidade
@@ -123,15 +132,15 @@ const styles = StyleSheet.create({
   hrnCard: {
     backgroundColor: THEME.greyCard, borderRadius: 8, padding: 12, height: '100%',
   },
-  ncLabelMini: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, marginBottom: 2 },
+  ncLabelMini: { fontSize: 11, fontWeight: 700, color: THEME.textPrimary, marginBottom: 2 },
   ncTitleMini: { fontSize: 9, color: THEME.textPrimary, marginBottom: 8, lineHeight: 1.3 },
   
   hrnBoxRed: {
     backgroundColor: THEME.redMain, borderRadius: 6, paddingVertical: 10, paddingHorizontal: 12,
     marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
   },
-  hrnBoxValueText: { color: '#ffffff', fontSize: 18, fontFamily: 'Helvetica-Bold' },
-  hrnBoxLabel: { color: '#ffffff', fontSize: 10, fontFamily: 'Helvetica-Bold' },
+  hrnBoxValueText: { color: '#ffffff', fontSize: 18, fontWeight: 700 },
+  hrnBoxLabel: { color: '#ffffff', fontSize: 10, fontWeight: 700 },
   hrnBoxRisk: { color: '#ffffff', fontSize: 7, textTransform: 'uppercase' },
   
   // Barrinhas Probabilidade
@@ -145,10 +154,10 @@ const styles = StyleSheet.create({
     marginTop: 12, borderTopWidth: 1, borderTopColor: THEME.borderLight, paddingTop: 12,
   },
   ncSubtitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  ncSubtitle: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, flex: 0.8 },
+  ncSubtitle: { fontSize: 11, fontWeight: 700, color: THEME.textPrimary, flex: 0.8 },
   ncMetaRow: { flexDirection: 'row', marginBottom: 12 },
   ncMetaItem: { fontSize: 9, color: THEME.textSecondary, marginRight: 16 },
-  ncMetaValue: { fontFamily: 'Helvetica-Bold', color: THEME.textPrimary },
+  ncMetaValue: { fontWeight: 700, color: THEME.textPrimary },
   
   // HRN Pill Flutuante
   hrnPill: {
@@ -159,12 +168,12 @@ const styles = StyleSheet.create({
   // Blocos de Texto
   detailSection: { marginBottom: 12 },
   detailTitleBox: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  detailTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary },
+  detailTitle: { fontSize: 10, fontWeight: 700, color: THEME.textPrimary },
   iconCircle: {
     width: 14, height: 14, borderRadius: 7, backgroundColor: '#d4d4d8',
     justifyContent: 'center', alignItems: 'center', marginRight: 6,
   },
-  iconCheck: { fontSize: 8, color: '#ffffff', fontFamily: 'Helvetica-Bold' },
+  iconCheck: { fontSize: 8, color: '#ffffff', fontWeight: 700 },
   
   detailText: { fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, marginLeft: 20 },
   bulletList: { marginLeft: 20, marginTop: 4 },
@@ -185,8 +194,29 @@ const styles = StyleSheet.create({
   // Assinatura
   assinaturaBox: { marginTop: 40, alignItems: 'flex-end' },
   assinaturaLinha: { borderTopWidth: 1, borderTopColor: THEME.textPrimary, width: 200, marginBottom: 4 },
-  assinaturaNome: { fontSize: 10, fontFamily: 'Helvetica-Bold', textAlign: 'center', width: 200 },
+  assinaturaNome: { fontSize: 10, fontWeight: 700, textAlign: 'center', width: 200 },
   assinaturaSub: { fontSize: 8, color: THEME.textSecondary, textAlign: 'center', width: 200 },
+  
+  // Minimalist Cover Styles
+  coverRoot: {
+    flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40,
+  },
+  coverBadge: {
+    backgroundColor: THEME.bg, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 4, marginBottom: 20,
+  },
+  coverBadgeText: { fontSize: 10, color: THEME.blue, fontWeight: 700, letterSpacing: 1 },
+  coverTitle: {
+    fontSize: 28, fontWeight: 700, color: THEME.textPrimary, textAlign: 'center', marginBottom: 16,
+  },
+  coverSubtitle: { fontSize: 12, color: THEME.textSecondary, textAlign: 'center', maxWidth: 400, marginBottom: 40, lineHeight: 1.5 },
+  
+  coverMetaGrid: {
+    width: '100%', flexDirection: 'column', gap: 10,
+    paddingTop: 30, borderTopWidth: 1, borderTopColor: THEME.borderLight
+  },
+  coverMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingVertical: 4 },
+  coverMetaLabel: { fontSize: 9, color: THEME.textSecondary, textTransform: 'uppercase' },
+  coverMetaValue: { fontSize: 11, fontWeight: 700, color: THEME.textPrimary },
 })
 
 const COR_HRN: Record<string, string> = {
@@ -259,36 +289,54 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
 
   return (
     <Document title={`APR NR-12 — ${cliente.razao_social}`} author={perfil?.nome}>
-      {/* ===== PÁGINA 1: Capa / Identificação ===== */}
+      {/* ===== PÁGINA 1: Capa Minimalista ===== */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.coverRoot}>
+          <View style={styles.coverBadge}>
+            <Text style={styles.coverBadgeText}>APRECIAÇÃO DE RISCO</Text>
+          </View>
+          <Text style={styles.coverTitle}>Laudo Técnico NR-12</Text>
+          <Text style={styles.coverSubtitle}>
+            Documento de análise técnica de segurança em máquinas e equipamentos, em conformidade com as exigências da Norma Regulamentadora NR-12 e NBR 14153.
+          </Text>
+
+          <View style={{ width: '100%', maxWidth: 400, marginTop: 20 }}>
+            <View style={styles.coverMetaGrid}>
+              <View style={styles.coverMetaRow}>
+                <Text style={styles.coverMetaLabel}>Empresa Inspecionada</Text>
+                <Text style={styles.coverMetaValue}>{cliente.razao_social ?? '—'}</Text>
+              </View>
+              <View style={styles.coverMetaRow}>
+                <Text style={styles.coverMetaLabel}>CNPJ</Text>
+                <Text style={styles.coverMetaValue}>{cliente.cnpj ?? '—'}</Text>
+              </View>
+              <View style={styles.coverMetaRow}>
+                <Text style={styles.coverMetaLabel}>Localidade</Text>
+                <Text style={styles.coverMetaValue}>{cliente.cidade ?? '—'} / {cliente.estado ?? '—'}</Text>
+              </View>
+              <View style={styles.coverMetaRow}>
+                <Text style={styles.coverMetaLabel}>Data da Inspeção</Text>
+                <Text style={styles.coverMetaValue}>{dataInspecao}</Text>
+              </View>
+              <View style={styles.coverMetaRow}>
+                <Text style={styles.coverMetaLabel}>Documento e Revisão</Text>
+                <Text style={styles.coverMetaValue}>Doc: {laudo.numero_documento ?? '—'} | Rev: {laudo.revisao ?? '0'}</Text>
+              </View>
+              <View style={styles.coverMetaRow}>
+                <Text style={styles.coverMetaLabel}>Responsável Técnico</Text>
+                <Text style={styles.coverMetaValue}>{perfil?.nome ?? '—'}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Page>
+      
+      {/* ===== PÁGINA 2: Objetivo e Metodologia ===== */}
       <Page size="A4" style={styles.page}>
         <Header />
         <Footer />
         <View style={styles.pageContent}>
-          <View style={{ marginBottom: 20, marginTop: 10 }}>
-            <Text style={styles.h1}>APRECIAÇÃO DE RISCO</Text>
-            <Text style={{ fontSize: 10, textAlign: 'center', color: THEME.textSecondary }}>Conforme NR-12 e ABNT NBR 14153</Text>
-          </View>
-
-          <Text style={styles.h2}>1. Identificação</Text>
-          <View style={styles.table}>
-            {[
-              ['Cliente', cliente.razao_social ?? '—'],
-              ['CNPJ', cliente.cnpj ?? '—'],
-              ['Endereço', `${cliente.endereco ?? ''} — ${cliente.cidade ?? ''}/${cliente.estado ?? ''}`],
-              ['Data da Inspeção', dataInspecao],
-              ['Documento', laudo.numero_documento ?? '—'],
-              ['Revisão', laudo.revisao ?? '0'],
-              ['Responsável Técnico', perfil?.nome ?? '—'],
-              ['CREA', perfil?.crea ?? '—'],
-            ].map(([label, valor]: any, i) => (
-              <View key={label} style={i % 2 === 1 ? styles.tableRowAlt : styles.tableRow}>
-                <Text style={[styles.tableCell, { fontFamily: 'Helvetica-Bold', flex: 0.3, color: THEME.textPrimary }]}>{label}</Text>
-                <Text style={[styles.tableCell, { flex: 0.7 }]}>{valor}</Text>
-              </View>
-            ))}
-          </View>
-
-          <Text style={styles.h2}>2. Objetivo</Text>
+          <Text style={[styles.h2, { marginTop: 0 }]}>1. Objetivo do Laudo</Text>
           <View style={styles.card}>
             <Text style={styles.p}>
               O presente laudo técnico tem por objetivo realizar a Apreciação de Risco das máquinas e equipamentos instalados nas dependências da empresa {cliente.razao_social ?? '—'}, localizada em {cliente.cidade ?? '—'}/{cliente.estado ?? '—'}, em conformidade com a Norma Regulamentadora 12 (NR-12) do Ministério do Trabalho e Emprego e com a norma técnica ABNT NBR 14153.
