@@ -22,11 +22,11 @@ export default function NavBar({ nomeUsuario }: NavBarProps) {
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="font-bold text-blue-700 text-lg">
+        <div className="flex items-center gap-3 sm:gap-6">
+          <Link href="/dashboard" className="font-bold text-blue-700 text-base sm:text-lg whitespace-nowrap">
             APR NR-12
           </Link>
-          <nav className="hidden sm:flex items-center gap-4 text-sm">
+          <nav className="flex items-center gap-3 sm:gap-4 text-sm">
             <Link
               href="/dashboard"
               className={pathname === '/dashboard' ? 'text-blue-700 font-medium' : 'text-gray-600 hover:text-gray-900'}
