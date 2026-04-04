@@ -503,44 +503,51 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                   const colorHex = nc.nivel_hrn ? COR_HRN[nc.nivel_hrn] : THEME.redMain
                   
                   return (
-                    <View key={nc.id} style={{ marginBottom: 24, backgroundColor: THEME.cardBg, borderRadius: 8, borderWidth: 1, borderColor: THEME.borderLight, overflow: 'hidden' }} wrap={false}>
+                    <View key={nc.id} style={{ marginBottom: 32, backgroundColor: THEME.cardBg, borderRadius: 8, borderWidth: 1, borderColor: THEME.borderLight, overflow: 'hidden' }}>
                       
-                      {/* TOP: FOTO 100% WIDTH COM MEGA BADGE FLUTUANTE DE HRN */}
-                      <View style={{ position: 'relative', width: '100%', height: 280, backgroundColor: THEME.bg, justifyContent: 'center', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: THEME.borderLight }}>
-                        {fotosNC.length > 0 && fotosUrl[fotosNC[0].id] ? (
-                          <PDFImage src={fotosUrl[fotosNC[0].id]} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        ) : (
-                          <Text style={{color: '#94a3b8', fontSize: 12}}>Sem Imagem Registrada</Text>
-                        )}
+                      {/* BLOCO HEADER: Foto e Título unidos (evita viúva/órfã agressiva, mas não quebra layout inteiro) */}
+                      <View wrap={false}>
+                        {/* TOP: FOTO 100% WIDTH COM MEGA BADGE FLUTUANTE DE HRN */}
+                        <View style={{ position: 'relative', width: '100%', height: 280, backgroundColor: THEME.bg, justifyContent: 'center', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: THEME.borderLight }}>
+                          {fotosNC.length > 0 && fotosUrl[fotosNC[0].id] ? (
+                            <PDFImage src={fotosUrl[fotosNC[0].id]} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                          ) : (
+                            <Text style={{color: '#94a3b8', fontSize: 12}}>Sem Imagem Registrada</Text>
+                          )}
+                          
+                          {/* MEGA BADGE (HRN) */}
+                          <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: colorHex, padding: 12, borderRadius: 6, flexDirection: 'row', alignItems: 'center' }}>
+                             <View>
+                               <Text style={{ color: '#ffffff', fontSize: 18, fontFamily: 'Helvetica-Bold' }}>{nc.hrn ?? '---'}</Text>
+                               <Text style={{ color: '#ffffff', fontSize: 7, fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', opacity: 0.9 }}>ÍNDICE HRN</Text>
+                             </View>
+                             <View style={{ marginLeft: 12, paddingLeft: 12, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.3)', justifyContent: 'center' }}>
+                               <Text style={{ color: '#ffffff', fontSize: 10, fontFamily: 'Helvetica-Bold' }}>{nc.nivel_hrn ? labelNivelHRN(nc.nivel_hrn as NivelHRN).toUpperCase() : 'N/A'}</Text>
+                             </View>
+                          </View>
+                        </View>
                         
-                        {/* MEGA BADGE (HRN) */}
-                        <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: colorHex, padding: 12, borderRadius: 6, flexDirection: 'row', alignItems: 'center' }}>
-                           <View>
-                             <Text style={{ color: '#ffffff', fontSize: 18, fontFamily: 'Helvetica-Bold' }}>{nc.hrn ?? '---'}</Text>
-                             <Text style={{ color: '#ffffff', fontSize: 7, fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', opacity: 0.9 }}>ÍNDICE HRN</Text>
-                           </View>
-                           <View style={{ marginLeft: 12, paddingLeft: 12, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.3)', justifyContent: 'center' }}>
-                             <Text style={{ color: '#ffffff', fontSize: 10, fontFamily: 'Helvetica-Bold' }}>{nc.nivel_hrn ? labelNivelHRN(nc.nivel_hrn as NivelHRN).toUpperCase() : 'N/A'}</Text>
-                           </View>
+                        <View style={{ padding: 16, paddingBottom: 0 }}>
+                          {/* CABEÇALHO E METADADOS */}
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingBottom: 10 }}>
+                            <View style={{ flex: 1, paddingRight: 10 }}>
+                              <Text style={{ fontSize: 13, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>
+                                NC {String(ncIdx + 1).padStart(2, '0')} — {nc.titulo_nc || 'Risco identificado'}
+                              </Text>
+                              <Text style={{ fontSize: 9, color: THEME.textSecondary, marginTop: 4 }}>
+                                Legenda: {fotosNC[0]?.legenda || 'Nenhuma legenda informada para a foto principal.'}
+                              </Text>
+                            </View>
+                            <View style={{ alignItems: 'flex-end', backgroundColor: THEME.bg, padding: 6, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight }}>
+                              <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Referência Normativa</Text>
+                              <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.blue, marginTop: 2 }}>Item {nc.item_nr12 || '--'}</Text>
+                            </View>
+                          </View>
                         </View>
                       </View>
                       
-                      <View style={{ padding: 16 }}>
-                        {/* CABEÇALHO E METADADOS */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingBottom: 10 }}>
-                          <View style={{ flex: 1, paddingRight: 10 }}>
-                            <Text style={{ fontSize: 13, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>
-                              NC {String(ncIdx + 1).padStart(2, '0')} — {nc.titulo_nc || 'Risco identificado'}
-                            </Text>
-                            <Text style={{ fontSize: 9, color: THEME.textSecondary, marginTop: 4 }}>
-                              Legenda: {fotosNC[0]?.legenda || 'Nenhuma legenda informada para a foto principal.'}
-                            </Text>
-                          </View>
-                          <View style={{ alignItems: 'flex-end', backgroundColor: THEME.bg, padding: 6, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight }}>
-                            <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Referência Normativa</Text>
-                            <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.blue, marginTop: 2 }}>Item {nc.item_nr12 || '--'}</Text>
-                          </View>
-                        </View>
+                      {/* BLOCO TEXTOS: Permite quebra fluída de página (Engine Wrap) */}
+                      <View style={{ padding: 16, paddingTop: 0 }}>
 
                         {/* TEXTOS FULL-WIDTH (DESCRIÇÃO DA NC) */}
                         <View style={{ paddingTop: 10 }}>
