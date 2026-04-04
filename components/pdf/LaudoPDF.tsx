@@ -486,8 +486,8 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                 
                 {/* Foto geral do equipamento */}
                 {fotosUrl[`eq_${eq.id}`] ? (
-                  <View style={{ marginBottom: 16, borderRadius: 8, overflow: 'hidden', backgroundColor: THEME.cardBg }}>
-                    <PDFImage src={fotosUrl[`eq_${eq.id}`]} style={{ width: '100%', height: 200, objectFit: 'cover' }} />
+                  <View style={{ marginBottom: 16, backgroundColor: THEME.cardBg }}>
+                    <PDFImage src={fotosUrl[`eq_${eq.id}`]} style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 8 }} />
                     <Text style={{ fontSize: 8, color: THEME.textSecondary, padding: 6, textAlign: 'center' }}>Vista geral — {eq.nome}</Text>
                   </View>
                 ) : null}
@@ -554,9 +554,9 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                       {/* BLOCO HEADER: Foto e Título unidos (evita viúva/órfã agressiva, mas não quebra layout inteiro) */}
                       <View wrap={false}>
                         {/* TOP: FOTO COM ARESTAS ARREDONDADAS (MARGEM SEGURA) */}
-                        <View style={{ position: 'relative', height: 280, backgroundColor: THEME.bg, justifyContent: 'center', alignItems: 'center', borderRadius: 6, overflow: 'hidden', margin: 12, marginBottom: 4, borderWidth: 1, borderColor: THEME.borderLight }}>
+                        <View style={{ position: 'relative', height: 280, backgroundColor: THEME.bg, justifyContent: 'center', alignItems: 'center', margin: 12, marginBottom: 4 }}>
                           {fotosNC.length > 0 && fotosUrl[fotosNC[0].id] ? (
-                            <PDFImage src={fotosUrl[fotosNC[0].id]} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                            <PDFImage src={fotosUrl[fotosNC[0].id]} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight }} />
                           ) : (
                             <Text style={{color: '#94a3b8', fontSize: 12}}>Sem Imagem Registrada</Text>
                           )}
@@ -643,8 +643,8 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                               {fotosNC.slice(1).map((foto: any) => (
                                 fotosUrl[foto.id] ? (
                                   <View key={foto.id} style={{ width: '50%', paddingHorizontal: 3, marginBottom: 6 }}>
-                                    <View style={{ borderRadius: 6, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
-                                      <PDFImage src={fotosUrl[foto.id]} style={{ width: '100%', height: 110, objectFit: 'cover' }} />
+                                    <View style={{ borderWidth: 1, borderColor: THEME.borderLight, borderRadius: 6 }}>
+                                      <PDFImage src={fotosUrl[foto.id]} style={{ width: '100%', height: 110, objectFit: 'cover', borderRadius: 6 }} />
                                       {foto.legenda ? <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 5 }}>{foto.legenda}</Text> : null}
                                     </View>
                                   </View>
