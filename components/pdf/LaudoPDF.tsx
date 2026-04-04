@@ -7,6 +7,8 @@ import {
   StyleSheet,
   Image as PDFImage,
   Font,
+  Svg,
+  Path,
 } from '@react-pdf/renderer'
 import { labelNivelHRN } from '@/lib/hrn'
 import type { NivelHRN } from '@/types'
@@ -541,45 +543,45 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                         </View>
 
                         {/* TEXTOS FULL-WIDTH (DESCRIÇÃO DA NC) */}
-                        <View style={{ gap: 10, paddingTop: 10 }}>
-                            <View style={{ flexDirection: 'row', marginBottom: 10, alignItems: 'center' }}>
-                              <Text style={{ fontSize: 9, color: THEME.textSecondary, marginRight: 6 }}>Risco Associado:</Text>
-                              <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{nc.risco || 'Não informado'}</Text>
+                        <View style={{ paddingTop: 10 }}>
+                            <View style={{ flexDirection: 'row', marginBottom: 16, alignItems: 'center', backgroundColor: THEME.bg, padding: 8, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight }}>
+                              <Text style={{ fontSize: 8, color: THEME.textSecondary, marginRight: 6, textTransform: 'uppercase' }}>Risco Foco da NC:</Text>
+                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{nc.risco || 'Não informado'}</Text>
                             </View>
 
                             <View style={{ flexDirection: 'row' }}>
                               {/* Coluna 1: Diagnóstico */}
-                              <View style={{ flex: 0.5, paddingRight: 8, borderRightWidth: 1, borderRightColor: THEME.borderLight }}>
+                              <View style={{ flex: 0.5, paddingRight: 12, borderRightWidth: 1, borderRightColor: THEME.borderLight }}>
                                 {nc.texto_identificacao ? (
                                   <View style={{ marginBottom: 12 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                      <View style={{ width: 4, height: 10, backgroundColor: THEME.blue, marginRight: 6, borderRadius: 2 }} />
-                                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Diagnóstico da Situação</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                      <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill={THEME.blue} /></Svg>
+                                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.blue }}>Diagnóstico da Situação</Text>
                                     </View>
-                                    <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 10 }}>{nc.texto_identificacao}</Text>
+                                    <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 18 }}>{nc.texto_identificacao}</Text>
                                   </View>
                                 ) : null}
                               </View>
 
                               {/* Coluna 2: Soluções */}
-                              <View style={{ flex: 0.5, paddingLeft: 8 }}>
+                              <View style={{ flex: 0.5, paddingLeft: 12 }}>
                                 {nc.texto_recomendacao ? (
                                   <View style={{ marginBottom: 12 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                      <View style={{ width: 4, height: 10, backgroundColor: '#ea580c', marginRight: 6, borderRadius: 2 }} />
-                                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Ação Recomendada (NR-12)</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                      <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="#ea580c" /></Svg>
+                                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#ea580c' }}>Ação Recomendada (NR-12)</Text>
                                     </View>
-                                    <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 10 }}>{nc.texto_recomendacao}</Text>
+                                    <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 18 }}>{nc.texto_recomendacao}</Text>
                                   </View>
                                 ) : null}
 
                                 {nc.medida_controle ? (
                                   <View style={{ marginBottom: 12 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                      <View style={{ width: 4, height: 10, backgroundColor: '#22c55e', marginRight: 6, borderRadius: 2 }} />
-                                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Medidas Complementares de Controle</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                      <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#22c55e" /></Svg>
+                                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#22c55e' }}>Medidas Complementares de Controle</Text>
                                     </View>
-                                    <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 10 }}>{nc.medida_controle}</Text>
+                                    <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 18 }}>{nc.medida_controle}</Text>
                                   </View>
                                 ) : null}
                               </View>
