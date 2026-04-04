@@ -549,70 +549,64 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                       {/* BLOCO TEXTOS: Permite quebra fluída de página (Engine Wrap) */}
                       <View style={{ padding: 16, paddingTop: 0 }}>
 
-                        {/* TEXTOS FULL-WIDTH (DESCRIÇÃO DA NC) */}
-                        <View style={{ paddingTop: 10 }}>
-                            <View style={{ flexDirection: 'row', marginBottom: 16, alignItems: 'center', backgroundColor: THEME.bg, padding: 8, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight }}>
-                              <Text style={{ fontSize: 8, color: THEME.textSecondary, marginRight: 6, textTransform: 'uppercase' }}>Risco Foco da NC:</Text>
-                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{nc.risco || 'Não informado'}</Text>
-                            </View>
-
-                            <View style={{ flexDirection: 'row' }}>
-                              {/* Coluna 1: Diagnóstico */}
-                              <View style={{ flex: 0.5, paddingRight: 12, borderRightWidth: 1, borderRightColor: THEME.borderLight }}>
-                                {nc.texto_identificacao ? (
-                                  <View style={{ marginBottom: 12 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                                      <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill={THEME.blue} /></Svg>
-                                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.blue }}>Diagnóstico da Situação</Text>
-                                    </View>
-                                    <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 18 }}>{nc.texto_identificacao}</Text>
-                                  </View>
-                                ) : null}
-                              </View>
-
-                              {/* Coluna 2: Soluções */}
-                              <View style={{ flex: 0.5, paddingLeft: 12 }}>
-                                {nc.texto_recomendacao ? (
-                                  <View style={{ marginBottom: 12 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                                      <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="#ea580c" /></Svg>
-                                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#ea580c' }}>Ação Recomendada (NR-12)</Text>
-                                    </View>
-                                    <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 18 }}>{nc.texto_recomendacao}</Text>
-                                  </View>
-                                ) : null}
-
-                                {nc.medida_controle ? (
-                                  <View style={{ marginBottom: 12 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                                      <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#22c55e" /></Svg>
-                                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#22c55e' }}>Medidas Complementares de Controle</Text>
-                                    </View>
-                                    <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 18 }}>{nc.medida_controle}</Text>
-                                  </View>
-                                ) : null}
-                              </View>
-                            </View>
-
-                            {/* FOTOS ADICIONAIS */}
-                            {fotosNC.length > 1 ? (
-                              <View style={{ marginTop: 8, borderTopWidth: 1, borderTopColor: THEME.borderLight, paddingTop: 10 }}>
-                                <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, marginBottom: 8 }}>Fotos Adicionais da NC</Text>
-                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -3 }}>
-                                  {fotosNC.slice(1).map((foto: any) => (
-                                    fotosUrl[foto.id] ? (
-                                      <View key={foto.id} style={{ width: '50%', paddingHorizontal: 3, marginBottom: 6 }}>
-                                        <View style={{ borderRadius: 6, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
-                                          <PDFImage src={fotosUrl[foto.id]} style={{ width: '100%', height: 110, objectFit: 'cover' }} />
-                                          {foto.legenda ? <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 5 }}>{foto.legenda}</Text> : null}
-                                        </View>
-                                      </View>
-                                    ) : null
-                                  ))}
-                                </View>
-                              </View>
-                            ) : null}
+                        {/* BLOCOS EDITORIAIS EMPILHADOS — cada seção é um mini-card independente */}
+                        {/* Chip de Risco */}
+                        <View style={{ flexDirection: 'row', marginBottom: 12, alignItems: 'center', backgroundColor: THEME.bg, padding: 8, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight }} wrap={false}>
+                          <Text style={{ fontSize: 8, color: THEME.textSecondary, marginRight: 6, textTransform: 'uppercase' }}>Risco Foco da NC:</Text>
+                          <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{nc.risco || 'Não informado'}</Text>
                         </View>
+
+                        {/* Bloco 1: Diagnóstico */}
+                        {nc.texto_identificacao ? (
+                          <View style={{ marginBottom: 10, borderLeftWidth: 3, borderLeftColor: THEME.blue, backgroundColor: THEME.bg, borderRadius: 4, padding: 12 }} wrap={false}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                              <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill={THEME.blue} /></Svg>
+                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.blue }}>Diagnóstico da Situação</Text>
+                            </View>
+                            <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 18 }}>{nc.texto_identificacao}</Text>
+                          </View>
+                        ) : null}
+
+                        {/* Bloco 2: Ação Recomendada */}
+                        {nc.texto_recomendacao ? (
+                          <View style={{ marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#ea580c', backgroundColor: THEME.bg, borderRadius: 4, padding: 12 }} wrap={false}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                              <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="#ea580c" /></Svg>
+                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#ea580c' }}>Ação Recomendada (NR-12)</Text>
+                            </View>
+                            <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 18 }}>{nc.texto_recomendacao}</Text>
+                          </View>
+                        ) : null}
+
+                        {/* Bloco 3: Medidas Complementares */}
+                        {nc.medida_controle ? (
+                          <View style={{ marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#22c55e', backgroundColor: THEME.bg, borderRadius: 4, padding: 12 }} wrap={false}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                              <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#22c55e" /></Svg>
+                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#22c55e' }}>Medidas Complementares de Controle</Text>
+                            </View>
+                            <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 18 }}>{nc.medida_controle}</Text>
+                          </View>
+                        ) : null}
+
+                        {/* FOTOS ADICIONAIS */}
+                        {fotosNC.length > 1 ? (
+                          <View style={{ marginTop: 8, borderTopWidth: 1, borderTopColor: THEME.borderLight, paddingTop: 10 }}>
+                            <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, marginBottom: 8 }}>Fotos Adicionais da NC</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -3 }}>
+                              {fotosNC.slice(1).map((foto: any) => (
+                                fotosUrl[foto.id] ? (
+                                  <View key={foto.id} style={{ width: '50%', paddingHorizontal: 3, marginBottom: 6 }}>
+                                    <View style={{ borderRadius: 6, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
+                                      <PDFImage src={fotosUrl[foto.id]} style={{ width: '100%', height: 110, objectFit: 'cover' }} />
+                                      {foto.legenda ? <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 5 }}>{foto.legenda}</Text> : null}
+                                    </View>
+                                  </View>
+                                ) : null
+                              ))}
+                            </View>
+                          </View>
+                        ) : null}
 
                         {/* HRN breakdown minimalista no rodapé do bloco de texto */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: THEME.borderLight }}>
