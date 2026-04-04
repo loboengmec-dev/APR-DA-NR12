@@ -389,12 +389,7 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
               A avaliação de risco foi realizada pela metodologia HRN (Hazard Rating Number), que quantifica os riscos pela fórmula HRN = LO × FE × DPH × NP, onde: LO = probabilidade de ocorrência, FE = frequência de exposição, DPH = grau de severidade do dano potencial e NP = número de pessoas expostas. A categorização de segurança foi determinada conforme a ABNT NBR 14153 (Performance Level).
             </Text>
           </View>
-          <View style={styles.table}>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.tableCellHeader, { flex: 0.2 }]}>HRN</Text>
-              <Text style={[styles.tableCellHeader, { flex: 0.3 }]}>Nível de Risco</Text>
-              <Text style={[styles.tableCellHeader, { flex: 0.5 }]}>Ação Necessária</Text>
-            </View>
+          <View style={{ marginBottom: 12 }}>
             {[
               ['< 1', 'Aceitável', 'Nenhuma ação necessária', COR_HRN.aceitavel],
               ['1 – 4', 'Muito Baixo', 'Pode ser tolerado', COR_HRN.muito_baixo],
@@ -403,14 +398,14 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
               ['100 – 499', 'Alto', 'Ação imediata necessária', COR_HRN.alto],
               ['500 – 999', 'Muito Alto', 'Paralisação e ação urgente', COR_HRN.muito_alto],
               ['≥ 1000', 'Intolerável', 'Paralisação imediata', COR_HRN.intoleravel],
-            ].map(([hrn, nivel, acao, cor]: any, i) => (
-              <View key={hrn} style={i % 2 === 1 ? styles.tableRowAlt : styles.tableRow}>
-                <Text style={[styles.tableCell, { flex: 0.2, fontFamily: 'Helvetica-Bold' }]}>{hrn}</Text>
-                <View style={{ flex: 0.3, flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: cor, marginRight: 4 }} />
-                  <Text style={{ fontSize: 8, color: THEME.textPrimary }}>{nivel}</Text>
+            ].map(([hrn, nivel, acao, cor]: any) => (
+              <View key={hrn} style={{ flexDirection: 'row', alignItems: 'center', borderLeftWidth: 4, borderLeftColor: cor, backgroundColor: THEME.bg, borderRadius: 4, padding: 10, marginBottom: 6 }}>
+                <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, width: 65 }}>{hrn}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', width: 100 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: cor, marginRight: 6 }} />
+                  <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{nivel}</Text>
                 </View>
-                <Text style={[styles.tableCell, { flex: 0.5 }]}>{acao}</Text>
+                <Text style={{ fontSize: 9, color: THEME.textSecondary, flex: 1 }}>{acao}</Text>
               </View>
             ))}
           </View>
