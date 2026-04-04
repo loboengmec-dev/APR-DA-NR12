@@ -528,38 +528,43 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                               <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{nc.risco || 'Não informado'}</Text>
                             </View>
 
-                            {/* Diagnóstico */}
-                            {nc.texto_identificacao ? (
-                              <View style={{ marginBottom: 12 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                  <View style={{ width: 4, height: 10, backgroundColor: THEME.blue, marginRight: 6, borderRadius: 2 }} />
-                                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Diagnóstico da Situação</Text>
-                                </View>
-                                <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 10 }}>{nc.texto_identificacao}</Text>
+                            <View style={{ flexDirection: 'row' }}>
+                              {/* Coluna 1: Diagnóstico */}
+                              <View style={{ flex: 0.5, paddingRight: 8, borderRightWidth: 1, borderRightColor: THEME.borderLight }}>
+                                {nc.texto_identificacao ? (
+                                  <View style={{ marginBottom: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                      <View style={{ width: 4, height: 10, backgroundColor: THEME.blue, marginRight: 6, borderRadius: 2 }} />
+                                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Diagnóstico da Situação</Text>
+                                    </View>
+                                    <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 10 }}>{nc.texto_identificacao}</Text>
+                                  </View>
+                                ) : null}
                               </View>
-                            ) : null}
 
-                            {/* Recomendação */}
-                            {nc.texto_recomendacao ? (
-                              <View style={{ marginBottom: 12 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                  <View style={{ width: 4, height: 10, backgroundColor: '#ea580c', marginRight: 6, borderRadius: 2 }} />
-                                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Ação Recomendada (NR-12)</Text>
-                                </View>
-                                <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 10 }}>{nc.texto_recomendacao}</Text>
-                              </View>
-                            ) : null}
+                              {/* Coluna 2: Soluções */}
+                              <View style={{ flex: 0.5, paddingLeft: 8 }}>
+                                {nc.texto_recomendacao ? (
+                                  <View style={{ marginBottom: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                      <View style={{ width: 4, height: 10, backgroundColor: '#ea580c', marginRight: 6, borderRadius: 2 }} />
+                                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Ação Recomendada (NR-12)</Text>
+                                    </View>
+                                    <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 10 }}>{nc.texto_recomendacao}</Text>
+                                  </View>
+                                ) : null}
 
-                            {/* Medidas Complementares */}
-                            {nc.medida_controle ? (
-                              <View style={{ marginBottom: 12 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                  <View style={{ width: 4, height: 10, backgroundColor: '#22c55e', marginRight: 6, borderRadius: 2 }} />
-                                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Medidas Complementares de Controle</Text>
-                                </View>
-                                <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 10 }}>{nc.medida_controle}</Text>
+                                {nc.medida_controle ? (
+                                  <View style={{ marginBottom: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                      <View style={{ width: 4, height: 10, backgroundColor: '#22c55e', marginRight: 6, borderRadius: 2 }} />
+                                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Medidas Complementares de Controle</Text>
+                                    </View>
+                                    <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 10 }}>{nc.medida_controle}</Text>
+                                  </View>
+                                ) : null}
                               </View>
-                            ) : null}
+                            </View>
 
                             {/* FOTOS ADICIONAIS */}
                             {fotosNC.length > 1 ? (
