@@ -553,8 +553,8 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                       
                       {/* BLOCO HEADER: Foto e Título unidos (evita viúva/órfã agressiva, mas não quebra layout inteiro) */}
                       <View wrap={false}>
-                        {/* TOP: FOTO 100% WIDTH COM MEGA BADGE FLUTUANTE DE HRN */}
-                        <View style={{ position: 'relative', width: '100%', height: 280, backgroundColor: THEME.bg, justifyContent: 'center', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: THEME.borderLight }}>
+                        {/* TOP: FOTO COM ARESTAS ARREDONDADAS (MARGEM SEGURA) */}
+                        <View style={{ position: 'relative', height: 280, backgroundColor: THEME.bg, justifyContent: 'center', alignItems: 'center', borderRadius: 6, overflow: 'hidden', margin: 12, marginBottom: 4, borderWidth: 1, borderColor: THEME.borderLight }}>
                           {fotosNC.length > 0 && fotosUrl[fotosNC[0].id] ? (
                             <PDFImage src={fotosUrl[fotosNC[0].id]} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                           ) : (
