@@ -403,30 +403,25 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
             <View style={styles.pageContent}>
               <Text style={styles.h2}>{eqIdx + 5}. Emissão de Avaliação</Text>
               
-              {/* O NOVO CABEÇALHO GIGANTE (EQ CONTAINER) */}
-              <View style={styles.eqContainer}>
-                <View style={styles.eqHeader}>
-                  <View style={styles.eqHeaderLeft}>
-                    <View style={styles.tagPill}>
-                      <Text style={styles.tagText}>| TAG {String(eqIdx + 1).padStart(2, '0')}</Text>
+              {/* O NOVO CABEÇALHO GIGANTE (FAIXA EDITORIAL) */}
+              <View style={{ marginBottom: 24 }}>
+                <View style={{ backgroundColor: THEME.blue, padding: 14, borderRadius: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ backgroundColor: '#ffffff', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 4, marginRight: 10 }}>
+                      <Text style={{ fontSize: 9, color: THEME.blue, fontWeight: 700 }}>TAG {String(eqIdx + 1).padStart(2, '0')}</Text>
                     </View>
-                    <Text style={styles.eqTitle}>{eq.nome}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: 700, color: '#ffffff' }}>{eq.nome}</Text>
                   </View>
-                  <View style={styles.riskBadge}>
-                    <View style={styles.dotRisk} />
-                    <Text style={styles.riskText}>RISCO ALTO</Text>
-                  </View>
+                  <Text style={{ fontSize: 9, color: '#ffffff', opacity: 0.9 }}>
+                    NBR 14153: {eq.categoria_resultado ?? '—'}
+                  </Text>
                 </View>
-                
-                <Text style={styles.eqSub}>
-                  Categoria NBR 14153: {eq.categoria_resultado ?? '—'} | {eq.categoria_s ?? 'S?'} · {eq.categoria_f ?? 'F?'} · {eq.categoria_p ?? 'P?'}
-                </Text>
                 
                 {/* Foto geral do equipamento */}
                 {fotosUrl[`eq_${eq.id}`] ? (
-                  <View style={{ marginBottom: 16, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
+                  <View style={{ marginBottom: 16, borderRadius: 8, overflow: 'hidden', backgroundColor: THEME.cardBg }}>
                     <PDFImage src={fotosUrl[`eq_${eq.id}`]} style={{ width: '100%', height: 200, objectFit: 'cover' }} />
-                    <Text style={{ fontSize: 8, color: THEME.textSecondary, padding: 6, backgroundColor: THEME.greyCard }}>Vista geral — {eq.nome}</Text>
+                    <Text style={{ fontSize: 8, color: THEME.textSecondary, padding: 6, textAlign: 'center' }}>Vista geral — {eq.nome}</Text>
                   </View>
                 ) : null}
 
@@ -489,13 +484,24 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                   return (
                     <View key={nc.id} style={{ marginBottom: 24, backgroundColor: THEME.cardBg, borderRadius: 8, borderWidth: 1, borderColor: THEME.borderLight, overflow: 'hidden' }} wrap={false}>
                       
-                      {/* TOP: CANVAS DA FOTO PRINCIPAL (Otimizado Retrato) */}
-                      <View style={{ width: '100%', height: 260, backgroundColor: THEME.greyCard, justifyContent: 'center', alignItems: 'center' }}>
+                      {/* TOP: FOTO 100% WIDTH COM MEGA BADGE FLUTUANTE DE HRN */}
+                      <View style={{ position: 'relative', width: '100%', height: 280, backgroundColor: THEME.bg, justifyContent: 'center', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: THEME.borderLight }}>
                         {fotosNC.length > 0 && fotosUrl[fotosNC[0].id] ? (
                           <PDFImage src={fotosUrl[fotosNC[0].id]} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                         ) : (
-                          <Text style={{color: '#94a3b8', fontSize: 12}}>Sem Imagem</Text>
+                          <Text style={{color: '#94a3b8', fontSize: 12}}>Sem Imagem Registrada</Text>
                         )}
+                        
+                        {/* MEGA BADGE (HRN) */}
+                        <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: colorHex, padding: 12, borderRadius: 6, flexDirection: 'row', alignItems: 'center' }}>
+                           <View>
+                             <Text style={{ color: '#ffffff', fontSize: 18, fontFamily: 'Helvetica-Bold' }}>{nc.hrn ?? '---'}</Text>
+                             <Text style={{ color: '#ffffff', fontSize: 7, fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', opacity: 0.9 }}>ÍNDICE HRN</Text>
+                           </View>
+                           <View style={{ marginLeft: 12, paddingLeft: 12, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.3)', justifyContent: 'center' }}>
+                             <Text style={{ color: '#ffffff', fontSize: 10, fontFamily: 'Helvetica-Bold' }}>{nc.nivel_hrn ? labelNivelHRN(nc.nivel_hrn as NivelHRN).toUpperCase() : 'N/A'}</Text>
+                           </View>
+                        </View>
                       </View>
                       
                       <View style={{ padding: 16 }}>
@@ -515,11 +521,8 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                           </View>
                         </View>
 
-                        {/* DUAS COLUNAS: ESQUERDA (TEXTOS) | DIREITA (HRN) */}
-                        <View style={{ flexDirection: 'row', marginHorizontal: -8 }}>
-                          
-                          {/* Coluna Esquerda: Textos descritivos */}
-                          <View style={{ flex: 0.65, paddingHorizontal: 8 }}>
+                        {/* TEXTOS FULL-WIDTH (DESCRIÇÃO DA NC) */}
+                        <View style={{ gap: 10, paddingTop: 10 }}>
                             <View style={{ flexDirection: 'row', marginBottom: 10, alignItems: 'center' }}>
                               <Text style={{ fontSize: 9, color: THEME.textSecondary, marginRight: 6 }}>Risco Associado:</Text>
                               <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{nc.risco || 'Não informado'}</Text>
@@ -576,29 +579,14 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                                 </View>
                               </View>
                             ) : null}
-                          </View>
+                        </View>
 
-                          {/* Coluna Direita: HRN Card Compactado */}
-                          <View style={{ flex: 0.35, paddingHorizontal: 8 }}>
-                            <View style={{ backgroundColor: THEME.bg, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: THEME.borderLight }}>
-                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, marginBottom: 8, textAlign: 'center' }}>Classificação HRN</Text>
-                              
-                              <View style={{ backgroundColor: colorHex, borderRadius: 6, paddingVertical: 12, paddingHorizontal: 10, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Text style={{ color: '#ffffff', fontSize: 11, fontFamily: 'Helvetica-Bold' }}>ÍNDICE</Text>
-                                <View style={{ alignItems: 'flex-end' }}>
-                                  <Text style={{ color: '#ffffff', fontSize: 20, fontFamily: 'Helvetica-Bold' }}>{nc.hrn ?? '---'}</Text>
-                                  <Text style={{ color: '#ffffff', fontSize: 7, textTransform: 'uppercase' }}>{nc.nivel_hrn ? labelNivelHRN(nc.nivel_hrn as NivelHRN) : 'N/A'}</Text>
-                                </View>
-                              </View>
-
-                              <View style={{ gap: 4 }}>
-                                <HRNBars label="Probab. (LO)" value={nc.lo} max={5} />
-                                <HRNBars label="Frequê. (FE)" value={nc.fe} max={5} />
-                                <HRNBars label="Danos (DPH)" value={nc.dph} max={5} />
-                                <HRNBars label="Pessoas (NP)" value={nc.np} max={5} />
-                              </View>
-                            </View>
-                          </View>
+                        {/* HRN breakdown minimalista no rodapé do bloco de texto */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: THEME.borderLight }}>
+                          <View style={{ flex: 1, paddingRight: 4 }}><HRNBars label="Prob. (LO)" value={nc.lo} max={5} /></View>
+                          <View style={{ flex: 1, paddingRight: 4 }}><HRNBars label="Freq. (FE)" value={nc.fe} max={5} /></View>
+                          <View style={{ flex: 1, paddingRight: 4 }}><HRNBars label="Dano (DPH)" value={nc.dph} max={5} /></View>
+                          <View style={{ flex: 1 }}><HRNBars label="Pessoas (NP)" value={nc.np} max={5} /></View>
                         </View>
                       </View>
                     </View>
