@@ -22,17 +22,21 @@ Font.register({
 })
 
 const THEME = {
-  bg: '#f8fafc',
+  bg: '#fafafa',           // neutro quente — elimina o cast azulado friozento
   cardBg: '#ffffff',
-  textSecondary: '#71717a',
-  textPrimary: '#3f3f46',
-  border: '#e4e4e7',
-  borderLight: '#f4f4f5',
-  redMain: '#cd223c',      // main red used for HRN box
-  redDark: '#be123c',      // dark red for the dot
-  blue: '#1d4ed8',
-  greyCard: '#f4f4f5',     // background for image and NC side panel
+  textSecondary: '#64748b', // Slate 500 — mais legível que zinc
+  textPrimary: '#1e293b',   // Slate 800 — preto suave profissional
+  border: '#e2e8f0',        // Slate 200
+  borderLight: '#f1f5f9',   // Slate 100
+  redMain: '#cd223c',       // Reservado exclusivamente para HRN
+  redDark: '#be123c',       // Reservado exclusivamente para HRN
+  accent: '#334155',        // Slate 700 — substitui o azul berrante em toda estrutura
+  greyCard: '#f1f5f9',      // Slate 100
   redLight: '#ffe4e6',
+  // Cores de ícones das seções (muted/desaturados)
+  iconDiag: '#475569',      // Slate 600 — diagnóstico
+  iconAction: '#92400e',    // Amber 800 — ação recomendada
+  iconCheck: '#166534',     // Green 800 — medidas complementares
 }
 
 const styles = StyleSheet.create({
@@ -49,7 +53,7 @@ const styles = StyleSheet.create({
   
   // Headings globais
   h1: { fontSize: 24, fontWeight: 700, color: THEME.textPrimary, marginBottom: 4 },
-  h2: { fontSize: 13, fontWeight: 700, color: THEME.blue, marginBottom: 8, marginTop: 16, borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingBottom: 4 },
+  h2: { fontSize: 13, fontWeight: 700, color: THEME.accent, marginBottom: 8, marginTop: 16, borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingBottom: 4 },
   h3: { fontSize: 11, fontWeight: 700, color: THEME.textPrimary, marginBottom: 6, marginTop: 8 },
   p: { fontSize: 9, color: THEME.textSecondary, lineHeight: 1.6, marginBottom: 8, textAlign: 'justify' },
   
@@ -59,7 +63,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
     borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingBottom: 8,
   },
-  headerTitle: { fontSize: 9, color: THEME.blue, fontWeight: 700 },
+  headerTitle: { fontSize: 9, color: THEME.accent, fontWeight: 700 },
   headerSub: { fontSize: 7, color: THEME.textSecondary, marginTop: 2 },
   
   // Rodapé Fixo
@@ -83,7 +87,7 @@ const styles = StyleSheet.create({
   tableCell: { fontSize: 8, flex: 1, paddingHorizontal: 4, color: THEME.textSecondary },
   tableCellHeader: { fontSize: 8, flex: 1, fontWeight: 700, color: THEME.textPrimary, paddingHorizontal: 4 },
   hierarquiaItem: { flexDirection: 'row', marginBottom: 8, backgroundColor: THEME.bg, padding: 12, borderRadius: 6 },
-  hierarquiaOrd: { fontSize: 10, fontWeight: 700, width: 24, color: THEME.blue },
+  hierarquiaOrd: { fontSize: 10, fontWeight: 700, width: 24, color: THEME.accent },
 
   // Estrutura Base de Equipamento (O Grande Card)
   eqContainer: {
@@ -100,7 +104,7 @@ const styles = StyleSheet.create({
   },
   eqHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
   tagPill: {
-    backgroundColor: THEME.blue, paddingVertical: 4, paddingHorizontal: 7,
+    backgroundColor: THEME.accent, paddingVertical: 4, paddingHorizontal: 7,
     borderRadius: 4, marginRight: 8,
   },
   tagText: { fontSize: 9, color: '#ffffff', fontWeight: 700 },
@@ -206,7 +210,7 @@ const styles = StyleSheet.create({
   coverBadge: {
     backgroundColor: THEME.bg, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 4, marginBottom: 20,
   },
-  coverBadgeText: { fontSize: 10, color: THEME.blue, fontWeight: 700, letterSpacing: 1 },
+  coverBadgeText: { fontSize: 10, color: THEME.accent, fontWeight: 700, letterSpacing: 1 },
   coverTitle: {
     fontSize: 28, fontWeight: 700, color: THEME.textPrimary, textAlign: 'center', marginBottom: 16,
   },
@@ -350,7 +354,7 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
               return (
                 <View key={eq.id} style={{ flexDirection: 'row', backgroundColor: THEME.bg, borderRadius: 8, borderWidth: 1, borderColor: THEME.borderLight, padding: 12, alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', flex: 0.6 }}>
-                    <View style={{ backgroundColor: THEME.blue, width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                    <View style={{ backgroundColor: THEME.accent, width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
                       <Text style={{ color: '#ffffff', fontSize: 10, fontFamily: 'Helvetica-Bold' }}>{i + 1}</Text>
                     </View>
                     <View>
@@ -426,10 +430,10 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
               
               {/* O NOVO CABEÇALHO GIGANTE (FAIXA EDITORIAL) */}
               <View style={{ marginBottom: 24 }}>
-                <View style={{ backgroundColor: THEME.blue, padding: 14, borderRadius: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <View style={{ backgroundColor: THEME.accent, padding: 14, borderRadius: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={{ backgroundColor: '#ffffff', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 4, marginRight: 10 }}>
-                      <Text style={{ fontSize: 9, color: THEME.blue, fontWeight: 700 }}>TAG {String(eqIdx + 1).padStart(2, '0')}</Text>
+                      <Text style={{ fontSize: 9, color: THEME.accent, fontWeight: 700 }}>TAG {String(eqIdx + 1).padStart(2, '0')}</Text>
                     </View>
                     <Text style={{ fontSize: 16, fontWeight: 700, color: '#ffffff' }}>{eq.nome}</Text>
                   </View>
@@ -462,9 +466,9 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                         {ncs.length > 0 ? Math.max(...ncs.map((nc: any) => parseFloat(nc.hrn || '0'))) : '0'}
                       </Text>
                     </View>
-                    <View style={{ flex: 1, backgroundColor: THEME.cardBg, padding: 10, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight, borderLeftWidth: 3, borderLeftColor: THEME.blue }}>
+                    <View style={{ flex: 1, backgroundColor: THEME.cardBg, padding: 10, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight, borderLeftWidth: 3, borderLeftColor: THEME.accent }}>
                       <Text style={{ fontSize: 8, color: THEME.textSecondary, textTransform: 'uppercase' }}>Categoria NBR</Text>
-                      <Text style={{ fontSize: 18, fontFamily: 'Helvetica-Bold', color: THEME.blue, marginTop: 4 }}>
+                      <Text style={{ fontSize: 18, fontFamily: 'Helvetica-Bold', color: THEME.accent, marginTop: 4 }}>
                         {eq.categoria_resultado ?? 'N/A'}
                       </Text>
                     </View>
@@ -540,7 +544,7 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                             </View>
                             <View style={{ alignItems: 'flex-end', backgroundColor: THEME.bg, padding: 6, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight }}>
                               <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Referência Normativa</Text>
-                              <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.blue, marginTop: 2 }}>Item {nc.item_nr12 || '--'}</Text>
+                              <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.accent, marginTop: 2 }}>Item {nc.item_nr12 || '--'}</Text>
                             </View>
                           </View>
                         </View>
@@ -558,10 +562,10 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
 
                         {/* Bloco 1: Diagnóstico */}
                         {nc.texto_identificacao ? (
-                          <View style={{ marginBottom: 10, borderLeftWidth: 3, borderLeftColor: THEME.blue, backgroundColor: THEME.bg, borderRadius: 4, padding: 12 }} wrap={false}>
+                          <View style={{ marginBottom: 10, borderLeftWidth: 3, borderLeftColor: THEME.iconDiag, backgroundColor: THEME.bg, borderRadius: 4, padding: 12 }} wrap={false}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                              <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill={THEME.blue} /></Svg>
-                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.blue }}>Diagnóstico da Situação</Text>
+                              <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill={THEME.iconDiag} /></Svg>
+                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.iconDiag }}>Diagnóstico da Situação</Text>
                             </View>
                             <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 18 }}>{nc.texto_identificacao}</Text>
                           </View>
@@ -569,10 +573,10 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
 
                         {/* Bloco 2: Ação Recomendada */}
                         {nc.texto_recomendacao ? (
-                          <View style={{ marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#ea580c', backgroundColor: THEME.bg, borderRadius: 4, padding: 12 }} wrap={false}>
+                          <View style={{ marginBottom: 10, borderLeftWidth: 3, borderLeftColor: THEME.iconAction, backgroundColor: THEME.bg, borderRadius: 4, padding: 12 }} wrap={false}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                              <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="#ea580c" /></Svg>
-                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#ea580c' }}>Ação Recomendada (NR-12)</Text>
+                              <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill={THEME.iconAction} /></Svg>
+                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.iconAction }}>Ação Recomendada (NR-12)</Text>
                             </View>
                             <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 18 }}>{nc.texto_recomendacao}</Text>
                           </View>
@@ -580,10 +584,10 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
 
                         {/* Bloco 3: Medidas Complementares */}
                         {nc.medida_controle ? (
-                          <View style={{ marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#22c55e', backgroundColor: THEME.bg, borderRadius: 4, padding: 12 }} wrap={false}>
+                          <View style={{ marginBottom: 10, borderLeftWidth: 3, borderLeftColor: THEME.iconCheck, backgroundColor: THEME.bg, borderRadius: 4, padding: 12 }} wrap={false}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                              <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="#22c55e" /></Svg>
-                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#22c55e' }}>Medidas Complementares de Controle</Text>
+                              <Svg viewBox="0 0 24 24" width="12" height="12" style={{ marginRight: 6 }}><Path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill={THEME.iconCheck} /></Svg>
+                              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.iconCheck }}>Medidas Complementares de Controle</Text>
                             </View>
                             <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, textAlign: 'justify', paddingLeft: 18 }}>{nc.medida_controle}</Text>
                           </View>
