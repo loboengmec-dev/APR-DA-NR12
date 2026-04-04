@@ -292,9 +292,6 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
       {/* ===== PÁGINA 1: Capa Minimalista ===== */}
       <Page size="A4" style={styles.page}>
         <View style={styles.coverRoot}>
-          <View style={styles.coverBadge}>
-            <Text style={styles.coverBadgeText}>APRECIAÇÃO DE RISCO</Text>
-          </View>
           <Text style={styles.coverTitle}>Laudo Técnico NR-12</Text>
           <Text style={styles.coverSubtitle}>
             Documento de análise técnica de segurança em máquinas e equipamentos, em conformidade com as exigências da Norma Regulamentadora NR-12 e NBR 14153.
