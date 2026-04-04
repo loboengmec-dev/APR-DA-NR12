@@ -340,22 +340,41 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
             </Text>
           </View>
 
-          <Text style={styles.h2}>3. Equipamentos Inspecionados</Text>
-          <View style={styles.table}>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.tableCellHeader, { flex: 0.1 }]}>Nº</Text>
-              <Text style={[styles.tableCellHeader, { flex: 0.5 }]}>Equipamento</Text>
-              <Text style={[styles.tableCellHeader, { flex: 0.2 }]}>Categoria</Text>
-              <Text style={[styles.tableCellHeader, { flex: 0.2 }]}>NCs</Text>
-            </View>
-            {equipamentos.map((eq: any, i: number) => (
-              <View key={eq.id} style={i % 2 === 1 ? styles.tableRowAlt : styles.tableRow}>
-                <Text style={[styles.tableCell, { flex: 0.1 }]}>{i + 1}</Text>
-                <Text style={[styles.tableCell, { flex: 0.5, color: THEME.textPrimary }]}>{eq.nome} {eq.modelo ? `(${eq.modelo})` : ''}</Text>
-                <Text style={[styles.tableCell, { flex: 0.2 }]}>{eq.categoria_resultado ?? '—'}</Text>
-                <Text style={[styles.tableCell, { flex: 0.2 }]}>{(eq.nao_conformidades ?? []).length}</Text>
-              </View>
-            ))}
+          <Text style={styles.h2}>3. Dashboard de Equipamentos Inspecionados</Text>
+          <View style={{ marginBottom: 20 }}>
+            {equipamentos.map((eq: any, i: number) => {
+              const qtdNcs = (eq.nao_conformidades ?? []).length;
+              const hasRisk = qtdNcs > 0;
+              return (
+                <View key={eq.id} style={{ flexDirection: 'row', backgroundColor: THEME.bg, borderRadius: 8, borderWidth: 1, borderColor: THEME.borderLight, padding: 12, alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 0.6 }}>
+                    <View style={{ backgroundColor: THEME.blue, width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                      <Text style={{ color: '#ffffff', fontSize: 10, fontFamily: 'Helvetica-Bold' }}>{i + 1}</Text>
+                    </View>
+                    <View>
+                      <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{eq.nome}</Text>
+                      {eq.modelo ? <Text style={{ fontSize: 8, color: THEME.textSecondary, marginTop: 2 }}>Mod: {eq.modelo}</Text> : null}
+                    </View>
+                  </View>
+                  
+                  <View style={{ flexDirection: 'row', flex: 0.4, justifyContent: 'flex-end', alignItems: 'center' }}>
+                    {/* Chip Categoria */}
+                    <View style={{ backgroundColor: THEME.cardBg, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 4, borderWidth: 1, borderColor: THEME.borderLight, marginRight: 8 }}>
+                      <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase', marginBottom: 2 }}>Cat. NBR 14153</Text>
+                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, textAlign: 'center' }}>{eq.categoria_resultado ?? '—'}</Text>
+                    </View>
+                    
+                    {/* Chip NCs */}
+                    <View style={{ backgroundColor: hasRisk ? '#fee2e2' : THEME.greyCard, paddingVertical: 4, paddingHorizontal: 12, borderRadius: 4, minWidth: 60, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 7, color: hasRisk ? THEME.redMain : THEME.textSecondary, textTransform: 'uppercase', marginBottom: 2 }}>Riscos (NCs)</Text>
+                      <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: hasRisk ? '#b91c1c' : THEME.textPrimary }}>
+                        {qtdNcs}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )
+            })}
           </View>
 
           <Text style={styles.h2}>4. Metodologia</Text>
