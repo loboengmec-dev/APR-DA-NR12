@@ -12,6 +12,7 @@ import {
 } from '@react-pdf/renderer'
 import { labelNivelHRN } from '@/lib/hrn'
 import type { NivelHRN } from '@/types'
+import { NBR_IMAGE_B64 } from '@/lib/assets/nbrImage'
 
 Font.register({
   family: 'Roboto',
@@ -451,7 +452,7 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                 </View>
               </View>
               <View style={{ flex: 0.55, borderRadius: 6, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight, backgroundColor: '#ffffff', padding: 10 }}>
-                <PDFImage src={`${typeof window !== 'undefined' ? window.location.origin : ''}/nbr14153-flowchart.png`} style={{ width: '100%', height: 180, objectFit: 'contain' }} />
+                <PDFImage src={NBR_IMAGE_B64} style={{ width: '100%', height: 180, objectFit: 'contain' }} />
               </View>
             </View>
           </View>
