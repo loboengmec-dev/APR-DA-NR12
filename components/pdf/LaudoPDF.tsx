@@ -386,10 +386,10 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
           <Text style={styles.h2}>4. Metodologia</Text>
           <View style={[styles.card, { marginBottom: 12 }]}>
             <Text style={styles.p}>
-              A avaliação de risco foi realizada pela metodologia HRN (Hazard Rating Number), que quantifica os riscos pela fórmula HRN = LO × FE × DPH × NP, onde: LO = probabilidade de ocorrência, FE = frequência de exposição, DPH = grau de severidade do dano potencial e NP = número de pessoas expostas. A categorização de segurança foi determinada conforme a ABNT NBR 14153 (Performance Level).
+              A avaliação de risco foi realizada pela metodologia HRN (Hazard Rating Number), que quantifica os riscos pela fórmula HRN = LO × FE × DPH × NP, onde: LO = probabilidade de ocorrência, FE = frequência de exposição, DPH = grau de severidade do dano potencial e NP = número de pessoas expostas.
             </Text>
           </View>
-          <View style={{ marginBottom: 12 }}>
+          <View style={{ marginBottom: 24 }}>
             {[
               ['< 1', 'Aceitável', 'Nenhuma ação necessária', COR_HRN.aceitavel],
               ['1 – 4', 'Muito Baixo', 'Pode ser tolerado', COR_HRN.muito_baixo],
@@ -399,7 +399,7 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
               ['500 – 999', 'Muito Alto', 'Paralisação e ação urgente', COR_HRN.muito_alto],
               ['≥ 1000', 'Intolerável', 'Paralisação imediata', COR_HRN.intoleravel],
             ].map(([hrn, nivel, acao, cor]: any) => (
-              <View key={hrn} style={{ flexDirection: 'row', alignItems: 'center', borderLeftWidth: 4, borderLeftColor: cor, backgroundColor: THEME.bg, borderRadius: 4, padding: 10, marginBottom: 6 }}>
+              <View key={hrn} style={{ flexDirection: 'row', alignItems: 'center', borderLeftWidth: 4, borderLeftColor: cor, backgroundColor: THEME.bg, borderRadius: 4, padding: 10, marginBottom: 6 }} wrap={false}>
                 <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, width: 65 }}>{hrn}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', width: 100 }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: cor, marginRight: 6 }} />
@@ -408,6 +408,52 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
                 <Text style={{ fontSize: 9, color: THEME.textSecondary, flex: 1 }}>{acao}</Text>
               </View>
             ))}
+          </View>
+
+          <Text style={styles.h2}>5. Categorização de Risco (ABNT NBR 14153)</Text>
+          <View style={styles.card} wrap={false}>
+            <Text style={styles.p}>
+              A determinação da categoria de risco para o maquinário avaliado baseia-se nos critérios da norma ABNT NBR 14153. A norma exige que a robustez necessária do sistema de comando de segurança seja definida através da análise de três parâmetros de exposição:
+            </Text>
+            
+            {/* Cards de Parâmetros S/F/P */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 16 }}>
+              <View style={{ flex: 1, backgroundColor: THEME.bg, padding: 10, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight, marginRight: 8 }}>
+                <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.accent, marginBottom: 6 }}>S (Severidade do Dano)</Text>
+                <Text style={{ fontSize: 9, color: THEME.textSecondary, marginBottom: 4 }}><Text style={{ color: THEME.textPrimary, fontFamily: 'Helvetica-Bold' }}>S1:</Text> Leve ou Reversível</Text>
+                <Text style={{ fontSize: 9, color: THEME.textSecondary }}><Text style={{ color: THEME.textPrimary, fontFamily: 'Helvetica-Bold' }}>S2:</Text> Grave ou Irreversível</Text>
+              </View>
+              <View style={{ flex: 1, backgroundColor: THEME.bg, padding: 10, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight, marginRight: 8 }}>
+                <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.accent, marginBottom: 6 }}>F (Frequência de Exposição)</Text>
+                <Text style={{ fontSize: 9, color: THEME.textSecondary, marginBottom: 4 }}><Text style={{ color: THEME.textPrimary, fontFamily: 'Helvetica-Bold' }}>F1:</Text> Rara a pouca exposição</Text>
+                <Text style={{ fontSize: 9, color: THEME.textSecondary }}><Text style={{ color: THEME.textPrimary, fontFamily: 'Helvetica-Bold' }}>F2:</Text> Frequente a Contínua</Text>
+              </View>
+              <View style={{ flex: 1, backgroundColor: THEME.bg, padding: 10, borderRadius: 6, borderWidth: 1, borderColor: THEME.borderLight }}>
+                <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.accent, marginBottom: 6 }}>P (Possibilidade de Evitar)</Text>
+                <Text style={{ fontSize: 9, color: THEME.textSecondary, marginBottom: 4 }}><Text style={{ color: THEME.textPrimary, fontFamily: 'Helvetica-Bold' }}>P1:</Text> Possível sob condições certas</Text>
+                <Text style={{ fontSize: 9, color: THEME.textSecondary }}><Text style={{ color: THEME.textPrimary, fontFamily: 'Helvetica-Bold' }}>P2:</Text> Quase impossível</Text>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              <View style={{ flex: 0.45, paddingRight: 16 }}>
+                <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, marginBottom: 8 }}>Requisitos Operacionais</Text>
+                <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.5, marginBottom: 12 }}>
+                  Nas fichas a seguir, cada equipamento apresentará um resultado da análise. Ex: os parâmetros identificados foram S2, F1 e P1 resultando na classificação de Categoria 1, 2, 3 ou 4.
+                </Text>
+                <View style={{ borderLeftWidth: 2, borderLeftColor: THEME.accent, paddingLeft: 8 }}>
+                  <Text style={{ fontSize: 9, color: THEME.textSecondary, marginBottom: 8, lineHeight: 1.4 }}>
+                    <Text style={{ color: THEME.textPrimary, fontFamily: 'Helvetica-Bold' }}>Cat 3:</Text> A ocorrência de um único defeito não deve resultar na perda da função de segurança.
+                  </Text>
+                  <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.4 }}>
+                    <Text style={{ color: THEME.textPrimary, fontFamily: 'Helvetica-Bold' }}>Cat 4:</Text> Um único defeito deve ser detectado antes da próxima atuação e o acúmulo de defeitos não pode comprometer a segurança.
+                  </Text>
+                </View>
+              </View>
+              <View style={{ flex: 0.55, borderRadius: 6, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight, backgroundColor: '#ffffff', padding: 10 }}>
+                <PDFImage src="/nbr14153-flowchart.png" style={{ width: '100%', height: 180, objectFit: 'contain' }} />
+              </View>
+            </View>
           </View>
         </View>
       </Page>
