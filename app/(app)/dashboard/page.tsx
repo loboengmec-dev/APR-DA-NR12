@@ -1,212 +1,70 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { listarLaudos, excluirLaudo } from '@/lib/actions/laudos'
-import { atualizarCliente } from '@/lib/actions/clientes'
 import Link from 'next/link'
-import type { Laudo, FormCliente } from '@/types'
-import FormEditarCliente from '@/components/laudo/FormEditarCliente'
-
-const STATUS_LABEL: Record<string, string> = {
-  rascunho: 'Rascunho',
-  em_revisao: 'Em revisão',
-  finalizado: 'Finalizado',
-}
-
-const STATUS_COLOR: Record<string, string> = {
-  rascunho: 'bg-yellow-100 text-yellow-800',
-  em_revisao: 'bg-blue-100 text-blue-800',
-  finalizado: 'bg-green-100 text-green-800',
-}
-
-function formatarData(data: string | null) {
-  if (!data) return '—'
-  return new Date(data + 'T00:00:00').toLocaleDateString('pt-BR')
-}
-
-type LaudoComCliente = Laudo & {
-  clientes?: {
-    id: string
-    razao_social: string
-    cnpj: string | null
-    endereco: string | null
-    cidade: string | null
-    estado: string | null
-  }
-}
 
 export default function DashboardPage() {
-  const [laudos, setLaudos] = useState<LaudoComCliente[]>([])
-  const [carregando, setCarregando] = useState(true)
-  const [erro, setErro] = useState('')
-  const [editandoClienteId, setEditandoClienteId] = useState<string | null>(null) // laudo.id
-  const [excluindo, setExcluindo] = useState<string | null>(null) // laudo.id sendo excluído
-
-  const carregarLaudos = useCallback(async () => {
-    const { data, error } = await listarLaudos()
-    if (error) {
-      setErro(error)
-    } else {
-      setLaudos((data ?? []) as LaudoComCliente[])
-    }
-    setCarregando(false)
-  }, [])
-
-  useEffect(() => {
-    carregarLaudos()
-  }, [carregarLaudos])
-
-  if (carregando) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-gray-400 text-sm">Carregando laudos...</div>
-      </div>
-    )
-  }
-
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Laudos</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {laudos.length} laudo{laudos.length !== 1 ? 's' : ''} encontrado{laudos.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-        <Link href="/laudos/novo" className="btn-primary">
-          + Novo Laudo
-        </Link>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Painel de Inspeções</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Selecione o módulo de inspeção para iniciar um novo laudo ou gerenciar laudos existentes.
+        </p>
       </div>
 
-      {erro && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm mb-4">
-          Erro ao carregar laudos: {erro}
-        </div>
-      )}
+      {/* CARDS DOS MÓDULOS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-      {!laudos.length ? (
-        <div className="card p-12 text-center">
-          <div className="text-4xl mb-4">📋</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum laudo ainda</h3>
-          <p className="text-gray-500 text-sm mb-6">
-            Crie seu primeiro laudo de Apreciação de Risco NR-12.
-          </p>
-          <Link href="/laudos/novo" className="btn-primary inline-block">
-            Criar primeiro laudo
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {laudos.map((laudo) => {
-            const cliente = laudo.clientes
-            const isEditando = editandoClienteId === laudo.id
+        {/* NR-12 — Máquinas e Equipamentos */}
+        <Link
+          href="/dashboard/nr12"
+          className="group relative overflow-hidden rounded-2xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-50 p-8 hover:border-blue-400 hover:shadow-xl transition-all duration-300"
+        >
+          <div className="flex flex-col items-start gap-4">
+            <div className="w-14 h-14 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.049.58.025 1.194-.14 1.743" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-700 transition-colors">NR-12</h3>
+              <p className="text-base font-medium text-gray-700 mt-0.5">Máquinas e Equipamentos</p>
+              <p className="text-sm text-gray-400 mt-2 leading-relaxed">Apreciação de Risco, cálculo HRN, categorização de segurança (NBR 14153) e geração de laudos técnicos.</p>
+            </div>
+          </div>
+          <div className="absolute top-6 right-6 text-gray-200 group-hover:text-blue-400 group-hover:translate-x-1 transition-all duration-300">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </div>
+        </Link>
 
-            return (
-              <div key={laudo.id}>
-                <div className="card p-4 flex items-center justify-between hover:border-blue-300 transition-colors">
-                  <Link
-                    href={`/laudos/${laudo.id}`}
-                    className="flex-1 min-w-0"
-                  >
-                    <div className="flex items-center gap-3 mb-1">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLOR[laudo.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                        {STATUS_LABEL[laudo.status] ?? laudo.status}
-                      </span>
-                      {laudo.numero_documento && (
-                        <span className="text-xs text-gray-500">{laudo.numero_documento}</span>
-                      )}
-                    </div>
-                    <p className="font-medium text-gray-900 truncate">
-                      {cliente?.razao_social ?? 'Cliente não informado'}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {cliente?.cidade && cliente?.estado
-                        ? `${cliente.cidade} — ${cliente.estado}`
-                        : 'Local não informado'
-                      }
-                      {laudo.data_inspecao && ` · ${formatarData(laudo.data_inspecao)}`}
-                    </p>
-                  </Link>
+        {/* NR-13 — Vasos de Pressão */}
+        <Link
+          href="/demo-nr13"
+          className="group relative overflow-hidden rounded-2xl border-2 border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-50 p-8 hover:border-emerald-400 hover:shadow-xl transition-all duration-300"
+        >
+          <div className="flex flex-col items-start gap-4">
+            <div className="w-14 h-14 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">NR-13</h3>
+              <p className="text-base font-medium text-gray-700 mt-0.5">Vasos de Pressão e Caldeiras</p>
+              <p className="text-sm text-gray-400 mt-2 leading-relaxed">Inspeção ASME Sec. VIII, cálculo de PMTA em campo, medição de espessura e avaliação de PSV.</p>
+            </div>
+          </div>
+          <div className="absolute top-6 right-6 text-gray-200 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all duration-300">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </div>
+        </Link>
 
-                  <div className="flex items-center gap-1 ml-4">
-                    {/* Botão editar cliente */}
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setEditandoClienteId(isEditando ? null : laudo.id)
-                      }}
-                      className={`p-2 rounded-md transition-colors ${
-                        isEditando
-                          ? 'text-blue-600 bg-blue-50'
-                          : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
-                      }`}
-                      title="Editar dados do cliente"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                        <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
-                      </svg>
-                    </button>
-
-                    {/* Botão excluir laudo */}
-                    <button
-                      onClick={async (e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        const clienteNome = cliente?.razao_social ?? 'este laudo'
-                        if (!confirm(`Deseja realmente excluir o laudo de "${clienteNome}"? Esta ação não pode ser desfeita.`)) return
-                        setExcluindo(laudo.id)
-                        const { error: erroExcluir } = await excluirLaudo(laudo.id)
-                        if (erroExcluir) {
-                          setErro('Erro ao excluir: ' + erroExcluir)
-                        } else {
-                          setLaudos(prev => prev.filter(l => l.id !== laudo.id))
-                        }
-                        setExcluindo(null)
-                      }}
-                      disabled={excluindo === laudo.id}
-                      className={`p-2 rounded-md transition-colors ${
-                        excluindo === laudo.id
-                          ? 'text-gray-300 cursor-not-allowed'
-                          : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
-                      }`}
-                      title="Excluir laudo"
-                    >
-                      {excluindo === laudo.id ? (
-                        <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                        </svg>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                          <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </button>
-
-                    {/* Seta de navegação */}
-                    <Link href={`/laudos/${laudo.id}`} className="text-gray-400 hover:text-gray-600 p-2">
-                      →
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Formulário de edição/criação do cliente (expande abaixo do card) */}
-                {isEditando && (
-                  <div className="mt-1">
-                    <FormEditarCliente
-                      cliente={cliente ?? undefined}
-                      laudoId={laudo.id}
-                      onSalvo={() => { setEditandoClienteId(null); carregarLaudos() }}
-                      onCancelar={() => setEditandoClienteId(null)}
-                    />
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
+      </div>
     </div>
   )
 }
