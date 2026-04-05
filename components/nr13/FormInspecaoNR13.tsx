@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { calcularPMTACilindro, calcularPMTATampoToriesferico, calcularPMTAGlobal } from '../../lib/domain/nr13/pmta';
@@ -51,7 +51,7 @@ export default function FormInspecaoNR13() {
   const [alerta, setAlerta] = useState<string | null>(null);
 
   const { register, watch, formState: { errors, isValid } } = useForm<FormData>({
-    resolver: zodResolver(FormSchema),
+    resolver: zodResolver(FormSchema) as Resolver<FormData>,
     mode: 'onChange',
     defaultValues: { 
       diametroD: 1000, 
