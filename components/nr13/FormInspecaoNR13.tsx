@@ -1,10 +1,24 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useForm, type Resolver } from 'react-hook-form';
+import { useForm, useFieldArray, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { calcularPMTACilindro, calcularPMTATampoToriesferico, calcularPMTAGlobal } from '../../lib/domain/nr13/pmta';
+
+// Intervalos de inspeção periódica por classe de fluido (NR-13 Anexo I)
+const INTERVALOS_NR13: Record<string, { externo: number; interno: number; label: string }> = {
+  'A (Inflamável/Tóxico)':              { externo: 1, interno: 2,  label: 'Ext: 1 ano / Int: 2 anos' },
+  'B (Combustível/Tóxico leve)':        { externo: 2, interno: 4,  label: 'Ext: 2 anos / Int: 4 anos' },
+  'C (Vapor de Água/Gases asfixiantes)':{ externo: 3, interno: 6,  label: 'Ext: 3 anos / Int: 6 anos' },
+  'D (Água/Outros)':                    { externo: 5, interno: 10, label: 'Ext: 5 anos / Int: 10 anos' },
+};
+
+function somarAnos(dataISO: string, anos: number): string {
+  const d = new Date(dataISO + 'T00:00:00');
+  d.setFullYear(d.getFullYear() + anos);
+  return d.toISOString().split('T')[0];
+}
 
 // Zod Schema para Validação Local
 const FormSchema = z.object({
@@ -42,6 +56,18 @@ const FormSchema = z.object({
   espessuraCostado: z.coerce.number().positive(),
   espessuraTampo: z.coerce.number().positive(),
   psvCalibracao: z.coerce.number().positive(),
+
+  // Seção 5: Parecer Técnico e Plano de Inspeção
+  statusFinalVaso: z.enum(['Aprovado', 'Aprovado com Restrições', 'Reprovado — Downgrade Necessário', 'Interditado']),
+  proximaInspecaoExterna: z.string().min(10, 'Data obrigatória'),
+  proximaInspecaoInterna: z.string().min(10, 'Data obrigatória'),
+  naoConformidades: z.array(z.object({
+    descricao: z.string().min(5, 'Descreva a não conformidade (mín. 5 caracteres)'),
+  })).optional(),
+  observacoes: z.string().optional(),
+  rthNome: z.string().min(3, 'Nome do responsável é obrigatório'),
+  rthCrea: z.string().min(4, 'Registro profissional é obrigatório'),
+  rthProfissao: z.enum(['Engenheiro Mecânico', 'Engenheiro de Segurança do Trabalho', 'Técnico de Segurança do Trabalho', 'Outro']),
 });
 
 type FormData = z.infer<typeof FormSchema>;
@@ -50,13 +76,13 @@ export default function FormInspecaoNR13() {
   const [pmtaTempoReal, setPmtaTempoReal] = useState<number | null>(null);
   const [alerta, setAlerta] = useState<string | null>(null);
 
-  const { register, watch, formState: { errors, isValid } } = useForm<FormData>({
+  const { register, watch, setValue, control, formState: { errors, isValid } } = useForm<FormData>({
     resolver: zodResolver(FormSchema) as Resolver<FormData>,
     mode: 'onChange',
-    defaultValues: { 
-      diametroD: 1000, 
-      psvCalibracao: 0.8, 
-      materialS: 137.9, 
+    defaultValues: {
+      diametroD: 1000,
+      psvCalibracao: 0.8,
+      materialS: 137.9,
       eficienciaE: 0.85,
       dataInspecao: new Date().toISOString().split('T')[0],
       codigoProjeto: 'ASME Sec. VIII Div 1',
@@ -65,8 +91,17 @@ export default function FormInspecaoNR13() {
       registroSeguranca: 'Atualizado',
       projetoInstalacao: 'Existe',
       relatoriosAnteriores: 'Disponíveis',
-      placaIdentificacao: 'Fixada e Legível'
+      placaIdentificacao: 'Fixada e Legível',
+      statusFinalVaso: 'Aprovado',
+      rthProfissao: 'Engenheiro Mecânico',
+      naoConformidades: [],
     }
+  });
+
+  // Hook para lista dinâmica de não conformidades
+  const { fields: ncFields, append: ncAppend, remove: ncRemove } = useFieldArray({
+    control,
+    name: 'naoConformidades',
   });
 
   const valoresAtuais = watch();
@@ -109,6 +144,29 @@ export default function FormInspecaoNR13() {
       setDetalheCalculo(null);
     }
   }, [valoresAtuais]);
+
+  // Auto-calcula datas da próxima inspeção ao mudar classe do fluido ou data de inspeção
+  useEffect(() => {
+    const { fluidoClasse, dataInspecao } = valoresAtuais;
+    if (!fluidoClasse || !dataInspecao || dataInspecao.length < 10) return;
+    const intervalo = INTERVALOS_NR13[fluidoClasse];
+    if (!intervalo) return;
+    setValue('proximaInspecaoExterna', somarAnos(dataInspecao, intervalo.externo), { shouldValidate: true });
+    setValue('proximaInspecaoInterna', somarAnos(dataInspecao, intervalo.interno), { shouldValidate: true });
+  }, [valoresAtuais.fluidoClasse, valoresAtuais.dataInspecao, setValue]);
+
+  // Auto-sugere status final com base no resultado estrutural + exames físicos
+  useEffect(() => {
+    if (!detalheCalculo) return;
+    const { exameExterno, exameInterno } = valoresAtuais;
+    let sugestao: FormData['statusFinalVaso'] = 'Aprovado';
+    if (detalheCalculo.condena) {
+      sugestao = 'Reprovado — Downgrade Necessário';
+    } else if (exameExterno === 'Não Conforme' || exameInterno === 'Não Conforme') {
+      sugestao = 'Aprovado com Restrições';
+    }
+    setValue('statusFinalVaso', sugestao, { shouldValidate: true });
+  }, [detalheCalculo, valoresAtuais.exameExterno, valoresAtuais.exameInterno, setValue]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -405,6 +463,195 @@ export default function FormInspecaoNR13() {
           ) : (
             <p className="text-sm text-gray-500">Preencha as espessuras do ultrassom para visualizar o recálculo ASME.</p>
           )}
+        </div>
+      </section>
+
+      {/* SEÇÃO 5: PARECER TÉCNICO E PLANO DE INSPEÇÃO */}
+      <section className="bg-white border-2 border-slate-800 rounded-xl p-6 space-y-8">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">5. Parecer Técnico e Plano de Inspeção</h2>
+          <p className="text-sm text-slate-500 mt-1">Conclusão oficial da inspeção. Confere validade legal ao documento conforme NR-13.5.1.5.</p>
+        </div>
+
+        {/* 5.1 STATUS FINAL DO VASO */}
+        <div>
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">5.1 Situação do Equipamento</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Status Final do Vaso</label>
+              <select
+                {...register('statusFinalVaso')}
+                className={`block w-full p-2.5 border rounded-lg font-semibold text-sm focus:ring-2 focus:ring-slate-500 ${
+                  valoresAtuais.statusFinalVaso === 'Aprovado'
+                    ? 'bg-emerald-50 border-emerald-400 text-emerald-800'
+                    : valoresAtuais.statusFinalVaso === 'Aprovado com Restrições'
+                    ? 'bg-amber-50 border-amber-400 text-amber-800'
+                    : 'bg-red-50 border-red-400 text-red-800'
+                }`}
+              >
+                <option value="Aprovado">Aprovado</option>
+                <option value="Aprovado com Restrições">Aprovado com Restrições</option>
+                <option value="Reprovado — Downgrade Necessário">Reprovado — Downgrade Necessário</option>
+                <option value="Interditado">Interditado</option>
+              </select>
+              <p className="text-xs text-slate-400 mt-1">Auto-sugerido com base no cálculo ASME e nos exames físicos.</p>
+            </div>
+
+            {/* Badge visual do status */}
+            <div className={`flex items-center gap-3 p-4 rounded-xl border-2 ${
+              valoresAtuais.statusFinalVaso === 'Aprovado'
+                ? 'bg-emerald-50 border-emerald-300'
+                : valoresAtuais.statusFinalVaso === 'Aprovado com Restrições'
+                ? 'bg-amber-50 border-amber-300'
+                : 'bg-red-50 border-red-300'
+            }`}>
+              <span className="text-3xl">
+                {valoresAtuais.statusFinalVaso === 'Aprovado' ? '✅'
+                  : valoresAtuais.statusFinalVaso === 'Aprovado com Restrições' ? '⚠️'
+                  : '🚫'}
+              </span>
+              <div>
+                <p className={`font-bold text-sm ${
+                  valoresAtuais.statusFinalVaso === 'Aprovado' ? 'text-emerald-800'
+                  : valoresAtuais.statusFinalVaso === 'Aprovado com Restrições' ? 'text-amber-800'
+                  : 'text-red-800'
+                }`}>
+                  {valoresAtuais.statusFinalVaso ?? '—'}
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">Parecer técnico oficial</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 5.2 PLANO DE PRÓXIMAS INSPEÇÕES */}
+        <div>
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-1">5.2 Plano de Inspeções Periódicas</h3>
+          {valoresAtuais.fluidoClasse && INTERVALOS_NR13[valoresAtuais.fluidoClasse] && (
+            <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-3 py-1.5 mb-3 inline-block">
+              NR-13 Anexo I — {valoresAtuais.fluidoClasse.split(' ')[0]}: {INTERVALOS_NR13[valoresAtuais.fluidoClasse].label}
+            </p>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Próxima Inspeção <span className="text-blue-600 font-bold">Externa</span></label>
+              <input
+                type="date"
+                {...register('proximaInspecaoExterna')}
+                className="block w-full p-2 border border-slate-300 rounded-lg bg-blue-50 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {errors.proximaInspecaoExterna && <span className="text-xs text-red-500">{errors.proximaInspecaoExterna.message}</span>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Próxima Inspeção <span className="text-purple-600 font-bold">Interna</span></label>
+              <input
+                type="date"
+                {...register('proximaInspecaoInterna')}
+                className="block w-full p-2 border border-slate-300 rounded-lg bg-purple-50 focus:ring-purple-500 focus:border-purple-500"
+              />
+              {errors.proximaInspecaoInterna && <span className="text-xs text-red-500">{errors.proximaInspecaoInterna.message}</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* 5.3 NÃO CONFORMIDADES IDENTIFICADAS */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">5.3 Não Conformidades Identificadas</h3>
+            <span className="text-xs text-slate-400">{ncFields.length} item(s)</span>
+          </div>
+
+          <div className="space-y-2 mb-3">
+            {ncFields.length === 0 && (
+              <p className="text-sm text-slate-400 italic py-2">Nenhuma NC registrada. Clique em "+ Adicionar" para incluir.</p>
+            )}
+            {ncFields.map((field, index) => (
+              <div key={field.id} className="flex items-start gap-2">
+                <div className="flex-shrink-0 w-6 h-6 mt-2 rounded-full bg-slate-200 flex items-center justify-center">
+                  <span className="text-xs font-bold text-slate-600">{index + 1}</span>
+                </div>
+                <div className="flex-1">
+                  <input
+                    {...register(`naoConformidades.${index}.descricao`)}
+                    placeholder="Ex: Ausência de placa de identificação legível no costado do vaso"
+                    className="block w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-slate-500 focus:border-slate-500"
+                  />
+                  {errors.naoConformidades?.[index]?.descricao && (
+                    <span className="text-xs text-red-500">{errors.naoConformidades[index]?.descricao?.message}</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => ncRemove(index)}
+                  className="mt-2 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                  title="Remover NC"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                    <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => ncAppend({ descricao: '' })}
+            className="flex items-center gap-2 text-sm font-medium text-slate-700 border border-dashed border-slate-400 px-4 py-2 rounded-lg hover:bg-slate-50 hover:border-slate-600 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+            </svg>
+            Adicionar Não Conformidade
+          </button>
+        </div>
+
+        {/* 5.4 OBSERVAÇÕES */}
+        <div>
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-2">5.4 Observações e Recomendações</h3>
+          <textarea
+            {...register('observacoes')}
+            rows={3}
+            placeholder="Registre recomendações adicionais, condicionantes operacionais ou prazos de ação corretiva..."
+            className="block w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-slate-500 focus:border-slate-500 resize-none"
+          />
+        </div>
+
+        {/* 5.5 RESPONSÁVEL TÉCNICO HABILITADO (RTH) */}
+        <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">5.5 Responsável Técnico Habilitado (RTH)</h3>
+          <p className="text-xs text-slate-500">Profissional habilitado que conduz e assina a inspeção conforme NR-13.5.1.3.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Formação</label>
+              <select {...register('rthProfissao')} className="block w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-slate-500 focus:border-slate-500">
+                <option value="Engenheiro Mecânico">Engenheiro Mecânico</option>
+                <option value="Engenheiro de Segurança do Trabalho">Eng. de Segurança do Trabalho</option>
+                <option value="Técnico de Segurança do Trabalho">Técnico de Segurança do Trabalho</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
+              <input
+                type="text"
+                {...register('rthNome')}
+                placeholder="Ex: Danilo Lobo Souza"
+                className="block w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-slate-500 focus:border-slate-500"
+              />
+              {errors.rthNome && <span className="text-xs text-red-500">{errors.rthNome.message}</span>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">CREA / Registro</label>
+              <input
+                type="text"
+                {...register('rthCrea')}
+                placeholder="Ex: CREA-MG 123456/D"
+                className="block w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-slate-500 focus:border-slate-500"
+              />
+              {errors.rthCrea && <span className="text-xs text-red-500">{errors.rthCrea.message}</span>}
+            </div>
+          </div>
         </div>
       </section>
 
