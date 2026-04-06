@@ -112,9 +112,14 @@ export async function salvarInspecaoNR13(formData: InspecaoNR13Data) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, errors: { formErrors: ['Não autenticado'], fieldErrors: {} } }
 
+  console.log('[NR13-Server] salvarInspecaoNR13: usuario', user.id, 'dados', JSON.stringify(formData).slice(0, 200))
+
   // 1. Parse e validação
   const parsed = InspecaoNR13Schema.safeParse(formData)
-  if (!parsed.success) return { success: false, errors: parsed.error.flatten() }
+  if (!parsed.success) {
+    console.error('[NR13-Server] Zod falhou:', parsed.error.flatten())
+    return { success: false, errors: parsed.error.flatten() }
+  }
   const data = parsed.data
 
   // 2. Double-check condicional — só valida se os campos necessários estão presentes
@@ -151,10 +156,52 @@ export async function salvarInspecaoNR13(formData: InspecaoNR13Data) {
     }
   }
 
-  // 3. Cria inspeção (aceita rascunhos parciais)
+  // 3. Encontrar ou criar cliente (necessário para RLS)
+  const { data: clientes } = await supabase.from('clientes').select('id').eq('usuario_id', user.id).limit(1)
+  let clienteId: string | null = clientes?.[0]?.id ?? null
+
+  if (!clienteId) {
+    // Cria cliente genérico associado ao usuário
+    const { data: novoCliente, error: cliErr } = await supabase
+      .from('clientes')
+      .insert({ usuario_id: user.id, razao_social: data.tag || 'Cliente Sem Nome' })
+      .select()
+      .single()
+    if (cliErr || !novoCliente) {
+      console.error('[NR13-Server] Erro ao criar cliente:', cliErr)
+      return { success: false, errors: { formErrors: [`Erro ao criar cliente: ${cliErr?.message}`], fieldErrors: {} } }
+    }
+    clienteId = novoCliente.id
+    console.log('[NR13-Server] Cliente criado:', clienteId)
+  }
+
+  // 4. Criar vaso_pressao (necessário para RLS de inspecoes_nr13)
+  const { data: novoVaso, error: vasoErr } = await supabase
+    .from('vasos_pressao')
+    .insert({
+      cliente_id: clienteId,
+      tag: data.tag || 'SEM_TAG',
+      fabricante: data.fabricante,
+      numero_serie: data.numeroSerie,
+      ano_fabricacao: data.anoFabricacao,
+      tipo_vaso: data.tipoVaso,
+      codigo_projeto: data.codigoProjeto,
+      pmta_fabricante_kpa: data.pmtaFabricante,
+    })
+    .select()
+    .single()
+
+  if (vasoErr || !novoVaso) {
+    console.error('[NR13-Server] Erro ao criar vaso:', vasoErr)
+    return { success: false, errors: { formErrors: ['Erro ao criar vaso: ' + (vasoErr?.message ?? 'desconhecido')], fieldErrors: {} } }
+  }
+  console.log('[NR13-Server] Vaso criado:', novoVaso.id)
+
+  // 5. Cria inspeção com vaso_id válido
   const { data: inspecao, error: inspError } = await supabase
     .from('inspecoes_nr13')
     .insert({
+      vaso_id: novoVaso.id,
       tag: data.tag,
       fabricante: data.fabricante,
       numero_serie: data.numeroSerie,
@@ -205,10 +252,11 @@ export async function salvarInspecaoNR13(formData: InspecaoNR13Data) {
     .single()
 
   if (inspError || !inspecao) {
+    console.error('[NR13-Server] Erro ao criar inspeção:', inspError)
     return { success: false, errors: { formErrors: [`Erro ao salvar: ${inspError?.message}`], fieldErrors: {} } }
   }
 
-  // 5. NCs — salva todas (incluindo AUTO:)
+  // 6. NCs — salva todas (incluindo AUTO:)
   const ncs = data.naoConformidades ?? []
   for (let i = 0; i < ncs.length; i++) {
     const nc = ncs[i]
@@ -225,6 +273,7 @@ export async function salvarInspecaoNR13(formData: InspecaoNR13Data) {
   }
 
   revalidatePath('/dashboard')
+  revalidatePath('/laudos/nr13')
 
   return {
     success: true,

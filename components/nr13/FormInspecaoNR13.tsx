@@ -472,96 +472,84 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErroSalvar(null);
-
-    // Validação no cliente antes de enviar — verifica campos críticos
-    const camposCriticos = ['tag', 'fabricante', 'numeroSerie', 'pmtaFabricante',
-      'dataInspecao', 'dataEmissaoLaudo', 'fluidoServico', 'fluidoClasse',
-      'pressaoOperacao', 'volume', 'exameExterno', 'exameInterno',
-      'parecerTecnico', 'rthNome', 'rthCrea', 'medicoesEspessura',
-      'dispositivosSeguranca', 'materialS', 'eficienciaE', 'diametroD',
-      'espessuraCostado', 'espessuraTampo', 'psvCalibracao',
-      'proximaInspecaoExterna', 'proximaInspecaoInterna',
-      'dataProximoTesteDispositivos', 'pmtaFixadaPLH', 'rthProfissao'];
-    const errosVisiveis = Object.entries(errors).filter(([key]) => {
-      return camposCriticos.includes(key);
-    });
-    if (errosVisiveis.length > 0) {
-      setErroSalvar(`Preencha ${errosVisiveis.length} campo(s) obrigatório(s) antes de salvar. Verifique os campos marcados em vermelho.`);
-      return;
-    }
-
     setSalvando(true);
 
-    // Usa os valores do form com safe defaults
-    const payload = {
-      tag: v.tag ?? '',
-      fabricante: v.fabricante ?? '',
-      numeroSerie: v.numeroSerie ?? '',
-      anoFabricacao: v.anoFabricacao,
-      tipoVaso: v.tipoVaso,
-      codigoProjeto: v.codigoProjeto,
-      pmtaFabricante: v.pmtaFabricante,
-      dataInspecao: v.dataInspecao,
-      dataEmissaoLaudo: v.dataEmissaoLaudo,
-      tipoInspecao: v.tipoInspecao,
-      ambiente: v.ambiente,
-      fluidoServico: v.fluidoServico,
-      fluidoClasse: v.fluidoClasse,
-      pressaoOperacao: v.pressaoOperacao,
-      volume: v.volume,
-      grupoPV: v.grupoPV,
-      categoriaVaso: v.categoriaVaso,
-      prontuario: v.prontuario,
-      registroSeguranca: v.registroSeguranca,
-      projetoInstalacao: v.projetoInstalacao,
-      relatoriosAnteriores: v.relatoriosAnteriores,
-      placaIdentificacao: v.placaIdentificacao,
-      certificadosDispositivos: v.certificadosDispositivos,
-      manualOperacao: v.manualOperacao,
-      exameExterno: v.exameExterno,
-      exameInterno: v.exameInterno,
-      medicoesEspessura: v.medicoesEspessura,
-      dispositivosSeguranca: v.dispositivosSeguranca,
-      materialS: v.materialS,
-      eficienciaE: v.eficienciaE,
-      diametroD: v.diametroD,
-      espessuraCostado: v.espessuraCostado,
-      espessuraTampo: v.espessuraTampo,
-      psvCalibracao: v.psvCalibracao,
-      statusFinalVaso: v.statusFinalVaso,
-      proximaInspecaoExterna: v.proximaInspecaoExterna,
-      proximaInspecaoInterna: v.proximaInspecaoInterna,
-      dataProximoTesteDispositivos: v.dataProximoTesteDispositivos,
-      parecerTecnico: v.parecerTecnico,
-      pmtaFixadaPLH: v.pmtaFixadaPLH,
-      naoConformidades: v.naoConformidades,
-      rthNome: v.rthNome,
-      rthCrea: v.rthCrea,
-      rthProfissao: v.rthProfissao,
+    // Monta payload com safe defaults — o servidor aceita dados parciais
+    const payload: Record<string, unknown> = {
+      tag: (v.tag ?? '').trim(),
+      fabricante: (v.fabricante ?? '').trim(),
+      numeroSerie: (v.numeroSerie ?? '').trim(),
+      anoFabricacao: v.anoFabricacao ?? null,
+      tipoVaso: v.tipoVaso ?? null,
+      codigoProjeto: v.codigoProjeto ?? null,
+      pmtaFabricante: v.pmtaFabricante ?? null,
+      dataInspecao: v.dataInspecao ?? null,
+      dataEmissaoLaudo: v.dataEmissaoLaudo ?? null,
+      tipoInspecao: v.tipoInspecao ?? null,
+      ambiente: v.ambiente ?? null,
+      fluidoServico: (v.fluidoServico ?? '').trim(),
+      fluidoClasse: v.fluidoClasse ?? null,
+      pressaoOperacao: v.pressaoOperacao ?? null,
+      volume: v.volume ?? null,
+      grupoPV: v.grupoPV ?? null,
+      categoriaVaso: v.categoriaVaso ?? null,
+      prontuario: v.prontuario ?? null,
+      registroSeguranca: v.registroSeguranca ?? null,
+      projetoInstalacao: v.projetoInstalacao ?? null,
+      relatoriosAnteriores: v.relatoriosAnteriores ?? null,
+      placaIdentificacao: v.placaIdentificacao ?? null,
+      certificadosDispositivos: v.certificadosDispositivos ?? null,
+      manualOperacao: v.manualOperacao ?? null,
+      exameExterno: v.exameExterno ?? null,
+      exameInterno: v.exameInterno ?? null,
+      medicoesEspessura: v.medicoesEspessura ?? null,
+      dispositivosSeguranca: v.dispositivosSeguranca ?? null,
+      materialS: v.materialS ?? null,
+      eficienciaE: v.eficienciaE ?? null,
+      diametroD: v.diametroD ?? null,
+      espessuraCostado: v.espessuraCostado ?? null,
+      espessuraTampo: v.espessuraTampo ?? null,
+      psvCalibracao: v.psvCalibracao ?? null,
+      statusFinalVaso: v.statusFinalVaso ?? null,
+      proximaInspecaoExterna: v.proximaInspecaoExterna ?? null,
+      proximaInspecaoInterna: v.proximaInspecaoInterna ?? null,
+      dataProximoTesteDispositivos: v.dataProximoTesteDispositivos ?? null,
+      parecerTecnico: (v.parecerTecnico ?? '').trim(),
+      pmtaFixadaPLH: v.pmtaFixadaPLH ?? null,
+      naoConformidades: v.naoConformidades ?? [],
+      rthNome: (v.rthNome ?? '').trim(),
+      rthCrea: (v.rthCrea ?? '').trim(),
+      rthProfissao: v.rthProfissao ?? null,
     };
+
+    console.log('[NR13] Salvando inspeção (modoEdicao:', modoEdicao, ')', payload);
 
     try {
       if (modoEdicao && inspecaoId) {
-        // UPDATE — edição de inspeção existente
         const res = await atualizarInspecaoNR13(inspecaoId, payload);
-        if (res.error) { setErroSalvar(res.error); return; }
+        console.log('[NR13] Resultado UPDATE:', res);
+        if (res.error) {
+          setErroSalvar(res.error);
+          return;
+        }
         setSalvoComSucesso(true);
         setTimeout(() => setSalvoComSucesso(false), 3000);
       } else {
-        // INSERT — salva e redireciona para a lista de inspeções
         const response = await salvarInspecaoNR13(payload);
+        console.log('[NR13] Resultado INSERT:', response);
         if (!response.success) {
           const msgs = response.errors?.formErrors ?? ['Erro desconhecido'];
           setErroSalvar(msgs.join(', '));
           return;
         }
-        // Redireciona para a lista — a nova inspeção aparecerá como card clicável
-        router.push('/laudos/nr13');
+        console.log('[NR13] Inspeção criada:', response.inspecaoId, '→ redirecionando');
+        router.replace('/laudos/nr13');
         return;
       }
-    } catch (err) {
-      setErroSalvar('Erro inesperado ao salvar.');
-      console.error(err);
+    } catch (err: any) {
+      const msg = err?.message ?? 'Erro inesperado ao salvar.';
+      setErroSalvar(msg);
+      console.error('[NR13] Erro ao salvar:', err);
     } finally {
       setSalvando(false);
     }
