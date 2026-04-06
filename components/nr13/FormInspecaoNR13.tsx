@@ -471,6 +471,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    alert('[DEBUG] Botão foi clicado. Modo:', modoEdicao ? 'edição' : 'novo');
     console.log('[NR13] handleSubmit chamado, modoEdicao:', modoEdicao);
     setErroSalvar(null);
 
