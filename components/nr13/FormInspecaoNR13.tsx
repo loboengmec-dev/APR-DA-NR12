@@ -494,17 +494,18 @@ export default function FormInspecaoNR13() {
     dispositivosSeguranca: 'Dispositivos de Segurança',
   };
 
-  // Lista de erros com labels legíveis
-  const errosComLabel = Object.keys(errors).map(key => ({
-    campo: key,
-    label: labelMap[key] ?? key,
-    msg: (errors as Record<string, { message?: string }>)[key]?.message ?? 'obrigatório',
-  }));
+  // ─── Cálculo dinâmico de progresso baseado nos valores reais do formulário ───
+  function temValor(chave: string, valor: unknown): boolean {
+    if (valor == null) return false;
+    if (typeof valor === 'string') return valor.trim() !== '' && valor !== '0';
+    if (typeof valor === 'number') return valor !== 0 && !isNaN(valor);
+    if (Array.isArray(valor)) return valor.length > 0;
+    return true;
+  }
 
-  const errosTopLevel = errosComLabel.filter(e => !e.campo.includes('.'));
-  const camposPreenchidos = Object.keys(labelMap).length - errosComLabel.filter(e => Object.keys(labelMap).includes(e.campo)).length;
+  const camposPreenchidos = Object.entries(labelMap).filter(([key]) => temValor(key, (v as Record<string, unknown>)[key])).length;
   const totalCamposForm = Object.keys(labelMap).length;
-  const pctConcluido = Math.round((camposPreenchidos / totalCamposForm) * 100);
+  const pctConcluido = totalCamposForm > 0 ? Math.round((camposPreenchidos / totalCamposForm) * 100) : 0;
 
   return (
     <form onSubmit={handleSubmit} className="p-6 bg-white rounded-xl shadow-md w-full mx-auto border-t-4 border-slate-800 space-y-10">
