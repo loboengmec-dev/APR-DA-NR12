@@ -289,7 +289,7 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
               {[
                 ['TAG', d.tag], ['Fabricante', d.fabricante], ['Nº de Série', d.numeroSerie],
                 ['Ano de Fabricação', d.anoFabricacao], ['Tipo', d.tipoVaso], ['Cód. Projeto', d.codigoProjeto],
-                ['PMTA Fabricante', d.pmtaFabricante ? `${d.pmtaFabricante} kPa` : '—'],
+                ['PMTA Fabricante', d.pmtaFabricante ? `${d.pmtaFabricante} kgf/cm²` : '—'],
                 ['Ambiente', d.ambiente],
               ].map(([l, v]: any) => (
                 <View key={l} style={{ flex: 1, minWidth: '40%' }}>
@@ -313,7 +313,7 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
                 <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', color: THEME.blueAccent }}>{d.fluidoClasse ? d.fluidoClasse.charAt(0) : '—'}</Text></View>
             </View>
             <View style={[S.kpiRow, { marginBottom: 8 }]}>
-              <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>P. Op. (MPa)</Text>
+              <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>P. Op. (kgf/cm²)</Text>
                 <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{d.pressaoOperacao ?? '—'}</Text></View>
               <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Volume (m³)</Text>
                 <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{d.volume ?? '—'}</Text></View>
@@ -429,7 +429,7 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
               <View style={S.tblHeader}>
                 <Text style={{ ...S.tblHdr, width: 80 }}>TAG</Text>
                 <Text style={{ ...S.tblHdr, width: 50 }}>Tipo</Text>
-                <Text style={{ ...S.tblHdr, width: 110 }}>P. Ajuste (kPa)</Text>
+                <Text style={{ ...S.tblHdr, width: 110 }}>P. Ajuste (kgf/cm²)</Text>
                 <Text style={{ ...S.tblHdr, width: 100 }}>Últ. Teste</Text>
                 <Text style={{ ...S.tblHdr, width: 80 }}>Situação</Text>
               </View>
@@ -531,7 +531,7 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
               <View style={[S.kpi, { borderLeftWidth: 3, borderLeftColor: THEME.blueAccent }]}>
                 <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>PMTA Costado</Text>
                 <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: THEME.blueAccent, marginTop: 4 }}>
-                  {d._pmtaCostado != null ? (Number(d._pmtaCostado) * 10.197).toFixed(2) : '—'}
+                  {d._pmtaCostado != null ? Number(d._pmtaCostado).toFixed(2) : '—'}
                   <Text style={{ fontSize: 8, color: THEME.textSecondary, fontFamily: 'Helvetica' }}> kgf/cm²</Text>
                 </Text>
               </View>
@@ -564,12 +564,12 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
             {/* Parâmetros de entrada */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: THEME.borderLight }}>
               {[
-                ['Tensão Admissível S', d.materialS ? `${d.materialS} MPa` : '—'],
+                ['Tensão Admissível S', d.materialS ? `${d.materialS} kgf/cm²` : '—'],
                 ['Eficiência de Solda E', d.eficienciaE ?? '—'],
                 ['Diâmetro Interno D', d.diametroD ? `${d.diametroD} mm` : '—'],
                 ['Espessura Costado', d.espessuraCostado ? `${d.espessuraCostado} mm` : '—'],
                 ['Espessura Tampo', d.espessuraTampo ? `${d.espessuraTampo} mm` : '—'],
-                ['PSV Calibração', d.psvCalibracao ? `${d.psvCalibracao} MPa` : '—'],
+                ['PSV Calibração', d.psvCalibracao ? `${d.psvCalibracao} kgf/cm²` : '—'],
               ].map(([l, v]: any) => (
                 <View key={l} style={{ flex: 1, minWidth: '40%' }}>
                   <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>{l}</Text>

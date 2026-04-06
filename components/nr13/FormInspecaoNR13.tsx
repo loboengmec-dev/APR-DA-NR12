@@ -166,8 +166,8 @@ export default function FormInspecaoNR13() {
     mode: 'onChange',
     defaultValues: {
       diametroD: 1000,
-      psvCalibracao: 0.8,
-      materialS: 137.9,
+      psvCalibracao: 8.16,
+      materialS: 1406.1,
       eficienciaE: 0.85,
       dataInspecao: new Date().toISOString().split('T')[0],
       dataEmissaoLaudo: new Date().toISOString().split('T')[0],
@@ -324,10 +324,11 @@ export default function FormInspecaoNR13() {
   // Auto-calcula Grupo P×V e Categoria ao mudar classe, pressão ou volume
   useEffect(() => {
     const classe = extrairLetraClasse(v.fluidoClasse ?? '');
-    const p = v.pressaoOperacao;
+    // pressaoOperacao é inserida em kgf/cm² — converte para MPa antes de calcular grupo
+    const presMpa = v.pressaoOperacao ? Number(v.pressaoOperacao) / 10.197 : 0;
     const vol = v.volume;
-    if (!classe || !p || !vol) return;
-    const grupo = calcularGrupoPV(p, vol);
+    if (!classe || !presMpa || !vol) return;
+    const grupo = calcularGrupoPV(presMpa, vol);
     const cat = calcularCategoria(classe, grupo);
     setValue('grupoPV', grupo, { shouldValidate: true });
     setValue('categoriaVaso', cat, { shouldValidate: true });
@@ -345,20 +346,31 @@ export default function FormInspecaoNR13() {
   }, [v.fluidoClasse, v.dataInspecao, setValue]);
 
   // Auto-calcula PMTA em tempo real e auto-sugere PMTA fixada pelo PLH
+  // materialS e psvCalibracao agora são em kgf/cm² — converte para MPa internamente
   useEffect(() => {
     if (!v.materialS || !v.eficienciaE || !v.diametroD || !v.espessuraCostado || !v.espessuraTampo || !v.psvCalibracao) return;
     const R = v.diametroD / 2;
-    const pmtaCostado = calcularPMTACilindro({ S: v.materialS, E: v.eficienciaE, t: v.espessuraCostado, R, D: v.diametroD });
-    const pmtaTampo = calcularPMTATampoToriesferico({ S: v.materialS, E: v.eficienciaE, t: v.espessuraTampo, R, D: v.diametroD });
-    const calc = calcularPMTAGlobal(pmtaCostado, pmtaTampo, v.psvCalibracao);
-    setDetalheCalculo({ pmtaCostado, pmtaTampo, pmtaLimitante: calc.pmtaLimitante, componenteFragil: calc.componenteFragil, psvInformada: v.psvCalibracao, condena: calc.condena });
+    const sMpa = Number(v.materialS) / 10.197;  // kgf/cm² → MPa
+    const psvMpa = Number(v.psvCalibracao) / 10.197; // kgf/cm² → MPa
+    const pmtaCostado = calcularPMTACilindro({ S: sMpa, E: v.eficienciaE, t: v.espessuraCostado, R, D: v.diametroD });
+    const pmtaTampo = calcularPMTATampoToriesferico({ S: sMpa, E: v.eficienciaE, t: v.espessuraTampo, R, D: v.diametroD });
+    const calc = calcularPMTAGlobal(pmtaCostado, pmtaTampo, psvMpa);
+    setDetalheCalculo({
+      pmtaCostado, pmtaTampo,
+      pmtaLimitante: calc.pmtaLimitante,
+      componenteFragil: calc.componenteFragil,
+      psvInformada: Number(v.psvCalibracao),
+      condena: calc.condena,
+    });
+    const psvKgf = Number(v.psvCalibracao);
+    const pmtaLimitanteKgf = calc.pmtaLimitante * 10.197;
     setAlerta(calc.condena
-      ? `A PSV está calibrada em ${(v.psvCalibracao * 10.197).toFixed(2)} kgf/cm², mas a PMTA recalculada é apenas ${(calc.pmtaLimitante * 10.197).toFixed(2)} kgf/cm². A válvula não abrirá a tempo.`
+      ? `A PSV está calibrada em ${psvKgf.toFixed(2)} kgf/cm², mas a PMTA recalculada é apenas ${pmtaLimitanteKgf.toFixed(2)} kgf/cm². A válvula não abrirá a tempo.`
       : '✅ Vaso Conforme — PSV abrirá antes do limite estrutural.'
     );
-    // Sugere PMTA fixada pelo PLH = limitante ASME (PLH pode sobrescrever)
+    // Sugere PMTA fixada pelo PLH = limitante ASME (já em kgf/cm²)
     if (!v.pmtaFixadaPLH) {
-      setValue('pmtaFixadaPLH', parseFloat((calc.pmtaLimitante * 10.197).toFixed(2)), { shouldValidate: false });
+      setValue('pmtaFixadaPLH', parseFloat(pmtaLimitanteKgf.toFixed(2)), { shouldValidate: false });
     }
   }, [v.materialS, v.eficienciaE, v.diametroD, v.espessuraCostado, v.espessuraTampo, v.psvCalibracao]);
 
@@ -519,7 +531,7 @@ export default function FormInspecaoNR13() {
             </select>
           </div>
           <div>
-            <label className={`${labelCls} text-emerald-800`}>PMTA da Placa (kPa)</label>
+            <label className={`${labelCls} text-emerald-800`}>PMTA da Placa (kgf/cm²)</label>
             <input type="number" step="0.1" {...register('pmtaFabricante')} className={`${inputCls('pmtaFabricante')} bg-emerald-50 border-emerald-300`} placeholder="Ex: 4200" />
             {errors.pmtaFabricante && <p className={errCls}>{errors.pmtaFabricante.message}</p>}
           </div>
@@ -601,7 +613,7 @@ export default function FormInspecaoNR13() {
             </select>
           </div>
           <div>
-            <label className={labelCls}>Pressão Máxima de Operação — P (MPa)</label>
+            <label className={labelCls}>Pressão Máxima de Operação — P (kgf/cm²)</label>
             <input type="number" step="0.01" {...register('pressaoOperacao')} className={inputCls('pressaoOperacao')} placeholder="Ex: 4.2" />
             {errors.pressaoOperacao && <p className={errCls}>{errors.pressaoOperacao.message}</p>}
           </div>
@@ -617,7 +629,7 @@ export default function FormInspecaoNR13() {
             <label className={`${labelCls} text-slate-500`}>Produto P×V (auto)</label>
             <div className="mt-1 p-2 bg-slate-100 rounded-lg border border-slate-200 text-sm text-slate-700 font-mono">
               {v.pressaoOperacao && v.volume
-                ? `${(v.pressaoOperacao * v.volume).toFixed(2)} MPa·m³ → Grupo ${v.grupoPV ?? '—'}`
+                ? `${((Number(v.pressaoOperacao) / 10.197) * v.volume).toFixed(2)} MPa·m³ → Grupo ${v.grupoPV ?? '—'}`
                 : '—'}
               {v.grupoPV && <span className="ml-2 text-xs text-slate-500">({LIMITES_GRUPO[v.grupoPV as 1|2|3|4|5]})</span>}
             </div>
@@ -809,7 +821,7 @@ export default function FormInspecaoNR13() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Pressão Ajuste (kPa)</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Pressão Ajuste (kgf/cm²)</label>
                 <input type="number" step="1" {...register(`dispositivosSeguranca.${index}.pressaoAjusteKpa`)} placeholder="Ex: 4200" className={baseInputCls} />
               </div>
               <div>
@@ -974,11 +986,11 @@ export default function FormInspecaoNR13() {
         <h2 className={sectionTitle}>4. Base de Cálculo ASME Sec. VIII Div. 1</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className={labelCls}>Material — Tensão Admissível S (MPa)</label>
+            <label className={labelCls}>Material — Tensão Admissível S (kgf/cm²)</label>
             <select {...register('materialS')} className={`${baseSelectCls} mt-1`}>
-              <option value="137.9">SA-285 / SA-516 (137.9 MPa)</option>
-              <option value="114.5">SA-36 Estrutural (114.5 MPa)</option>
-              <option value="115.0">SA-240 304L Inox (115.0 MPa)</option>
+              <option value="1406.1">SA-285 / SA-516 (1406 kgf/cm²)</option>
+              <option value="1167.4">SA-36 Estrutural (1167 kgf/cm²)</option>
+              <option value="1172.5">SA-240 304L Inox (1172 kgf/cm²)</option>
             </select>
           </div>
           <div>
@@ -1006,7 +1018,7 @@ export default function FormInspecaoNR13() {
         </div>
 
         <div>
-          <label className={`${labelCls} text-purple-800 mt-4 mb-1 block`}>Pressão de Calibração da PSV (MPa)</label>
+          <label className={`${labelCls} text-purple-800 mt-4 mb-1 block`}>Pressão de Calibração da PSV (kgf/cm²)</label>
           <input type="number" step="0.01" {...register('psvCalibracao')} className={`${inputCls('psvCalibracao')} border-purple-300 bg-purple-50 max-w-xs`} placeholder="Ex: 0.8" />
         </div>
 
@@ -1017,12 +1029,13 @@ export default function FormInspecaoNR13() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 {(['Costado', 'Tampo'] as const).map(comp => {
-                  const val = comp === 'Costado' ? detalheCalculo.pmtaCostado : detalheCalculo.pmtaTampo;
+                  const valMpa = comp === 'Costado' ? detalheCalculo.pmtaCostado : detalheCalculo.pmtaTampo;
+                  const valKgf = valMpa * 10.197;
                   const fragil = detalheCalculo.componenteFragil === comp;
                   return (
                     <div key={comp} className={`p-3 rounded-lg border ${fragil ? 'bg-amber-50 border-amber-300' : 'bg-gray-50 border-gray-200'}`}>
                       <p className="text-xs font-medium text-gray-500 uppercase">PMTA {comp}</p>
-                      <p className="text-2xl font-bold text-gray-900">{(val * 10.197).toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-gray-900">{valKgf.toFixed(2)}</p>
                       <p className="text-xs text-gray-400">kgf/cm²</p>
                       {fragil && <span className="inline-block mt-1 text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">⚠ Mais frágil</span>}
                     </div>
@@ -1033,7 +1046,7 @@ export default function FormInspecaoNR13() {
                 <div className="grid grid-cols-3 items-center text-center">
                   <div>
                     <p className="text-xs font-medium text-gray-500 uppercase mb-1">PSV Calibrada</p>
-                    <p className={`text-2xl font-black ${detalheCalculo.condena ? 'text-red-600' : 'text-gray-700'}`}>{(detalheCalculo.psvInformada * 10.197).toFixed(2)}</p>
+                    <p className={`text-2xl font-black ${detalheCalculo.condena ? 'text-red-600' : 'text-gray-700'}`}>{detalheCalculo.psvInformada.toFixed(2)}</p>
                     <p className="text-xs text-gray-400">kgf/cm²</p>
                   </div>
                   <div className="flex flex-col items-center">

@@ -1,6 +1,6 @@
 /**
  * Rota de geração de PDF para relatórios NR-13.
- * Recebe os dados do formulário via POST e retorna o PDF binário.
+ * Recebe os dados do formulário via POST, todos em kgf/cm² para pressão.
  * Totalmente isolado do módulo NR-12.
  */
 import { NextRequest, NextResponse } from 'next/server'
@@ -16,25 +16,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Dados do formulário são obrigatórios' }, { status: 400 })
     }
 
-    // Cálculos ASME para exibir no PDF (server-side double-check)
+    // Cálculos ASME — valores de pressão chegam em kgf/cm², converte para MPa
     if (
       dados.materialS && dados.eficienciaE && dados.diametroD &&
       dados.espessuraCostado && dados.espessuraTampo && dados.psvCalibracao
     ) {
       const R = dados.diametroD / 2
+      const sMpa = Number(dados.materialS) / 10.197       // kgf/cm² → MPa
+      const psvMpa = Number(dados.psvCalibracao) / 10.197  // kgf/cm² → MPa
 
-      // Costado cilíndrico: P = (S * E * t) / (R + 0.6 * t)
-      const pmtaCostado = (dados.materialS * dados.eficienciaE * dados.espessuraCostado) / (R + 0.6 * dados.espessuraCostado)
+      // Costado cilíndrico: P = (S * E * t) / (R + 0.6 * t), resultado em MPa
+      const pmtaCostadoMpa = (sMpa * dados.eficienciaE * dados.espessuraCostado) / (R + 0.6 * dados.espessuraCostado)
 
       // Tampo semi-elíptico 2:1: P = (2 * S * E * t) / (D + 0.2 * t)
-      const pmtaTampo = (2 * dados.materialS * dados.eficienciaE * dados.espessuraTampo) / (dados.diametroD + 0.2 * dados.espessuraTampo)
+      const pmtaTampoMpa = (2 * sMpa * dados.eficienciaE * dados.espessuraTampo) / (dados.diametroD + 0.2 * dados.espessuraTampo)
 
-      const pmtaLimitante = Math.min(pmtaCostado, pmtaTampo)
-
-      dados._pmtaCostado = pmtaCostado
-      dados._pmtaTampo = pmtaTampo
-      dados._pmtaLimitante = pmtaLimitante
-      dados._condena = dados.psvCalibracao > pmtaLimitante
+      // Converte para kgf/cm² para exibição no PDF
+      dados._pmtaCostado = pmtaCostadoMpa * 10.197
+      dados._pmtaTampo = pmtaTampoMpa * 10.197
+      dados._pmtaLimitante = Math.min(pmtaCostadoMpa, pmtaTampoMpa) * 10.197
+      dados._condena = Number(dados.psvCalibracao) > dados._pmtaLimitante
     }
 
     const document = <LaudoNR13PDF dados={dados} perfil={perfil ?? {}} fotosUrl={fotosUrl ?? {}} />
