@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm, useFieldArray, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -209,6 +209,117 @@ export default function FormInspecaoNR13() {
   const { fields: dispFields, append: dispAppend, remove: dispRemove } = useFieldArray({ control, name: 'dispositivosSeguranca' });
   const { fields: ncFields, append: ncAppend, remove: ncRemove } = useFieldArray({ control, name: 'naoConformidades' });
   const { fields: fotosExameFields, append: fotosExameAppend, remove: fotosExameRemove } = useFieldArray({ control, name: 'fotosExame' });
+
+  // ─── Auto-detecção de Não Conformidades ───
+  function autoNcsFromValues(vals: typeof v): Array<{
+    descricao: string; refNR13: string; acaoCorretiva: string;
+    grauRisco: 'GIR' | 'Crítico' | 'Moderado' | 'Baixo';
+    prazo: number; responsavel: string; fotoPath?: string;
+  }> {
+    const nc: Array<{ descricao: string; refNR13: string; acaoCorretiva: string; grauRisco: 'GIR' | 'Crítico' | 'Moderado' | 'Baixo'; prazo: number; responsavel: string; fotoPath?: string }> = [];
+    const r: string = String(vals.rthNome) || 'A definir';
+    const dispositivos = Array.isArray(vals.dispositivosSeguranca) ? vals.dispositivosSeguranca : [];
+    const medicoes = Array.isArray(vals.medicoesEspessura) ? vals.medicoesEspessura : [];
+
+    // Dispositivos com situação Reparo
+    for (const d of dispositivos) {
+      if (d?.situacao === 'Reparo') {
+        nc.push({ descricao: `Dispositivo ${d.tag || 'sem tag'} necessita reparo ou recalibração`, refNR13: 'AUTO: §13.5.1.2', acaoCorretiva: `Realizar reparo ou recalibração do dispositivo de segurança ${d.tag || 'sem identificação'}`, grauRisco: 'GIR', prazo: 15, responsavel: r });
+      }
+    }
+
+    // Medições com situação Crítico
+    for (const m of medicoes) {
+      if (m?.situacao === 'Crítico') {
+        nc.push({ descricao: `Espessura crítica no ponto ${m.ponto || 'N/D'} — corrosão ou desgaste excessivo`, refNR13: 'AUTO: §13.5.4.11(d)', acaoCorretiva: `Reavaliar integridade do ponto ${m.ponto || 'N/D'} com ultrassom adicional e definir reparo`, grauRisco: 'GIR', prazo: 7, responsavel: r });
+      }
+    }
+
+    // Checklist Documental
+    const docNCs = [
+      { key: 'prontuario', val: 'Existe Integral', ref: 'AUTO: §13.5.1.5(a)', desc: 'Prontuário do vaso inexistente ou incompleto', acao: 'Reconstituir prontuário completo com todos os documentos exigidos pela NR-13' },
+      { key: 'registroSeguranca', val: 'Atualizado', ref: 'AUTO: §13.5.1.7', desc: 'Registro de Segurança desatualizado ou inexistente', acao: 'Atualizar Registro de Segurança com todas as informações exigidas' },
+      { key: 'projetoInstalacao', val: 'Existe', ref: 'AUTO: §13.5.1.5(c)', desc: 'Projeto de Instalação não disponível', acao: 'Providenciar projeto de instalação do vaso conforme exigido' },
+      { key: 'relatoriosAnteriores', val: 'Disponíveis', ref: 'AUTO: §13.5.1.5(d)', desc: 'Relatórios de inspeção anteriores indisponíveis', acao: 'Localizar e arquivar relatórios de inspeções anteriores' },
+      { key: 'placaIdentificacao', val: 'Fixada e Legível', ref: 'AUTO: Art. 13.5.1.3', desc: 'Placa de identificação ilegível, danificada ou inexistente', acao: 'Providenciar nova placa de identificação conforme norma' },
+      { key: 'certificadosDispositivos', val: 'Disponíveis', ref: 'AUTO: §13.5.1.5(e)', desc: 'Certificados dos dispositivos de segurança indisponíveis', acao: 'Solicitar certificados atualizados dos dispositivos de segurança' },
+      { key: 'manualOperacao', val: 'Disponível em Português', ref: 'AUTO: §13.5.3.1', desc: 'Manual de Operação em Português ausente', acao: 'Providenciar tradução do manual de operação para Português' },
+    ];
+    for (const item of docNCs) {
+      const actual = (vals as Record<string, any>)[item.key];
+      if (actual && actual !== item.val) {
+        nc.push({ descricao: item.desc, refNR13: item.ref, acaoCorretiva: item.acao, grauRisco: 'Moderado', prazo: 30, responsavel: r });
+      }
+    }
+
+    // Checklist de Segurança
+    type GrauRisco = 'GIR' | 'Crítico' | 'Moderado' | 'Baixo';
+    const segChecks: Array<{ key: string; ref: string; desc: string; risco: GrauRisco; prazo: number }> = [
+      { key: 'segDrenosRespirosBV', ref: 'AUTO: Art. 13.5.2.1', desc: 'Drenos, respiros e bocas de visita não acessíveis por meios seguros', risco: 'GIR', prazo: 15 },
+      { key: 'segAspNormativosGerais', ref: 'AUTO: Art. 13.5.2.4', desc: 'Instalação não conforme normas de segurança, saúde e meio ambiente', risco: 'GIR', prazo: 15 },
+      { key: 'segDuasSaidasAmbFechado', ref: 'AUTO: Art. 13.5.2.2(a)', desc: 'Ambiente fechado sem mínimo 2 saídas amplas e seguras', risco: 'GIR', prazo: 7 },
+      { key: 'segAcessoManutencao', ref: 'AUTO: Art. 13.5.2.2(b)', desc: 'Acesso para manutenção e inspeção deficiente em ambiente fechado', risco: 'Moderado', prazo: 30 },
+      { key: 'segVentilacaoPermanente', ref: 'AUTO: Art. 13.5.2.2(c)', desc: 'Ventilação permanente deficiente ou inexistente em ambiente fechado', risco: 'GIR', prazo: 15 },
+      { key: 'segIluminacaoFechado', ref: 'AUTO: Art. 13.5.2.2(d)', desc: 'Iluminação deficiente em ambiente fechado', risco: 'Moderado', prazo: 30 },
+      { key: 'segIluminacaoEmergenciaFechado', ref: 'AUTO: Art. 13.5.2.2(e)', desc: 'Iluminação de emergência inexistente ou defeituosa em ambiente fechado', risco: 'Moderado', prazo: 30 },
+      { key: 'segSaidasAmbAberto', ref: 'AUTO: Art. 13.5.2.3', desc: 'Saídas obstruídas ou não sinalizadas em ambiente aberto', risco: 'Moderado', prazo: 30 },
+      { key: 'segAcessoAmbAberto', ref: 'AUTO: Art. 13.5.2.3', desc: 'Acesso inseguro para manutenção em ambiente aberto', risco: 'Moderado', prazo: 30 },
+      { key: 'segIluminacaoAberto', ref: 'AUTO: Art. 13.5.2.3', desc: 'Iluminação deficiente em ambiente aberto', risco: 'Moderado', prazo: 30 },
+      { key: 'segIluminacaoEmergenciaAberto', ref: 'AUTO: Art. 13.5.2.3', desc: 'Iluminação de emergência inexistente em ambiente aberto', risco: 'Moderado', prazo: 30 },
+    ];
+    for (const item of segChecks) {
+      const actual = (vals as Record<string, any>)[item.key];
+      if (actual === 'Não Conforme') {
+        nc.push({ descricao: item.desc, refNR13: item.ref, acaoCorretiva: `Implementar correções para: ${item.desc}`, grauRisco: item.risco, prazo: item.prazo, responsavel: r });
+      }
+    }
+
+    // Exames
+    if (vals.exameExterno === 'Não Conforme') {
+      nc.push({ descricao: 'Exame externo revelou não conformidades no vaso', refNR13: 'AUTO: §13.3.4', acaoCorretiva: 'Investigar e sanar não conformidades identificadas no exame externo', grauRisco: 'Crítico', prazo: 15, responsavel: r });
+    }
+    if (vals.exameInterno === 'Não Conforme') {
+      nc.push({ descricao: 'Exame interno revelou não conformidades no vaso', refNR13: 'AUTO: §13.3.4', acaoCorretiva: 'Investigar e sanar não conformidades identificadas no exame interno', grauRisco: 'Crítico', prazo: 30, responsavel: r });
+    }
+
+    return nc;
+  }
+
+  // Auto-atualiza NCs quando campos relevantes mudam
+  // Usa refs para evitar loop infinito (watch + setValue no mesmo campo)
+  const prevNcsRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Filtra NCs manuais (sem refNR13 começando com "AUTO:")
+    const atuais = watch('naoConformidades') ?? [];
+    const manuais = atuais.filter((nc: any) => !nc?.refNR13?.startsWith('AUTO:'));
+
+    // Gera NCs automáticas
+    const autoNCs = autoNcsFromValues(v);
+
+    // Combina: manuais + automáticas
+    const todas = [...manuais, ...autoNCs];
+
+    // Só atualiza se houver mudança real
+    const key = JSON.stringify(todas.length > 0 ? todas : []);
+    if (prevNcsRef.current !== key) {
+      prevNcsRef.current = key;
+      setValue('naoConformidades', todas.length > 0 ? todas : [], { shouldValidate: true });
+    }
+  }, [
+    v.prontuario, v.registroSeguranca, v.projetoInstalacao,
+    v.relatoriosAnteriores, v.placaIdentificacao,
+    v.certificadosDispositivos, v.manualOperacao,
+    v.segDrenosRespirosBV, v.segDuasSaidasAmbFechado,
+    v.segAcessoManutencao, v.segVentilacaoPermanente,
+    v.segIluminacaoFechado, v.segIluminacaoEmergenciaFechado,
+    v.segSaidasAmbAberto, v.segAcessoAmbAberto,
+    v.segIluminacaoAberto, v.segIluminacaoEmergenciaAberto,
+    v.segAspNormativosGerais,
+    v.exameExterno, v.exameInterno,
+    v.dispositivosSeguranca, v.medicoesEspessura,
+    v.rthNome,
+  ]);
 
   // Auto-calcula Grupo P×V e Categoria ao mudar classe, pressão ou volume
   useEffect(() => {
@@ -1029,14 +1140,36 @@ export default function FormInspecaoNR13() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className={subTitle}>5.4 Não Conformidades — §13.5.4.11(j)</h3>
-            <span className="text-xs text-slate-400">{ncFields.length} NC(s)</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">{ncFields.length} NC(s) no total</span>
+              {/* Conta quantas são automáticas vs manuais */}
+              {(() => {
+                const autoCount = ncFields.filter((f) => {
+                  const nc = watch('naoConformidades')?.[(f as any).index];
+                  return nc?.refNR13?.startsWith('AUTO:');
+                }).length;
+                const manualCount = ncFields.length - autoCount;
+                return autoCount > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded" title="Detectadas automaticamente">🤖 {autoCount} auto</span>
+                    {manualCount > 0 && <span className="text-xs text-slate-500">{manualCount} manual(is)</span>}
+                  </div>
+                ) : null;
+              })()}
+            </div>
           </div>
           <div className="space-y-4 mb-3">
-            {ncFields.length === 0 && <p className="text-sm text-slate-400 italic py-2">Nenhuma NC. Clique em &quot;+ Adicionar&quot; para incluir.</p>}
-            {ncFields.map((field, index) => (
-              <div key={field.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+            {ncFields.length === 0 && <p className="text-sm text-slate-400 italic py-2">Preencha o formulário. As não conformidades são detectadas automaticamente a partir dos checklists e exames.</p>}
+            {ncFields.map((field, index) => {
+              const nc = watch('naoConformidades')?.[index];
+              const isAuto = nc?.refNR13?.startsWith('AUTO:');
+              return (
+              <div key={field.id} className={`p-4 rounded-xl border space-y-3 ${isAuto ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-600 uppercase">NC {String(index + 1).padStart(2, '0')}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-600 uppercase">NC {String(index + 1).padStart(2, '0')}</span>
+                    {isAuto && <span className="text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-medium">auto</span>}
+                  </div>
                   <button type="button" onClick={() => ncRemove(index)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5z" clipRule="evenodd" /></svg>
                   </button>
@@ -1096,7 +1229,7 @@ export default function FormInspecaoNR13() {
                   />
                 </div>
               </div>
-            ))}
+              );})}
           </div>
           <button type="button" onClick={() => ncAppend({ descricao: '', refNR13: '', acaoCorretiva: '', grauRisco: 'Moderado', prazo: 30, responsavel: '', fotoPath: '' })}
             className="flex items-center gap-2 text-sm font-medium text-slate-700 border border-dashed border-slate-400 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
