@@ -1,20 +1,27 @@
 /**
  * Helpers exclusivos para fotos do módulo NR-13.
+ * Usa o bucket existente 'fotos-nc' com path prefixado nr13/ — isolamento
+ * por tabela RLS, não por bucket separado.
  * NÃO tocar em lib/storage.ts (NR-12) — módulos independentes.
  */
 import { createClient } from '@/lib/supabase/client'
 
-const BUCKET_FOTOS_NR13 = 'fotos-nr13'
+// Prefixo dentro do bucket existente — mantém tudo separado do NR-12
+const NR13_PREFIX = 'nr13'
+
+function bucketPath(subPath: string): string {
+  return `${NR13_PREFIX}/${subPath}`
+}
 
 // --------------------------------------------------------------------------
-// Upload de fotos — retornam apenas o path. Registrar no banco separadamente.
+// Upload de fotos — retornam apenas o path
 // --------------------------------------------------------------------------
 
 export async function uploadFotoPlaca(
   file: File,
   vasoId: string
 ): Promise<{ path: string; error: string | null }> {
-  return uploadFile(file, `placa/${vasoId}/${Date.now()}`)
+  return uploadFile(file, bucketPath(`placa/${vasoId}/${Date.now()}`))
 }
 
 export async function uploadFotoExame(
@@ -23,7 +30,7 @@ export async function uploadFotoExame(
   tipoExame: 'externo' | 'interno',
   ordem: number
 ): Promise<{ path: string; error: string | null }> {
-  return uploadFile(file, `exame/${inspecaoId}/${tipoExame}/${ordem}_${Date.now()}`)
+  return uploadFile(file, bucketPath(`exame/${inspecaoId}/${tipoExame}/${ordem}_${Date.now()}`))
 }
 
 export async function uploadFotoMedicao(
@@ -31,7 +38,7 @@ export async function uploadFotoMedicao(
   inspecaoId: string,
   ponto: string
 ): Promise<{ path: string; error: string | null }> {
-  return uploadFile(file, `medicao/${inspecaoId}/${ponto}_${Date.now()}`)
+  return uploadFile(file, bucketPath(`medicao/${inspecaoId}/${ponto}_${Date.now()}`))
 }
 
 export async function uploadFotoNCNr13(
@@ -39,14 +46,14 @@ export async function uploadFotoNCNr13(
   ncId: string,
   ordem: number
 ): Promise<{ path: string; error: string | null }> {
-  return uploadFile(file, `nc/${ncId}/${ordem}_${Date.now()}`)
+  return uploadFile(file, bucketPath(`nc/${ncId}/${ordem}_${Date.now()}`))
 }
 
 // --------------------------------------------------------------------------
-// Helpers internos
+// Helpers internos — usa o bucket existente 'fotos-nc'
 // --------------------------------------------------------------------------
 
-const BUCKET_FOTOS = 'fotos-nr13'
+const BUCKET_FOTOS = 'fotos-nc'
 
 async function uploadFile(
   file: File,
