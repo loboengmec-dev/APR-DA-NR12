@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { calcularPMTACilindro, calcularPMTATampoToriesferico, calcularPMTAGlobal } from '../../lib/domain/nr13/pmta';
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse, LIMITES_GRUPO } from '../../lib/domain/nr13/categorization';
 import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
+import { salvarInspecaoNR13 } from '../../lib/actions/nr13';
 import UploadFotoNR13 from './UploadFotoNR13';
 import GaleriaFotosNR13 from './GaleriaFotosNR13';
 
@@ -160,6 +161,11 @@ export default function FormInspecaoNR13() {
   // ─── Estado de exportação PDF ───
   const [exportandoPDF, setExportandoPDF] = useState(false);
   const [mostrarErros, setMostrarErros] = useState(false);
+
+  // ─── Estado de salvamento ───
+  const [salvando, setSalvando] = useState(false);
+  const [salvoComSucesso, setSalvoComSucesso] = useState(false);
+  const [erroSalvar, setErroSalvar] = useState<string | null>(null);
 
   const { register, watch, setValue, control, formState: { errors, isValid } } = useForm<FormData>({
     resolver: zodResolver(FormSchema) as Resolver<FormData>,
@@ -383,9 +389,73 @@ export default function FormInspecaoNR13() {
     setValue('statusFinalVaso', sugestao, { shouldValidate: true });
   }, [detalheCalculo, v.exameExterno, v.exameInterno, setValue]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Avaliação NR-13 preenchida e enviada com Sucesso!');
+    setErroSalvar(null);
+    setSalvando(true);
+
+    try {
+      const response = await salvarInspecaoNR13({
+        tag: v.tag!,
+        fabricante: v.fabricante!,
+        numeroSerie: v.numeroSerie!,
+        anoFabricacao: v.anoFabricacao!,
+        tipoVaso: v.tipoVaso!,
+        codigoProjeto: v.codigoProjeto!,
+        pmtaFabricante: v.pmtaFabricante!,
+        dataInspecao: v.dataInspecao!,
+        dataEmissaoLaudo: v.dataEmissaoLaudo!,
+        tipoInspecao: v.tipoInspecao!,
+        ambiente: v.ambiente!,
+        fluidoServico: v.fluidoServico!,
+        fluidoClasse: v.fluidoClasse!,
+        pressaoOperacao: v.pressaoOperacao!,
+        volume: v.volume!,
+        grupoPV: v.grupoPV!,
+        categoriaVaso: v.categoriaVaso!,
+        prontuario: v.prontuario!,
+        registroSeguranca: v.registroSeguranca!,
+        projetoInstalacao: v.projetoInstalacao!,
+        relatoriosAnteriores: v.relatoriosAnteriores!,
+        placaIdentificacao: v.placaIdentificacao!,
+        certificadosDispositivos: v.certificadosDispositivos!,
+        manualOperacao: v.manualOperacao!,
+        exameExterno: v.exameExterno!,
+        exameInterno: v.exameInterno!,
+        medicoesEspessura: v.medicoesEspessura!,
+        dispositivosSeguranca: v.dispositivosSeguranca!,
+        materialS: v.materialS!,
+        eficienciaE: v.eficienciaE!,
+        diametroD: v.diametroD!,
+        espessuraCostado: v.espessuraCostado!,
+        espessuraTampo: v.espessuraTampo!,
+        psvCalibracao: v.psvCalibracao!,
+        statusFinalVaso: v.statusFinalVaso!,
+        proximaInspecaoExterna: v.proximaInspecaoExterna!,
+        proximaInspecaoInterna: v.proximaInspecaoInterna!,
+        dataProximoTesteDispositivos: v.dataProximoTesteDispositivos!,
+        parecerTecnico: v.parecerTecnico!,
+        pmtaFixadaPLH: v.pmtaFixadaPLH!,
+        naoConformidades: v.naoConformidades,
+        rthNome: v.rthNome!,
+        rthCrea: v.rthCrea!,
+        rthProfissao: v.rthProfissao!,
+      });
+
+      if (!response.success) {
+        const msgs = response.errors?.formErrors ?? ['Erro desconhecido'];
+        setErroSalvar(msgs.join(', '));
+        return;
+      }
+
+      setSalvoComSucesso(true);
+      alert(`Inspeção salva com sucesso! ID: ${response.inspecaoId}`);
+    } catch (err) {
+      setErroSalvar('Erro inesperado ao salvar.');
+      console.error(err);
+    } finally {
+      setSalvando(false);
+    }
   };
 
   // Helpers de estilo
@@ -1287,10 +1357,22 @@ export default function FormInspecaoNR13() {
         </div>
       </section>
 
+      {/* Mensagem de feedback */}
+      {salvoComSucesso && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg p-3 text-sm text-center font-medium">
+          Inspeção salva com sucesso no banco de dados!
+        </div>
+      )}
+      {erroSalvar && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+          Erro ao salvar: {erroSalvar}
+        </div>
+      )}
+
       <div className="flex gap-3 mt-4">
-        <button disabled={!isValid} type="submit"
+        <button disabled={!isValid || salvando} type="submit"
           className="flex-1 bg-slate-800 text-white font-bold py-4 px-4 rounded-lg disabled:opacity-50 text-lg hover:bg-slate-700 transition">
-          Confirmar Inspeção NR-13
+          {salvando ? 'Salvando inspeção...' : 'Confirmar Inspeção NR-13'}
         </button>
         <button
           disabled={exportandoPDF}

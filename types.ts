@@ -1,5 +1,5 @@
 // ============================================================
-// Tipos centrais do SaaS APR NR-12
+// Tipos centrais do SaaS APR NR-12/NR-13
 // ============================================================
 
 // --- Utilitário genérico para ações Server Actions ---
@@ -48,6 +48,7 @@ export interface Laudo {
   revisao: string | null
   data_inspecao: string | null
   status: 'rascunho' | 'em_revisao' | 'finalizado'
+  norma: string | null
   created_at: string
   updated_at: string | null
 }
@@ -162,4 +163,95 @@ export interface BancoTextoNR12 {
   texto_recomendacao: string | null
   medida_controle: string | null
   fonte: string | null
+}
+
+// ============================================================
+// Tipos NR-13 — Vasos de Pressão
+// ============================================================
+
+export interface VasoPressao {
+  id: string
+  cliente_id: string
+  laudo_id: string | null
+  tag: string
+  fabricante: string | null
+  numero_serie: string | null
+  ano_fabricacao: number | null
+  tipo_vaso: string | null
+  codigo_projeto: string | null
+  pmta_fabricante_kpa: number | null
+  created_at: string
+}
+
+export interface InspecoesNR13 {
+  id: string
+  vaso_id: string | null
+  laudo_id: string | null
+  tag: string
+  fabricante: string | null
+  numero_serie: string | null
+  ano_fabricacao: number | null
+  tipo_vaso: string | null
+  codigo_projeto: string | null
+  pmta_fabricante_kpa: number | null
+  data_inspecao: string | null
+  data_emissao_laudo: string | null
+  tipo_inspecao: string | null
+  ambiente: string | null
+  fluido_servico: string | null
+  fluido_classe: string | null
+  pressao_operacao_mpa: number | null
+  volume_m3: number | null
+  grupo_pv: number | null
+  categoria_vaso: string | null
+  prontuario: string | null
+  registro_seguranca: string | null
+  projeto_instalacao: string | null
+  relatorios_anteriores: string | null
+  placa_identificacao: string | null
+  certificados_dispositivos: string | null
+  manual_operacao: string | null
+  exame_externo: string | null
+  exame_interno: string | null
+  medicoes_espessura: any | null
+  dispositivos_seguranca: any | null
+  material_s: number | null
+  eficiencia_e: number | null
+  diametro_d: number | null
+  espessura_costado: number | null
+  espessura_tampo: number | null
+  psv_calibracao_kpa: number | null
+  pmta_asme_kpa: number | null
+  pmta_plh_kpa: number | null
+  status_final: string | null
+  status_seguranca: string | null
+  proxima_inspecao_externa: string | null
+  proxima_inspecao_interna: string | null
+  data_proximo_teste_dispositivos: string | null
+  parecer_tecnico: string | null
+  rth_nome: string | null
+  rth_crea: string | null
+  rth_profissao: string | null
+  created_at: string
+}
+
+export interface NcNR13 {
+  id: string
+  inspecao_id: string
+  descricao: string
+  ref_nr13: string
+  acao_corretiva: string
+  grau_risco: string
+  prazo_dias: number | null
+  responsavel: string | null
+  ordem: number
+  created_at: string
+}
+
+export interface FotoNR13 {
+  id: string
+  storage_path: string
+  legenda: string | null
+  tamanho_bytes: number | null
+  created_at: string
 }
