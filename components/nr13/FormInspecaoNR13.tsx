@@ -472,53 +472,72 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErroSalvar(null);
+
+    // Validação no cliente antes de enviar — verifica campos críticos
+    const camposCriticos = ['tag', 'fabricante', 'numeroSerie', 'pmtaFabricante',
+      'dataInspecao', 'dataEmissaoLaudo', 'fluidoServico', 'fluidoClasse',
+      'pressaoOperacao', 'volume', 'exameExterno', 'exameInterno',
+      'parecerTecnico', 'rthNome', 'rthCrea', 'medicoesEspessura',
+      'dispositivosSeguranca', 'materialS', 'eficienciaE', 'diametroD',
+      'espessuraCostado', 'espessuraTampo', 'psvCalibracao',
+      'proximaInspecaoExterna', 'proximaInspecaoInterna',
+      'dataProximoTesteDispositivos', 'pmtaFixadaPLH', 'rthProfissao'];
+    const errosVisiveis = Object.entries(errors).filter(([key]) => {
+      return camposCriticos.includes(key);
+    });
+    if (errosVisiveis.length > 0) {
+      setErroSalvar(`Preencha ${errosVisiveis.length} campo(s) obrigatório(s) antes de salvar. Verifique os campos marcados em vermelho.`);
+      return;
+    }
+
     setSalvando(true);
 
+    // Usa os valores do form com safe defaults
     const payload = {
-      tag: v.tag!,
-      fabricante: v.fabricante!,
-      numeroSerie: v.numeroSerie!,
-      anoFabricacao: v.anoFabricacao!,
-      tipoVaso: v.tipoVaso!,
-      codigoProjeto: v.codigoProjeto!,
-      pmtaFabricante: v.pmtaFabricante!,
-      dataInspecao: v.dataInspecao!,
-      dataEmissaoLaudo: v.dataEmissaoLaudo!,
-      tipoInspecao: v.tipoInspecao!,
-      ambiente: v.ambiente!,
-      fluidoServico: v.fluidoServico!,
-      fluidoClasse: v.fluidoClasse!,
-      pressaoOperacao: v.pressaoOperacao!,
-      volume: v.volume!,
-      grupoPV: v.grupoPV!,
-      categoriaVaso: v.categoriaVaso!,
-      prontuario: v.prontuario!,
-      registroSeguranca: v.registroSeguranca!,
-      projetoInstalacao: v.projetoInstalacao!,
-      relatoriosAnteriores: v.relatoriosAnteriores!,
-      placaIdentificacao: v.placaIdentificacao!,
-      certificadosDispositivos: v.certificadosDispositivos!,
-      manualOperacao: v.manualOperacao!,
-      exameExterno: v.exameExterno!,
-      exameInterno: v.exameInterno!,
-      medicoesEspessura: v.medicoesEspessura!,
-      dispositivosSeguranca: v.dispositivosSeguranca!,
-      materialS: v.materialS!,
-      eficienciaE: v.eficienciaE!,
-      diametroD: v.diametroD!,
-      espessuraCostado: v.espessuraCostado!,
-      espessuraTampo: v.espessuraTampo!,
-      psvCalibracao: v.psvCalibracao!,
-      statusFinalVaso: v.statusFinalVaso!,
-      proximaInspecaoExterna: v.proximaInspecaoExterna!,
-      proximaInspecaoInterna: v.proximaInspecaoInterna!,
-      dataProximoTesteDispositivos: v.dataProximoTesteDispositivos!,
-      parecerTecnico: v.parecerTecnico!,
-      pmtaFixadaPLH: v.pmtaFixadaPLH!,
+      tag: v.tag ?? '',
+      fabricante: v.fabricante ?? '',
+      numeroSerie: v.numeroSerie ?? '',
+      anoFabricacao: v.anoFabricacao,
+      tipoVaso: v.tipoVaso,
+      codigoProjeto: v.codigoProjeto,
+      pmtaFabricante: v.pmtaFabricante,
+      dataInspecao: v.dataInspecao,
+      dataEmissaoLaudo: v.dataEmissaoLaudo,
+      tipoInspecao: v.tipoInspecao,
+      ambiente: v.ambiente,
+      fluidoServico: v.fluidoServico,
+      fluidoClasse: v.fluidoClasse,
+      pressaoOperacao: v.pressaoOperacao,
+      volume: v.volume,
+      grupoPV: v.grupoPV,
+      categoriaVaso: v.categoriaVaso,
+      prontuario: v.prontuario,
+      registroSeguranca: v.registroSeguranca,
+      projetoInstalacao: v.projetoInstalacao,
+      relatoriosAnteriores: v.relatoriosAnteriores,
+      placaIdentificacao: v.placaIdentificacao,
+      certificadosDispositivos: v.certificadosDispositivos,
+      manualOperacao: v.manualOperacao,
+      exameExterno: v.exameExterno,
+      exameInterno: v.exameInterno,
+      medicoesEspessura: v.medicoesEspessura,
+      dispositivosSeguranca: v.dispositivosSeguranca,
+      materialS: v.materialS,
+      eficienciaE: v.eficienciaE,
+      diametroD: v.diametroD,
+      espessuraCostado: v.espessuraCostado,
+      espessuraTampo: v.espessuraTampo,
+      psvCalibracao: v.psvCalibracao,
+      statusFinalVaso: v.statusFinalVaso,
+      proximaInspecaoExterna: v.proximaInspecaoExterna,
+      proximaInspecaoInterna: v.proximaInspecaoInterna,
+      dataProximoTesteDispositivos: v.dataProximoTesteDispositivos,
+      parecerTecnico: v.parecerTecnico,
+      pmtaFixadaPLH: v.pmtaFixadaPLH,
       naoConformidades: v.naoConformidades,
-      rthNome: v.rthNome!,
-      rthCrea: v.rthCrea!,
-      rthProfissao: v.rthProfissao!,
+      rthNome: v.rthNome,
+      rthCrea: v.rthCrea,
+      rthProfissao: v.rthProfissao,
     };
 
     try {
@@ -529,15 +548,15 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
         setSalvoComSucesso(true);
         setTimeout(() => setSalvoComSucesso(false), 3000);
       } else {
-        // INSERT — cria rascunho e redireciona para edição contínua
+        // INSERT — salva e redireciona para a lista de inspeções
         const response = await salvarInspecaoNR13(payload);
         if (!response.success) {
           const msgs = response.errors?.formErrors ?? ['Erro desconhecido'];
           setErroSalvar(msgs.join(', '));
           return;
         }
-        // Redireciona para a página de edição do rascunho criado
-        router.push(`/laudos/nr13/${response.inspecaoId}`);
+        // Redireciona para a lista — a nova inspeção aparecerá como card clicável
+        router.push('/laudos/nr13');
         return;
       }
     } catch (err) {
