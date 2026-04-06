@@ -159,6 +159,7 @@ export default function FormInspecaoNR13() {
 
   // ─── Estado de exportação PDF ───
   const [exportandoPDF, setExportandoPDF] = useState(false);
+  const [mostrarErros, setMostrarErros] = useState(false);
 
   const { register, watch, setValue, control, formState: { errors, isValid } } = useForm<FormData>({
     resolver: zodResolver(FormSchema) as Resolver<FormData>,
@@ -265,15 +266,105 @@ export default function FormInspecaoNR13() {
   };
 
   // Helpers de estilo
-  const inputCls = 'mt-1 block w-full p-2 border rounded-lg border-slate-300 text-sm focus:ring-slate-500 focus:border-slate-500 bg-white';
-  const selectCls = 'mt-1 block w-full p-2 border rounded-lg border-slate-300 text-sm focus:ring-slate-500 focus:border-slate-500 bg-slate-50';
+  const baseInputCls = 'mt-1 block w-full p-2 border rounded-lg text-sm focus:ring-slate-500 focus:border-slate-500 bg-white';
+  const baseSelectCls = 'mt-1 block w-full p-2 border rounded-lg text-sm focus:ring-slate-500 focus:border-slate-500 bg-slate-50';
+  const inputCls = (field: keyof typeof errors | string = '') => {
+    const hasErr = field && errors[field as keyof typeof errors];
+    return `${baseInputCls} ${hasErr ? 'border-red-400 ring-1 ring-red-400 bg-red-50' : 'border-slate-300'}`;
+  };
+  const selectCls = (field: keyof typeof errors | string = '') => {
+    const hasErr = field && errors[field as keyof typeof errors];
+    return `${baseSelectCls} ${hasErr ? 'border-red-400 ring-1 ring-red-400 bg-red-50' : 'border-slate-300'}`;
+  };
   const labelCls = 'block text-sm font-medium text-slate-700';
   const errCls = 'text-xs text-red-500 mt-0.5';
   const sectionTitle = 'text-xl font-bold text-slate-800 border-b pb-2 mb-4';
   const subTitle = 'text-sm font-bold text-slate-700 uppercase tracking-wide mb-3';
 
+  // ─── Mapa legível de campos (antes do cálculo de progresso) ───
+  const labelMap: Record<string, string> = {
+    tag: 'TAG', fabricante: 'Fabricante', numeroSerie: 'Nº de Série', anoFabricacao: 'Ano de Fabricação',
+    tipoVaso: 'Tipo de Vaso', codigoProjeto: 'Código de Projeto', pmtaFabricante: 'PMTA da Placa',
+    dataInspecao: 'Data de Início', dataEmissaoLaudo: 'Data de Emissão', tipoInspecao: 'Tipo de Inspeção',
+    ambiente: 'Ambiente de Instalação', fluidoServico: 'Fluido de Serviço', fluidoClasse: 'Classe do Fluido',
+    pressaoOperacao: 'Pressão de Operação', volume: 'Volume', grupoPV: 'Grupo P×V', categoriaVaso: 'Categoria',
+    prontuario: 'Prontuário', registroSeguranca: 'Registro de Segurança', projetoInstalacao: 'Projeto de Instalação',
+    relatoriosAnteriores: 'Relatórios Anteriores', placaIdentificacao: 'Placa de Identificação',
+    certificadosDispositivos: 'Certificados Dispositivos', manualOperacao: 'Manual de Operação',
+    exameExterno: 'Exame Externo', exameInterno: 'Exame Interno', materialS: 'Tensão Admissível',
+    eficienciaE: 'Eficiência de Solda', diametroD: 'Diâmetro Interno', espessuraCostado: 'Espessura Costado',
+    espessuraTampo: 'Espessura Tampo', psvCalibracao: 'PSV Calibração', statusFinalVaso: 'Status Final',
+    proximaInspecaoExterna: 'Próx. Inspeção Externa', proximaInspecaoInterna: 'Próx. Inspeção Interna',
+    dataProximoTesteDispositivos: 'Teste Dispositivos', parecerTecnico: 'Parecer Técnico',
+    pmtaFixadaPLH: 'PMTA Fixada PLH', rthNome: 'Nome Profissional', rthCrea: 'CREA',
+    rthProfissao: 'Formação', medicoesEspessura: 'Medições de Espessura',
+    dispositivosSeguranca: 'Dispositivos de Segurança',
+  };
+
+  // Lista de erros com labels legíveis
+  const errosComLabel = Object.keys(errors).map(key => ({
+    campo: key,
+    label: labelMap[key] ?? key,
+    msg: (errors as Record<string, { message?: string }>)[key]?.message ?? 'obrigatório',
+  }));
+
+  const errosTopLevel = errosComLabel.filter(e => !e.campo.includes('.'));
+  const camposPreenchidos = Object.keys(labelMap).length - errosComLabel.filter(e => Object.keys(labelMap).includes(e.campo)).length;
+  const totalCamposForm = Object.keys(labelMap).length;
+  const pctConcluido = Math.round((camposPreenchidos / totalCamposForm) * 100);
+
   return (
     <form onSubmit={handleSubmit} className="p-6 bg-white rounded-xl shadow-md w-full mx-auto border-t-4 border-slate-800 space-y-10">
+
+      {/* ═══ PAINEL DE PROGRESSO / VALIDAÇÃO ═══ */}
+      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Progresso do Formulário</h3>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-500">{camposPreenchidos} de {totalCamposForm} preenchidos</span>
+            <span className={`text-sm font-bold ${isValid ? 'text-emerald-700' : 'text-amber-700'}`}>
+              {pctConcluido}%
+            </span>
+          </div>
+        </div>
+        {/* Barra de progresso */}
+        <div className="w-full bg-slate-200 rounded-full h-2">
+          <div
+            className={`h-2 rounded-full transition-all ${
+              pctConcluido === 100 ? 'bg-emerald-500' : pctConcluido > 60 ? 'bg-amber-500' : 'bg-red-400'
+            }`}
+            style={{ width: `${pctConcluido}%` }}
+          />
+        </div>
+        {errosTopLevel.length > 0 && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setMostrarErros(!mostrarErros)}
+              className="text-xs text-red-600 font-medium hover:underline flex items-center gap-1"
+            >
+              <span>{mostrarErros ? '▾' : '▸'}</span>
+              <span>{errosTopLevel.length} campo(s) pendente(s) — clique para ver</span>
+            </button>
+            {mostrarErros && (
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
+                {errosTopLevel.map(e => (
+                  <div key={e.campo} className="flex items-start gap-1.5 text-xs">
+                    <span className="text-red-500 mt-0.5">●</span>
+                    <div>
+                      <span className="font-medium text-slate-700">{e.label}</span>
+                      <span className="text-slate-400"> — {e.msg}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {isValid && (
+          <p className="text-xs text-emerald-700 font-medium">✓ Todos os campos preenchidos — formulário pronto para exportar!</p>
+        )}
+      </div>
 
       {/* ================================================================
           SEÇÃO 1 — IDENTIFICAÇÃO DO VASO  §13.5.1.3
@@ -286,29 +377,29 @@ export default function FormInspecaoNR13() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className={labelCls}>TAG / Código de Identificação</label>
-            <input type="text" {...register('tag')} className={inputCls} placeholder="Ex: R231194" />
+            <input type="text" {...register('tag')} className={inputCls('tag')} placeholder="Ex: R231194" />
             {errors.tag && <p className={errCls}>{errors.tag.message}</p>}
           </div>
           <div>
             <label className={labelCls}>Fabricante (conforme placa)</label>
-            <input type="text" {...register('fabricante')} className={inputCls} placeholder="Ex: Zhejiang Yinlong" />
+            <input type="text" {...register('fabricante')} className={inputCls('fabricante')} placeholder="Ex: Zhejiang Yinlong" />
             {errors.fabricante && <p className={errCls}>{errors.fabricante.message}</p>}
           </div>
           <div>
             <label className={labelCls}>Nº de Identificação do Fabricante</label>
-            <input type="text" {...register('numeroSerie')} className={inputCls} placeholder="Ex: SN-2023-44" />
+            <input type="text" {...register('numeroSerie')} className={inputCls('numeroSerie')} placeholder="Ex: SN-2023-44" />
             {errors.numeroSerie && <p className={errCls}>{errors.numeroSerie.message}</p>}
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
             <label className={labelCls}>Ano de Fabricação</label>
-            <input type="number" {...register('anoFabricacao')} className={inputCls} />
+            <input type="number" {...register('anoFabricacao')} className={inputCls('anoFabricacao')} />
             {errors.anoFabricacao && <p className={errCls}>{errors.anoFabricacao.message}</p>}
           </div>
           <div>
             <label className={`${labelCls} text-blue-800`}>Código de Construção (Placa)</label>
-            <select {...register('codigoProjeto')} className={`${selectCls} bg-blue-50 border-blue-200`}>
+            <select {...register('codigoProjeto')} className={`${baseSelectCls} bg-blue-50 border-blue-200`}>
               <option value="ASME Sec. VIII Div 1">ASME Sec. VIII Div 1</option>
               <option value="ASME Sec. VIII Div 2">ASME Sec. VIII Div 2</option>
               <option value="PD 5500">PD 5500</option>
@@ -318,12 +409,12 @@ export default function FormInspecaoNR13() {
           </div>
           <div>
             <label className={`${labelCls} text-emerald-800`}>PMTA da Placa (kPa)</label>
-            <input type="number" step="0.1" {...register('pmtaFabricante')} className={`${inputCls} bg-emerald-50 border-emerald-300`} placeholder="Ex: 4200" />
+            <input type="number" step="0.1" {...register('pmtaFabricante')} className={`${inputCls('pmtaFabricante')} bg-emerald-50 border-emerald-300`} placeholder="Ex: 4200" />
             {errors.pmtaFabricante && <p className={errCls}>{errors.pmtaFabricante.message}</p>}
           </div>
           <div>
             <label className={labelCls}>Tipo de Vaso</label>
-            <select {...register('tipoVaso')} className={selectCls}>
+            <select {...register('tipoVaso')} className={selectCls('tipoVaso')}>
               <option value="Coluna (Vertical)">Coluna (Vertical)</option>
               <option value="Vaso Horizontal">Vaso Horizontal</option>
               <option value="Esférico">Esférico</option>
@@ -362,7 +453,7 @@ export default function FormInspecaoNR13() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
             <label className={labelCls}>Tipo de Inspeção</label>
-            <select {...register('tipoInspecao')} className={selectCls}>
+            <select {...register('tipoInspecao')} className={selectCls('tipoInspecao')}>
               <option value="Inicial">Inicial</option>
               <option value="Periódica">Periódica</option>
               <option value="Extraordinária">Extraordinária</option>
@@ -370,17 +461,17 @@ export default function FormInspecaoNR13() {
           </div>
           <div>
             <label className={labelCls}>Data de Início da Inspeção</label>
-            <input type="date" {...register('dataInspecao')} className={inputCls} />
+            <input type="date" {...register('dataInspecao')} className={inputCls('dataInspecao')} />
             {errors.dataInspecao && <p className={errCls}>{errors.dataInspecao.message}</p>}
           </div>
           <div>
             <label className={labelCls}>Data de Emissão do Laudo</label>
-            <input type="date" {...register('dataEmissaoLaudo')} className={inputCls} />
+            <input type="date" {...register('dataEmissaoLaudo')} className={inputCls('dataEmissaoLaudo')} />
             {errors.dataEmissaoLaudo && <p className={errCls}>{errors.dataEmissaoLaudo.message}</p>}
           </div>
           <div>
             <label className={labelCls}>Ambiente de Instalação</label>
-            <select {...register('ambiente')} className={selectCls}>
+            <select {...register('ambiente')} className={selectCls('ambiente')}>
               <option value="Aberto">Aberto</option>
               <option value="Fechado">Fechado</option>
             </select>
@@ -392,12 +483,12 @@ export default function FormInspecaoNR13() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className={labelCls}>Fluido de Serviço</label>
-            <input type="text" {...register('fluidoServico')} className={inputCls} placeholder="Ex: Ar comprimido, Vapor de água" />
+            <input type="text" {...register('fluidoServico')} className={inputCls('fluidoServico')} placeholder="Ex: Ar comprimido, Vapor de água" />
             {errors.fluidoServico && <p className={errCls}>{errors.fluidoServico.message}</p>}
           </div>
           <div>
             <label className={labelCls}>Classe do Fluido</label>
-            <select {...register('fluidoClasse')} className={selectCls}>
+            <select {...register('fluidoClasse')} className={selectCls('fluidoClasse')}>
               <option value="A (Inflamável/Tóxico)">Classe A — Inflamável ou Tóxico</option>
               <option value="B (Combustível/Tóxico leve)">Classe B — Combustível / Tóxico leve</option>
               <option value="C (Vapor de Água/Gases asfixiantes)">Classe C — Vapor d&apos;água / Asfixiantes</option>
@@ -406,14 +497,14 @@ export default function FormInspecaoNR13() {
           </div>
           <div>
             <label className={labelCls}>Pressão Máxima de Operação — P (MPa)</label>
-            <input type="number" step="0.01" {...register('pressaoOperacao')} className={inputCls} placeholder="Ex: 4.2" />
+            <input type="number" step="0.01" {...register('pressaoOperacao')} className={inputCls('pressaoOperacao')} placeholder="Ex: 4.2" />
             {errors.pressaoOperacao && <p className={errCls}>{errors.pressaoOperacao.message}</p>}
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className={labelCls}>Volume Interno — V (m³)</label>
-            <input type="number" step="0.01" {...register('volume')} className={inputCls} placeholder="Ex: 1.0" />
+            <input type="number" step="0.01" {...register('volume')} className={inputCls('volume')} placeholder="Ex: 1.0" />
             {errors.volume && <p className={errCls}>{errors.volume.message}</p>}
           </div>
           {/* Grupo P×V — calculado automaticamente */}
@@ -460,9 +551,12 @@ export default function FormInspecaoNR13() {
           ].map(({ field, label, opts }) => (
             <div key={field}>
               <label className="block text-sm font-bold text-slate-700 mb-1">{label}</label>
-              <select {...register(field)} className="block w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-slate-500 focus:border-slate-500">
+              <select {...register(field)} className={`${selectCls(field)} mt-0.5`}>
                 {opts.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
+              {(errors as Record<string, { message?: string }>)[field] && (
+                <p className={errCls}>{(errors as Record<string, { message?: string }>)[field].message}</p>
+              )}
             </div>
           ))}
         </div>
@@ -599,11 +693,11 @@ export default function FormInspecaoNR13() {
             <div key={field.id} className="grid grid-cols-2 md:grid-cols-7 gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 items-end">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">TAG</label>
-                <input {...register(`dispositivosSeguranca.${index}.tag`)} placeholder="Ex: VS-01" className={inputCls} />
+                <input {...register(`dispositivosSeguranca.${index}.tag`)} placeholder="Ex: VS-01" className={baseInputCls} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Tipo</label>
-                <select {...register(`dispositivosSeguranca.${index}.tipo`)} className={selectCls}>
+                <select {...register(`dispositivosSeguranca.${index}.tipo`)} className={baseSelectCls}>
                   <option value="VS">VS — Válvula de Segurança</option>
                   <option value="VR">VR — Válvula de Alívio</option>
                   <option value="DR">DR — Disco de Ruptura</option>
@@ -611,15 +705,15 @@ export default function FormInspecaoNR13() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Pressão Ajuste (kPa)</label>
-                <input type="number" step="1" {...register(`dispositivosSeguranca.${index}.pressaoAjusteKpa`)} placeholder="Ex: 4200" className={inputCls} />
+                <input type="number" step="1" {...register(`dispositivosSeguranca.${index}.pressaoAjusteKpa`)} placeholder="Ex: 4200" className={baseInputCls} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Último Teste</label>
-                <input type="date" {...register(`dispositivosSeguranca.${index}.ultimoTeste`)} className={inputCls} />
+                <input type="date" {...register(`dispositivosSeguranca.${index}.ultimoTeste`)} className={baseInputCls} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Situação</label>
-                <select {...register(`dispositivosSeguranca.${index}.situacao`)} className={`${selectCls} ${watch(`dispositivosSeguranca.${index}.situacao`) === 'Reparo' ? 'border-amber-400 bg-amber-50' : 'border-emerald-300 bg-emerald-50'}`}>
+                <select {...register(`dispositivosSeguranca.${index}.situacao`)} className={`${baseSelectCls} ${watch(`dispositivosSeguranca.${index}.situacao`) === 'Reparo' ? 'border-amber-400 bg-amber-50' : 'border-emerald-300 bg-emerald-50'}`}>
                   <option value="OK">OK</option>
                   <option value="Reparo">Reparo / Calibrar</option>
                 </select>
@@ -655,14 +749,14 @@ export default function FormInspecaoNR13() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
           <div>
             <label className={labelCls}>Exame Externo do Vaso — §13.3.4</label>
-            <select {...register('exameExterno')} className={`${selectCls} ${v.exameExterno === 'Não Conforme' ? 'border-red-400 bg-red-50' : 'border-emerald-300 bg-emerald-50'}`}>
+            <select {...register('exameExterno')} className={`${baseSelectCls} ${v.exameExterno === 'Não Conforme' ? 'border-red-400 bg-red-50' : 'border-emerald-300 bg-emerald-50'}`}>
               <option value="Conforme">Conforme</option>
               <option value="Não Conforme">Não Conforme</option>
             </select>
           </div>
           <div>
             <label className={labelCls}>Exame Interno do Vaso</label>
-            <select {...register('exameInterno')} className={`${selectCls} ${v.exameInterno === 'Não Conforme' ? 'border-red-400 bg-red-50' : ''}`}>
+            <select {...register('exameInterno')} className={`${baseSelectCls} ${v.exameInterno === 'Não Conforme' ? 'border-red-400 bg-red-50' : ''}`}>
               <option value="Conforme">Conforme</option>
               <option value="Não Conforme">Não Conforme</option>
               <option value="Não Aplicável">Não Aplicável</option>
@@ -716,23 +810,23 @@ export default function FormInspecaoNR13() {
               <div key={field.id} className="grid grid-cols-2 md:grid-cols-7 gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 items-end">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Ponto</label>
-                  <input {...register(`medicoesEspessura.${index}.ponto`)} placeholder="PE-01" className={inputCls} />
+                  <input {...register(`medicoesEspessura.${index}.ponto`)} placeholder="PE-01" className={baseInputCls} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 mb-1">Esp. Original (mm)</label>
-                  <input type="number" step="0.1" {...register(`medicoesEspessura.${index}.espOriginal`)} placeholder="N/D" className={inputCls} />
+                  <input type="number" step="0.1" {...register(`medicoesEspessura.${index}.espOriginal`)} placeholder="N/D" className={baseInputCls} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-blue-700 mb-1">Esp. Medida (mm) *</label>
-                  <input type="number" step="0.1" {...register(`medicoesEspessura.${index}.espMedida`)} placeholder="Ex: 11.7" className={`${inputCls} border-blue-300 bg-blue-50`} />
+                  <input type="number" step="0.1" {...register(`medicoesEspessura.${index}.espMedida`)} placeholder="Ex: 11.7" className={`${baseInputCls} border-blue-300 bg-blue-50`} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 mb-1">Esp. Mín. Adm. (mm)</label>
-                  <input type="number" step="0.1" {...register(`medicoesEspessura.${index}.espMinAdm`)} placeholder="N/D" className={inputCls} />
+                  <input type="number" step="0.1" {...register(`medicoesEspessura.${index}.espMinAdm`)} placeholder="N/D" className={baseInputCls} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Situação</label>
-                  <select {...register(`medicoesEspessura.${index}.situacao`)} className={`${selectCls} ${watch(`medicoesEspessura.${index}.situacao`) === 'Crítico' ? 'border-red-400 bg-red-50' : 'border-emerald-300 bg-emerald-50'}`}>
+                  <select {...register(`medicoesEspessura.${index}.situacao`)} className={`${baseSelectCls} ${watch(`medicoesEspessura.${index}.situacao`) === 'Crítico' ? 'border-red-400 bg-red-50' : 'border-emerald-300 bg-emerald-50'}`}>
                     <option value="OK">OK</option>
                     <option value="Crítico">Crítico</option>
                   </select>
@@ -774,7 +868,7 @@ export default function FormInspecaoNR13() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className={labelCls}>Material — Tensão Admissível S (MPa)</label>
-            <select {...register('materialS')} className={`${selectCls} mt-1`}>
+            <select {...register('materialS')} className={`${baseSelectCls} mt-1`}>
               <option value="137.9">SA-285 / SA-516 (137.9 MPa)</option>
               <option value="114.5">SA-36 Estrutural (114.5 MPa)</option>
               <option value="115.0">SA-240 304L Inox (115.0 MPa)</option>
@@ -782,7 +876,7 @@ export default function FormInspecaoNR13() {
           </div>
           <div>
             <label className={labelCls}>Eficiência de Solda — E</label>
-            <select {...register('eficienciaE')} className={`${selectCls} mt-1`}>
+            <select {...register('eficienciaE')} className={`${baseSelectCls} mt-1`}>
               <option value="1.0">1.00 — Total (100% Radiografado)</option>
               <option value="0.85">0.85 — Spot (Parcial)</option>
               <option value="0.70">0.70 — Sem Radiografia</option>
@@ -792,21 +886,21 @@ export default function FormInspecaoNR13() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className={labelCls}>Diâmetro Interno — D (mm)</label>
-            <input type="number" step="1" {...register('diametroD')} className={inputCls} />
+            <input type="number" step="1" {...register('diametroD')} className={inputCls('diametroD')} />
           </div>
           <div>
             <label className={`${labelCls} text-blue-700`}>Ultrassom Costado — t (mm)</label>
-            <input type="number" step="0.1" {...register('espessuraCostado')} className={`${inputCls} border-blue-300 bg-blue-50`} placeholder="Ex: 5.5" />
+            <input type="number" step="0.1" {...register('espessuraCostado')} className={`${inputCls('espessuraCostado')} border-blue-300 bg-blue-50`} placeholder="Ex: 5.5" />
           </div>
           <div>
             <label className={`${labelCls} text-blue-700`}>Ultrassom Tampo — t (mm)</label>
-            <input type="number" step="0.1" {...register('espessuraTampo')} className={`${inputCls} border-blue-300 bg-blue-50`} placeholder="Ex: 4.8" />
+            <input type="number" step="0.1" {...register('espessuraTampo')} className={`${inputCls('espessuraTampo')} border-blue-300 bg-blue-50`} placeholder="Ex: 4.8" />
           </div>
         </div>
 
         <div>
           <label className={`${labelCls} text-purple-800 mt-4 mb-1 block`}>Pressão de Calibração da PSV (MPa)</label>
-          <input type="number" step="0.01" {...register('psvCalibracao')} className={`${inputCls} border-purple-300 bg-purple-50 max-w-xs`} placeholder="Ex: 0.8" />
+          <input type="number" step="0.01" {...register('psvCalibracao')} className={`${inputCls('psvCalibracao')} border-purple-300 bg-purple-50 max-w-xs`} placeholder="Ex: 0.8" />
         </div>
 
         {/* Resultado ASME */}
@@ -901,7 +995,7 @@ export default function FormInspecaoNR13() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={`${labelCls} text-emerald-800`}>PMTA Fixada pelo PLH (kgf/cm²)</label>
-              <input type="number" step="0.01" {...register('pmtaFixadaPLH')} className={`${inputCls} border-emerald-300 bg-emerald-50`} placeholder="Auto-sugerida pelo ASME" />
+              <input type="number" step="0.01" {...register('pmtaFixadaPLH')} className={`${inputCls('pmtaFixadaPLH')} border-emerald-300 bg-emerald-50`} placeholder="Auto-sugerida pelo ASME" />
               {errors.pmtaFixadaPLH && <p className={errCls}>{errors.pmtaFixadaPLH.message}</p>}
               <p className="text-xs text-slate-400 mt-1">PLH pode ratificar o valor ASME ou fixar valor mais conservador.</p>
             </div>
@@ -919,17 +1013,17 @@ export default function FormInspecaoNR13() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className={`${labelCls} text-blue-700`}>Próxima Inspeção Externa</label>
-              <input type="date" {...register('proximaInspecaoExterna')} className={`${inputCls} bg-blue-50 border-blue-300`} />
+              <input type="date" {...register('proximaInspecaoExterna')} className={`${inputCls('proximaInspecaoExterna')} bg-blue-50 border-blue-300`} />
               {errors.proximaInspecaoExterna && <p className={errCls}>{errors.proximaInspecaoExterna.message}</p>}
             </div>
             <div>
               <label className={`${labelCls} text-purple-700`}>Próxima Inspeção Interna</label>
-              <input type="date" {...register('proximaInspecaoInterna')} className={`${inputCls} bg-purple-50 border-purple-300`} />
+              <input type="date" {...register('proximaInspecaoInterna')} className={`${inputCls('proximaInspecaoInterna')} bg-purple-50 border-purple-300`} />
               {errors.proximaInspecaoInterna && <p className={errCls}>{errors.proximaInspecaoInterna.message}</p>}
             </div>
             <div>
               <label className={`${labelCls} text-amber-700`}>Próximo Teste dos Dispositivos</label>
-              <input type="date" {...register('dataProximoTesteDispositivos')} className={`${inputCls} bg-amber-50 border-amber-300`} />
+              <input type="date" {...register('dataProximoTesteDispositivos')} className={`${inputCls('dataProximoTesteDispositivos')} bg-amber-50 border-amber-300`} />
               {errors.dataProximoTesteDispositivos && <p className={errCls}>{errors.dataProximoTesteDispositivos.message}</p>}
             </div>
           </div>
@@ -954,23 +1048,23 @@ export default function FormInspecaoNR13() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-slate-600 mb-1">Descrição da Não Conformidade</label>
-                    <input {...register(`naoConformidades.${index}.descricao`)} placeholder="Ex: Placa de identificação não redigida em português" className={inputCls} />
+                    <input {...register(`naoConformidades.${index}.descricao`)} placeholder="Ex: Placa de identificação não redigida em português" className={baseInputCls} />
                     {errors.naoConformidades?.[index]?.descricao && <p className={errCls}>{errors.naoConformidades[index]?.descricao?.message}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Referência NR-13</label>
-                    <input {...register(`naoConformidades.${index}.refNR13`)} placeholder="Ex: 13.5.1.3" className={inputCls} />
+                    <input {...register(`naoConformidades.${index}.refNR13`)} placeholder="Ex: 13.5.1.3" className={baseInputCls} />
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Ação Corretiva</label>
-                  <textarea {...register(`naoConformidades.${index}.acaoCorretiva`)} rows={2} placeholder="Descreva a ação corretiva necessária..." className={`${inputCls} resize-none`} />
+                  <textarea {...register(`naoConformidades.${index}.acaoCorretiva`)} rows={2} placeholder="Descreva a ação corretiva necessária..." className={`${baseInputCls} resize-none`} />
                   {errors.naoConformidades?.[index]?.acaoCorretiva && <p className={errCls}>{errors.naoConformidades[index]?.acaoCorretiva?.message}</p>}
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Grau de Risco</label>
-                    <select {...register(`naoConformidades.${index}.grauRisco`)} className={`${selectCls} font-semibold ${
+                    <select {...register(`naoConformidades.${index}.grauRisco`)} className={`${baseSelectCls} font-semibold ${
                       watch(`naoConformidades.${index}.grauRisco`) === 'GIR' ? 'border-red-600 bg-red-50 text-red-800'
                       : watch(`naoConformidades.${index}.grauRisco`) === 'Crítico' ? 'border-orange-400 bg-orange-50 text-orange-800'
                       : watch(`naoConformidades.${index}.grauRisco`) === 'Moderado' ? 'border-amber-400 bg-amber-50 text-amber-800'
@@ -984,11 +1078,11 @@ export default function FormInspecaoNR13() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Prazo (dias)</label>
-                    <input type="number" {...register(`naoConformidades.${index}.prazo`)} placeholder="Ex: 30" className={inputCls} />
+                    <input type="number" {...register(`naoConformidades.${index}.prazo`)} placeholder="Ex: 30" className={baseInputCls} />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Responsável</label>
-                    <input {...register(`naoConformidades.${index}.responsavel`)} placeholder="Ex: Manutenção" className={inputCls} />
+                    <input {...register(`naoConformidades.${index}.responsavel`)} placeholder="Ex: Manutenção" className={baseInputCls} />
                   </div>
                 </div>
                 <div>
@@ -1015,7 +1109,7 @@ export default function FormInspecaoNR13() {
           <h3 className={subTitle}>5.5 Parecer Técnico do PLH — §13.5.4.11(k)</h3>
           <textarea {...register('parecerTecnico')} rows={5}
             placeholder="Submetido à inspeção de segurança periódica em [data], o vaso de pressão TAG [TAG], fabricado por [fabricante]..."
-            className={`${inputCls} resize-none`} />
+            className={`${inputCls('parecerTecnico')} resize-none`} />
           {errors.parecerTecnico && <p className={errCls}>{errors.parecerTecnico.message}</p>}
         </div>
 
@@ -1025,7 +1119,7 @@ export default function FormInspecaoNR13() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className={labelCls}>Formação</label>
-              <select {...register('rthProfissao')} className={selectCls}>
+              <select {...register('rthProfissao')} className={baseSelectCls}>
                 <option value="Engenheiro Mecânico">Engenheiro Mecânico</option>
                 <option value="Engenheiro de Segurança do Trabalho">Eng. de Segurança do Trabalho</option>
                 <option value="Técnico de Segurança do Trabalho">Técnico de Segurança do Trabalho</option>
@@ -1034,12 +1128,12 @@ export default function FormInspecaoNR13() {
             </div>
             <div>
               <label className={labelCls}>Nome Completo</label>
-              <input type="text" {...register('rthNome')} placeholder="Ex: Danilo Lobo Souza" className={inputCls} />
+              <input type="text" {...register('rthNome')} placeholder="Ex: Danilo Lobo Souza" className={inputCls('rthNome')} />
               {errors.rthNome && <p className={errCls}>{errors.rthNome.message}</p>}
             </div>
             <div>
               <label className={labelCls}>CREA / Registro — §13.5.4.11(m)</label>
-              <input type="text" {...register('rthCrea')} placeholder="Ex: 389785MG" className={inputCls} />
+              <input type="text" {...register('rthCrea')} placeholder="Ex: 389785MG" className={inputCls('rthCrea')} />
               {errors.rthCrea && <p className={errCls}>{errors.rthCrea.message}</p>}
             </div>
           </div>
@@ -1052,7 +1146,7 @@ export default function FormInspecaoNR13() {
           Confirmar Inspeção NR-13
         </button>
         <button
-          disabled={!isValid || exportandoPDF}
+          disabled={exportandoPDF}
           onClick={async () => {
             setExportandoPDF(true);
             try {
