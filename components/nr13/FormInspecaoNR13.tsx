@@ -1075,28 +1075,37 @@ export default function FormInspecaoNR13() {
         {/* Fotos do Exame Externo/Interno */}
         <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
           <div className="flex items-center justify-between mb-3">
-            <p className={`${subTitle} mb-0`}>Fotos do Exame</p>
-            <span className="text-xs text-slate-400">{fotosExameFields.length} foto(s)</span>
+            <div>
+              <p className={`${subTitle} mb-0`}>Fotos do Exame</p>
+              <p className="text-xs text-slate-400 mt-0.5">Insira até 2 fotos (exame externo e/ou interno)</p>
+            </div>
+            <span className="text-xs text-slate-400">{fotosExameFields.length}/2</span>
           </div>
-          <UploadFotoNR13
-            label="Adicionar foto do exame"
-            corBorda="blue"
-            onUpload={async (file) => {
-              const vals = watch('fotosExame') as any[];
-              const tipoExame = v.exameInterno !== 'Não Aplicável' ? 'interno' : 'externo';
-              const ordem = vals ? vals.filter((f: any) => f?.tipoExame === tipoExame).length : 0;
-              return await uploadFotoExame(file, 'temp', tipoExame, ordem);
-            }}
-            onPhotoUploaded={(path, dims) => {
-              const vals = watch('fotosExame') as any[];
-              const tipoExame = v.exameInterno !== 'Não Aplicável' ? 'interno' : 'externo';
-              const ordem = vals ? vals.filter((f: any) => f?.tipoExame === tipoExame).length : 0;
-              fotosExameAppend({ tipoExame, storagePath: path, ordem, tamanhoBytes: 0 });
-              gerarUrlAssinadaNR13(path).then((url) => {
-                if (url) setUrlsExame((prev) => [...prev, url]);
-              });
-            }}
-          />
+          {fotosExameFields.length < 2 ? (
+            <UploadFotoNR13
+              label="Adicionar foto do exame"
+              corBorda="blue"
+              onUpload={async (file) => {
+                const vals = watch('fotosExame') as any[];
+                const tipoExame = v.exameInterno !== 'Não Aplicável' ? 'interno' : 'externo';
+                const ordem = vals ? vals.filter((f: any) => f?.tipoExame === tipoExame).length : 0;
+                return await uploadFotoExame(file, 'temp', tipoExame, ordem);
+              }}
+              onPhotoUploaded={(path, dims) => {
+                const vals = watch('fotosExame') as any[];
+                const tipoExame = v.exameInterno !== 'Não Aplicável' ? 'interno' : 'externo';
+                const ordem = vals ? vals.filter((f: any) => f?.tipoExame === tipoExame).length : 0;
+                fotosExameAppend({ tipoExame, storagePath: path, ordem, tamanhoBytes: 0 });
+                gerarUrlAssinadaNR13(path).then((url) => {
+                  if (url) setUrlsExame((prev) => [...prev, url]);
+                });
+              }}
+            />
+          ) : (
+            <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-md border border-amber-200">
+              Limite de 2 fotos atingido. Remova uma foto para adicionar outra.
+            </p>
+          )}
           {urlsExame.length > 0 && (
             <div className="flex flex-wrap gap-3 mt-3">
               {urlsExame.map((url, i) => (
@@ -1544,8 +1553,8 @@ export default function FormInspecaoNR13() {
                 if (url) fotosUrlMap['manometro'] = url;
               }
 
-              // Fotos do exame — usar chaves que o PDF espera
-              // O PDF usa: exame_externo, exame_externo_0, exame_interno, exame_interno_0
+              // Fotos do exame — chaves com prefixo exame_ que o PDF espera
+              // PDF espera: exame_externo, exame_interno, exame_externo_0, exame_interno_0
               const fotosExame = watch('fotosExame') ?? [];
               const extCount = { externo: 0, interno: 0 };
               for (let i = 0; i < fotosExame.length; i++) {
@@ -1556,7 +1565,10 @@ export default function FormInspecaoNR13() {
                     const tipo = fe.tipoExame === 'interno' ? 'interno' : 'externo';
                     const idx = extCount[tipo as keyof typeof extCount];
                     extCount[tipo as keyof typeof extCount]++;
-                    fotosUrlMap[tipo + (idx === 0 ? '' : `_${idx - 1}`)] = url;
+                    // Primeira foto: exame_externo / exame_interno
+                    // Segunda foto: exame_externo_0 / exame_interno_0
+                    const chave = `exame_${tipo}` + (idx === 0 ? '' : `_${idx - 1}`);
+                    fotosUrlMap[chave] = url;
                   }
                 }
               }
