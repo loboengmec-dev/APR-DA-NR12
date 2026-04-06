@@ -1544,17 +1544,19 @@ export default function FormInspecaoNR13() {
                 if (url) fotosUrlMap['manometro'] = url;
               }
 
-              // Fotos do exame — usar chaves que o PDF espera (exame_externo / exame_interno)
+              // Fotos do exame — usar chaves que o PDF espera
+              // O PDF usa: exame_externo, exame_externo_0, exame_interno, exame_interno_0
               const fotosExame = watch('fotosExame') ?? [];
+              const extCount = { externo: 0, interno: 0 };
               for (let i = 0; i < fotosExame.length; i++) {
                 const fe = fotosExame[i] as any;
                 if (fe?.storagePath) {
                   const url = await gerarUrlAssinadaNR13(fe.storagePath);
                   if (url) {
-                    const key = fe.tipoExame === 'interno' ? 'exame_interno' : 'exame_externo';
-                    // Separa por tipo: primeiro de cada tipo vai sem índice, demais com _1, _2...
-                    const existing = Object.keys(fotosUrlMap).filter(k => k.startsWith(key)).length;
-                    fotosUrlMap[key + (existing === 0 ? '' : `_${existing}`)] = url;
+                    const tipo = fe.tipoExame === 'interno' ? 'interno' : 'externo';
+                    const idx = extCount[tipo as keyof typeof extCount];
+                    extCount[tipo as keyof typeof extCount]++;
+                    fotosUrlMap[tipo + (idx === 0 ? '' : `_${idx - 1}`)] = url;
                   }
                 }
               }
