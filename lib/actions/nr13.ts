@@ -16,86 +16,87 @@ import { calcularGrupoPV, calcularCategoria, extrairLetraClasse } from '../domai
 import { calcularPMTACilindro, calcularPMTATampoToriesferico, calcularPMTAGlobal } from '../domain/nr13/pmta'
 
 // ---------------------------------------------------------------------------
-// SCHEMA — espelha exatamente o FormSchema do cliente
+// SCHEMA — aceita rascunhos parciais (campos opcionais) para permitir
+// salvar a qualquer momento. Validação rigorosa fica no export PDF.
 // ---------------------------------------------------------------------------
 const InspecaoNR13Schema = z.object({
-  tag: z.string().min(1),
-  fabricante: z.string().min(1),
-  numeroSerie: z.string().min(1),
-  anoFabricacao: z.number().int().min(1900).max(new Date().getFullYear()),
-  tipoVaso: z.enum(['Coluna (Vertical)', 'Vaso Horizontal', 'Esférico']),
-  codigoProjeto: z.enum(['ASME Sec. VIII Div 1', 'ASME Sec. VIII Div 2', 'PD 5500', 'GB/T 150', 'Desconhecido']),
-  pmtaFabricante: z.number().positive(),
-  dataInspecao: z.string().min(10),
-  dataEmissaoLaudo: z.string().min(10),
-  tipoInspecao: z.enum(['Inicial', 'Periódica', 'Extraordinária']),
-  ambiente: z.enum(['Aberto', 'Fechado']),
+  tag: z.string().default(''),
+  fabricante: z.string().default(''),
+  numeroSerie: z.string().default(''),
+  anoFabricacao: z.number().int().optional().nullable(),
+  tipoVaso: z.string().optional().nullable(),
+  codigoProjeto: z.string().optional().nullable(),
+  pmtaFabricante: z.number().optional().nullable(),
+  dataInspecao: z.string().optional().nullable(),
+  dataEmissaoLaudo: z.string().optional().nullable(),
+  tipoInspecao: z.string().optional().nullable(),
+  ambiente: z.string().optional().nullable(),
 
-  fluidoServico: z.string().min(1),
-  fluidoClasse: z.enum(['A (Inflamável/Tóxico)', 'B (Combustível/Tóxico leve)', 'C (Vapor de Água/Gases asfixiantes)', 'D (Água/Outros)']),
-  pressaoOperacao: z.number().positive(),
-  volume: z.number().positive(),
-  grupoPV: z.number().int().min(1).max(5),
-  categoriaVaso: z.enum(['I', 'II', 'III', 'IV', 'V']),
+  fluidoServico: z.string().optional().nullable(),
+  fluidoClasse: z.string().optional().nullable(),
+  pressaoOperacao: z.number().optional().nullable(),
+  volume: z.number().optional().nullable(),
+  grupoPV: z.number().int().optional().nullable(),
+  categoriaVaso: z.string().optional().nullable(),
 
-  prontuario: z.enum(['Existe Integral', 'Parcial / Sendo Reconstituído', 'Não Existe']),
-  registroSeguranca: z.enum(['Atualizado', 'Desatualizado', 'Inexistente']),
-  projetoInstalacao: z.enum(['Existe', 'Dispensa Legal (Antigo)', 'Não Existe']),
-  relatoriosAnteriores: z.enum(['Disponíveis', 'Primeira Inspeção', 'Indisponíveis']),
-  placaIdentificacao: z.enum(['Fixada e Legível', 'Ilegível / Danificada', 'Inexistente']),
-  certificadosDispositivos: z.enum(['Disponíveis', 'Não Disponíveis', 'N/A']),
-  manualOperacao: z.enum(['Disponível em Português', 'Ausente / Sem Tradução', 'N/A']),
+  prontuario: z.string().optional().nullable(),
+  registroSeguranca: z.string().optional().nullable(),
+  projetoInstalacao: z.string().optional().nullable(),
+  relatoriosAnteriores: z.string().optional().nullable(),
+  placaIdentificacao: z.string().optional().nullable(),
+  certificadosDispositivos: z.string().optional().nullable(),
+  manualOperacao: z.string().optional().nullable(),
 
-  exameExterno: z.enum(['Conforme', 'Não Conforme']),
-  exameInterno: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
+  exameExterno: z.string().optional().nullable(),
+  exameInterno: z.string().optional().nullable(),
 
   medicoesEspessura: z.array(z.object({
-    ponto: z.string().min(1),
-    espOriginal: z.number().nullable(),
-    espMedida: z.number().positive(),
-    espMinAdm: z.number().nullable(),
-    situacao: z.enum(['OK', 'Crítico']),
+    ponto: z.string(),
+    espOriginal: z.number().nullable().optional(),
+    espMedida: z.number().nullable().optional(),
+    espMinAdm: z.number().nullable().optional(),
+    situacao: z.string().optional(),
     fotoPath: z.string().optional().nullable(),
-  })).min(1),
+  })).optional().nullable(),
 
   dispositivosSeguranca: z.array(z.object({
-    tag: z.string().min(1),
-    tipo: z.enum(['VS', 'VR', 'DR']),
-    pressaoAjusteKpa: z.number().positive(),
-    ultimoTeste: z.string().min(10),
-    situacao: z.enum(['OK', 'Reparo']),
+    tag: z.string(),
+    tipo: z.string().optional(),
+    pressaoAjusteKpa: z.number().optional().nullable(),
+    ultimoTeste: z.string().optional(),
+    situacao: z.string().optional(),
     fotoPath: z.string().optional().nullable(),
-  })).min(1),
+  })).optional().nullable(),
 
-  materialS: z.number().positive(),
-  eficienciaE: z.number().min(0.1).max(1),
-  diametroD: z.number().positive().min(50),
-  espessuraCostado: z.number().positive(),
-  espessuraTampo: z.number().positive(),
-  psvCalibracao: z.number().positive(),
+  materialS: z.number().optional().nullable(),
+  eficienciaE: z.number().optional().nullable(),
+  diametroD: z.number().optional().nullable(),
+  espessuraCostado: z.number().optional().nullable(),
+  espessuraTampo: z.number().optional().nullable(),
+  psvCalibracao: z.number().optional().nullable(),
 
-  statusFinalVaso: z.enum(['Aprovado', 'Aprovado com Restrições', 'Reprovado — Downgrade Necessário', 'Interditado']),
-  proximaInspecaoExterna: z.string().min(10),
-  proximaInspecaoInterna: z.string().min(10),
-  dataProximoTesteDispositivos: z.string().min(10),
-  parecerTecnico: z.string().min(20),
-  pmtaFixadaPLH: z.number().positive(),
+  statusFinalVaso: z.string().optional().nullable(),
+  proximaInspecaoExterna: z.string().optional().nullable(),
+  proximaInspecaoInterna: z.string().optional().nullable(),
+  dataProximoTesteDispositivos: z.string().optional().nullable(),
+  parecerTecnico: z.string().optional().nullable(),
+  pmtaFixadaPLH: z.number().optional().nullable(),
 
   naoConformidades: z.array(z.object({
-    descricao: z.string().min(5),
-    refNR13: z.string().min(1),
-    acaoCorretiva: z.string().min(10),
-    grauRisco: z.enum(['GIR', 'Crítico', 'Moderado', 'Baixo']),
-    prazo: z.number().int().positive(),
-    responsavel: z.string().min(2),
+    descricao: z.string(),
+    refNR13: z.string().optional().default(''),
+    acaoCorretiva: z.string().optional().default(''),
+    grauRisco: z.string().optional().default('Moderado'),
+    prazo: z.number().int().optional().default(30),
+    responsavel: z.string().optional().default(''),
     fotoPath: z.string().optional().nullable(),
-  })).optional(),
+  })).optional().nullable(),
 
-  rthNome: z.string().min(3),
-  rthCrea: z.string().min(4),
-  rthProfissao: z.enum(['Engenheiro Mecânico', 'Engenheiro de Segurança do Trabalho', 'Técnico de Segurança do Trabalho', 'Outro']),
+  rthNome: z.string().optional().nullable(),
+  rthCrea: z.string().optional().nullable(),
+  rthProfissao: z.string().optional().nullable(),
 
-  // Extras — cliente e dados do laudo
+  // Extras
   clienteId: z.string().nullable().optional(),
   numeroDocumento: z.string().nullable().optional(),
   art: z.string().nullable().optional(),
@@ -116,36 +117,41 @@ export async function salvarInspecaoNR13(formData: InspecaoNR13Data) {
   if (!parsed.success) return { success: false, errors: parsed.error.flatten() }
   const data = parsed.data
 
-  // 2. Double-check — categorização §13.5.1.1
-  const classeExtraida = extrairLetraClasse(data.fluidoClasse)
-  if (classeExtraida) {
-    const presMpa = data.pressaoOperacao / 10.197 // kgf/cm² → MPa
+  // 2. Double-check condicional — só valida se os campos necessários estão presentes
+  let pmtaAsmeKpa: number | null = null
+  let statusSeguranca: string | null = null
+
+  const classeExtraida = data.fluidoClasse ? extrairLetraClasse(data.fluidoClasse) : null
+  if (classeExtraida && data.pressaoOperacao && data.volume && data.grupoPV && data.categoriaVaso) {
+    const presMpa = data.pressaoOperacao / 10.197
     const grupoPVVerificado = calcularGrupoPV(presMpa, data.volume)
     const categoriaVerificada = calcularCategoria(classeExtraida, grupoPVVerificado)
     if (grupoPVVerificado !== data.grupoPV) return { success: false, errors: { formErrors: ['Grupo P×V inválido'], fieldErrors: {} } }
     if (categoriaVerificada !== data.categoriaVaso) return { success: false, errors: { formErrors: ['Categoria inválida'], fieldErrors: {} } }
   }
 
-  // 3. Double-check — PMTA ASME
-  const R = data.diametroD / 2
-  const sMpa = data.materialS / 10.197
-  const psvMpa = data.psvCalibracao / 10.197
-  const pmtaCostado = calcularPMTACilindro({ S: sMpa, E: data.eficienciaE, t: data.espessuraCostado, R, D: data.diametroD })
-  const pmtaTampo = calcularPMTATampoToriesferico({ S: sMpa, E: data.eficienciaE, t: data.espessuraTampo, R, D: data.diametroD })
-  const limitante = calcularPMTAGlobal(pmtaCostado, pmtaTampo, psvMpa)
-  const pmtaLimitanteKpa = limitante.pmtaLimitante * 1000
+  if (data.materialS && data.eficienciaE && data.diametroD && data.espessuraCostado && data.espessuraTampo && data.psvCalibracao) {
+    const R = data.diametroD / 2
+    const sMpa = data.materialS / 10.197
+    const psvMpa = data.psvCalibracao / 10.197
+    const pmtaCostado = calcularPMTACilindro({ S: sMpa, E: data.eficienciaE, t: data.espessuraCostado, R, D: data.diametroD })
+    const pmtaTampo = calcularPMTATampoToriesferico({ S: sMpa, E: data.eficienciaE, t: data.espessuraTampo, R, D: data.diametroD })
+    const limitante = calcularPMTAGlobal(pmtaCostado, pmtaTampo, psvMpa)
+    pmtaAsmeKpa = limitante.pmtaLimitante * 1000
+    statusSeguranca = limitante.condena ? 'Downgrade_Necessario' : 'Conforme'
 
-  if (data.pmtaFixadaPLH > pmtaLimitanteKpa) {
-    return {
-      success: false,
-      errors: {
-        formErrors: [`PMTA fixada (${data.pmtaFixadaPLH} kPa) excede o limitante ASME (${pmtaLimitanteKpa.toFixed(1)} kPa)`],
-        fieldErrors: {},
-      },
+    if (data.pmtaFixadaPLH && data.pmtaFixadaPLH > pmtaAsmeKpa) {
+      return {
+        success: false,
+        errors: {
+          formErrors: [`PMTA fixada (${data.pmtaFixadaPLH} kPa) excede o limitante ASME (${pmtaAsmeKpa.toFixed(1)} kPa)`],
+          fieldErrors: {},
+        },
+      }
     }
   }
 
-  // 4. Cria inspeção
+  // 3. Cria inspeção (aceita rascunhos parciais)
   const { data: inspecao, error: inspError } = await supabase
     .from('inspecoes_nr13')
     .insert({
@@ -175,18 +181,18 @@ export async function salvarInspecaoNR13(formData: InspecaoNR13Data) {
       manual_operacao: data.manualOperacao,
       exame_externo: data.exameExterno,
       exame_interno: data.exameInterno,
-      medicoes_espessura: JSON.stringify(data.medicoesEspessura),
-      dispositivos_seguranca: JSON.stringify(data.dispositivosSeguranca),
+      medicoes_espessura: data.medicoesEspessura ? JSON.stringify(data.medicoesEspessura) : null,
+      dispositivos_seguranca: data.dispositivosSeguranca ? JSON.stringify(data.dispositivosSeguranca) : null,
       material_s: data.materialS,
       eficiencia_e: data.eficienciaE,
       diametro_d: data.diametroD,
       espessura_costado: data.espessuraCostado,
       espessura_tampo: data.espessuraTampo,
       psv_calibracao_kpa: data.psvCalibracao,
-      pmta_asme_kpa: limitante.pmtaLimitante * 1000,
+      pmta_asme_kpa: pmtaAsmeKpa,
       pmta_plh_kpa: data.pmtaFixadaPLH,
       status_final: data.statusFinalVaso,
-      status_seguranca: limitante.condena ? 'Downgrade_Necessario' : 'Conforme',
+      status_seguranca: statusSeguranca,
       proxima_inspecao_externa: data.proximaInspecaoExterna,
       proxima_inspecao_interna: data.proximaInspecaoInterna,
       data_proximo_teste_dispositivos: data.dataProximoTesteDispositivos,
@@ -223,8 +229,8 @@ export async function salvarInspecaoNR13(formData: InspecaoNR13Data) {
   return {
     success: true,
     inspecaoId: inspecao.id,
-    pmtaVerificada: limitante.pmtaLimitante,
-    alerta: limitante.condena ? 'CRÍTICO: PMTA inferior à calibração da PSV.' : 'OK',
+    pmtaVerificada: pmtaAsmeKpa,
+    alerta: statusSeguranca === 'Downgrade_Necessario' ? 'CRÍTICO: PMTA inferior à calibração da PSV.' : 'OK',
   }
 }
 

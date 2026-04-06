@@ -8,6 +8,7 @@ import { calcularPMTACilindro, calcularPMTATampoToriesferico, calcularPMTAGlobal
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse, LIMITES_GRUPO } from '../../lib/domain/nr13/categorization';
 import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, uploadFotoManometro, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
 import { salvarInspecaoNR13, atualizarInspecaoNR13 } from '../../lib/actions/nr13';
+import { useRouter } from 'next/navigation';
 import UploadFotoNR13 from './UploadFotoNR13';
 import GaleriaFotosNR13 from './GaleriaFotosNR13';
 
@@ -205,6 +206,7 @@ interface FormInspecaoNR13Props {
 
 export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspecaoNR13Props = {}) {
   const modoEdicao = !!inspecaoId;
+  const router = useRouter();
   const [alerta, setAlerta] = useState<string | null>(null);
   const [detalheCalculo, setDetalheCalculo] = useState<{
     pmtaCostado: number; pmtaTampo: number; pmtaLimitante: number;
@@ -527,15 +529,16 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
         setSalvoComSucesso(true);
         setTimeout(() => setSalvoComSucesso(false), 3000);
       } else {
-        // INSERT — criação de nova inspeção
+        // INSERT — cria rascunho e redireciona para edição contínua
         const response = await salvarInspecaoNR13(payload);
         if (!response.success) {
           const msgs = response.errors?.formErrors ?? ['Erro desconhecido'];
           setErroSalvar(msgs.join(', '));
           return;
         }
-        setSalvoComSucesso(true);
-        alert(`Inspeção salva com sucesso! ID: ${response.inspecaoId}`);
+        // Redireciona para a página de edição do rascunho criado
+        router.push(`/laudos/nr13/${response.inspecaoId}`);
+        return;
       }
     } catch (err) {
       setErroSalvar('Erro inesperado ao salvar.');
@@ -1540,7 +1543,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
       {/* Mensagem de feedback */}
       {salvoComSucesso && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg p-3 text-sm text-center font-medium">
-          Inspeção salva com sucesso no banco de dados!
+          Alterações salvas com sucesso!
         </div>
       )}
       {erroSalvar && (
@@ -1550,9 +1553,9 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
       )}
 
       <div className="flex gap-3 mt-4">
-        <button disabled={!isValid || salvando} type="submit"
+        <button disabled={salvando} type="submit"
           className="flex-1 bg-slate-800 text-white font-bold py-4 px-4 rounded-lg disabled:opacity-50 text-lg hover:bg-slate-700 transition">
-          {salvando ? 'Salvando...' : modoEdicao ? 'Salvar Alterações' : 'Confirmar Inspeção NR-13'}
+          {salvando ? 'Salvando...' : modoEdicao ? 'Salvar Alterações' : 'Salvar Inspeção'}
         </button>
         <button
           disabled={exportandoPDF}
