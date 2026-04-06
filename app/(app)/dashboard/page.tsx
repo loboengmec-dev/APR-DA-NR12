@@ -41,7 +41,7 @@ export default function DashboardPage() {
 
         {/* NR-13 — Vasos de Pressão */}
         <Link
-          href="/demo-nr13"
+          href="/laudos/nr13/novo"
           className="group relative overflow-hidden rounded-2xl border-2 border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-50 p-8 hover:border-emerald-400 hover:shadow-xl transition-all duration-300"
         >
           <div className="flex flex-col items-start gap-4">
@@ -59,6 +59,24 @@ export default function DashboardPage() {
           </div>
           <div className="absolute top-6 right-6 text-gray-200 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all duration-300">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </div>
+        </Link>
+
+        {/* Lista de laudos NR-13 (link secundário) */}
+        <Link
+          href="/laudos/nr13"
+          className="group relative overflow-hidden rounded-2xl border-2 border-gray-100 bg-gray-50 p-6 hover:border-emerald-300 hover:shadow-md transition-all duration-300"
+        >
+          <div className="flex flex-col items-start gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-gray-700 group-hover:text-emerald-700 transition-colors">Laudo NR-13 Existentes</h3>
+              <p className="text-sm text-gray-400 mt-1 leading-relaxed">Visualizar e gerenciar inspeções de vasos de pressão já criadas.</p>
+            </div>
+          </div>
+          <div className="absolute top-4 right-4 text-gray-300 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all duration-300">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
             </svg>
           </div>
