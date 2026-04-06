@@ -494,17 +494,33 @@ export default function FormInspecaoNR13() {
     dispositivosSeguranca: 'Dispositivos de Segurança',
   };
 
-  // ─── Cálculo dinâmico de progresso baseado nos valores reais do formulário ───
-  function temValor(chave: string, valor: unknown): boolean {
-    if (valor == null) return false;
-    if (typeof valor === 'string') return valor.trim() !== '' && valor !== '0';
-    if (typeof valor === 'number') return valor !== 0 && !isNaN(valor);
-    if (Array.isArray(valor)) return valor.length > 0;
-    return true;
-  }
+  // ─── Lista de erros visuais (para o painel de validação) ───
+  const errosComLabel = Object.entries(errors).map(([key, err]) => ({
+    campo: key,
+    label: labelMap[key] ?? key,
+    msg: (err as { message?: string })?.message ?? 'obrigatório',
+  })).filter(e => !e.campo.includes('.'));
 
-  const camposPreenchidos = Object.entries(labelMap).filter(([key]) => temValor(key, (v as Record<string, unknown>)[key])).length;
-  const totalCamposForm = Object.keys(labelMap).length;
+  // ─── Cálculo dinâmico de progresso — só conta campos que o usuário preenche manualmente ───
+  // Auto-calculados (useEffect): grupoPV, categoriaVaso, proximaInspecaoExterna, proximaInspecaoInterna, dataProximoTesteDispositivos
+  // Auto-sugerido (useEffect): pmtaFixadaPLH
+  // Template/defaultValues (não contam): diametroD, materialS, eficienciaE, psvCalibracao,
+  //   prontuario, registroSeguranca, projetoInstalacao, relatoriosAnteriores, placaIdentificacao,
+  //   certificadosDispositivos, manualOperacao, tipoInspecao, statusFinalVaso, rthProfissao, seg*
+  const camposManuais = [
+    'tag', 'fabricante', 'numeroSerie', 'tipoVaso', 'pmtaFabricante',
+    'fluidoServico', 'fluidoClasse', 'pressaoOperacao', 'volume',
+    'exameExterno', 'exameInterno',
+    'parecerTecnico', 'pmtaFixadaPLH', 'rthNome', 'rthCrea',
+  ];
+  const camposPreenchidos = camposManuais.filter(key => {
+    const val = (v as Record<string, unknown>)[key];
+    if (val == null || val === undefined) return false;
+    if (typeof val === 'string') return val.trim() !== '';
+    if (typeof val === 'number') return val !== 0 && !isNaN(val);
+    return true;
+  }).length;
+  const totalCamposForm = camposManuais.length;
   const pctConcluido = totalCamposForm > 0 ? Math.round((camposPreenchidos / totalCamposForm) * 100) : 0;
 
   return (
@@ -530,7 +546,7 @@ export default function FormInspecaoNR13() {
             style={{ width: `${pctConcluido}%` }}
           />
         </div>
-        {errosTopLevel.length > 0 && (
+        {errosComLabel.length > 0 && (
           <div>
             <button
               type="button"
@@ -538,11 +554,11 @@ export default function FormInspecaoNR13() {
               className="text-xs text-red-600 font-medium hover:underline flex items-center gap-1"
             >
               <span>{mostrarErros ? '▾' : '▸'}</span>
-              <span>{errosTopLevel.length} campo(s) pendente(s) — clique para ver</span>
+              <span>{errosComLabel.length} campo(s) pendente(s) — clique para ver</span>
             </button>
             {mostrarErros && (
               <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
-                {errosTopLevel.map(e => (
+                {errosComLabel.map((e: { campo: string; label: string; msg: string }) => (
                   <div key={e.campo} className="flex items-start gap-1.5 text-xs">
                     <span className="text-red-500 mt-0.5">●</span>
                     <div>
