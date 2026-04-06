@@ -63,6 +63,7 @@ const S = StyleSheet.create({
     color: THEME.textPrimary, paddingTop: 60, paddingBottom: 50, paddingHorizontal: 0,
   },
   pg: { marginHorizontal: 40 },
+  pgFlow: { marginHorizontal: 40, paddingTop: 20, paddingBottom: 20 },
 
   // Header / Footer fixo
   header: {
@@ -85,16 +86,30 @@ const S = StyleSheet.create({
     fontSize: 13, fontFamily: 'Helvetica-Bold', color: THEME.accent, marginBottom: 8, marginTop: 14,
     borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingBottom: 4,
   },
+  h2NoPage: {
+    fontSize: 13, fontFamily: 'Helvetica-Bold', color: THEME.accent, marginBottom: 8, marginTop: 14,
+    borderBottomWidth: 1, borderBottomColor: THEME.borderLight, paddingBottom: 4,
+    minHeight: 30,
+  },
   h3: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, marginBottom: 6, marginTop: 8 },
+  h3NoPage: {
+    fontSize: 11, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary, marginBottom: 6, marginTop: 8,
+    minHeight: 24,
+  },
   p:  { fontSize: 9, color: THEME.textSecondary, lineHeight: 1.6, marginBottom: 8, textAlign: 'justify' },
 
-  // Cards
+  // Cards — wrap=false impede quebra interna
   card: {
+    backgroundColor: THEME.bg, borderRadius: 8, padding: 16, marginBottom: 16,
+    wrap: false,
+  },
+  cardWrap: {
     backgroundColor: THEME.bg, borderRadius: 8, padding: 16, marginBottom: 16,
   },
   eqContainer: {
     backgroundColor: THEME.cardBg, borderRadius: 8, borderWidth: 1, borderColor: THEME.borderLight,
     padding: 16, marginBottom: 16, borderBottomWidth: 2, borderBottomColor: THEME.border,
+    wrap: false,
   },
 
   // Tabelas
@@ -262,8 +277,8 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
           <Text style={[S.h2, { marginTop: 0 }]}>1. Identificação do Vaso de Pressão</Text>
 
           {/* Tag + Foto da placa */}
-          <View style={{ marginBottom: 20 }}>
-            <View style={{ backgroundColor: THEME.accent, padding: 14, borderRadius: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <View style={{ marginBottom: 20 }} wrap={false}>
+            <View style={{ backgroundColor: THEME.accent, padding: 14, borderRadius: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }} wrap={false}>
               <View style={{ flexDirection: 'column' }}>
                 <Text style={{ fontSize: 9, color: '#ffffff', opacity: 0.8 }}>TAG {d.tag ?? '—'}</Text>
                 <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: '#ffffff' }}>{d.fabricante ?? '—'}</Text>
@@ -308,52 +323,56 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
             </View>
           </View>
 
-          {/* Classificação e Categorização */}
-          <Text style={S.h2}>2. Classificação e Categorização — §13.5.1.1</Text>
-          <View style={S.card}>
-            <Text style={{ fontSize: 9, color: THEME.textSecondary, marginBottom: 8 }}>
-              Classificação baseada na tabela do Anexo I da NR-13 (Classe do Fluido e Produto P×V).
-            </Text>
-            <View style={[S.kpiRow, { marginBottom: 12 }]}>
-              <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Fluido</Text>
-                <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{d.fluidoServico ?? '—'}</Text></View>
-              <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Classe</Text>
-                <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', color: THEME.blueAccent }}>{d.fluidoClasse ? d.fluidoClasse.charAt(0) : '—'}</Text></View>
-            </View>
-            <View style={[S.kpiRow, { marginBottom: 8 }]}>
-              <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>P. Op. (kgf/cm²)</Text>
-                <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{d.pressaoOperacao ?? '—'}</Text></View>
-              <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Volume (m³)</Text>
-                <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{d.volume ?? '—'}</Text></View>
-              <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>P×V</Text>
-                <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{d.grupoPV ? `Grupo ${d.grupoPV}` : '—'}</Text></View>
-              <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Categoria</Text>
-                <Text style={{ fontSize: 18, fontFamily: 'Helvetica-Bold', color: THEME.blueAccent }}>{d.categoriaVaso ?? '—'}</Text></View>
+          {/* Classificação e Categorização — wrap=false evita separar do título */}
+          <View wrap={false}>
+            <Text style={S.h2}>2. Classificação e Categorização — §13.5.1.1</Text>
+            <View style={S.card}>
+              <Text style={{ fontSize: 9, color: THEME.textSecondary, marginBottom: 8 }}>
+                Classificação baseada na tabela do Anexo I da NR-13 (Classe do Fluido e Produto P×V).
+              </Text>
+              <View style={[S.kpiRow, { marginBottom: 12 }]}>
+                <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Fluido</Text>
+                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{d.fluidoServico ?? '—'}</Text></View>
+                <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Classe</Text>
+                  <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', color: THEME.blueAccent }}>{d.fluidoClasse ? d.fluidoClasse.charAt(0) : '—'}</Text></View>
+              </View>
+              <View style={[S.kpiRow, { marginBottom: 8 }]}>
+                <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>P. Op. (kgf/cm²)</Text>
+                  <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{d.pressaoOperacao ?? '—'}</Text></View>
+                <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Volume (m³)</Text>
+                  <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{d.volume ?? '—'}</Text></View>
+                <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>P×V</Text>
+                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{d.grupoPV ? `Grupo ${d.grupoPV}` : '—'}</Text></View>
+                <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Categoria</Text>
+                  <Text style={{ fontSize: 18, fontFamily: 'Helvetica-Bold', color: THEME.blueAccent }}>{d.categoriaVaso ?? '—'}</Text></View>
+              </View>
             </View>
           </View>
 
           {/* Checklist Documental */}
-          <Text style={S.h2}>3. Checklist Documental — §13.5.1.5</Text>
-          <View style={S.card}>
-            {[
-              { label: 'Prontuário do Vaso', val: d.prontuario },
-              { label: 'Registro de Segurança', val: d.registroSeguranca },
-              { label: 'Projeto de Instalação', val: d.projetoInstalacao },
-              { label: 'Relatórios Anteriores', val: d.relatoriosAnteriores },
-              { label: 'Placa de Identificação', val: d.placaIdentificacao },
-              { label: 'Certif. Dispositivos Segurança', val: d.certificadosDispositivos },
-              { label: 'Manual Operação (Português)', val: d.manualOperacao },
-            ].map(({ label, val }) => (
-              <View key={label} style={S.checkLine}>
-                {val === 'Existe Integral' || val === 'Atualizado' || val === 'Existe' || val === 'Disponíveis' || val === 'Disponível em Português' || val === 'Fixada e Legível'
-                  ? <View style={S.dotOK} />
-                  : val === 'N/A' || val === 'Não Aplicável' || (!val)
-                    ? <View style={S.dotNA} />
-                    : <View style={S.dotNO} />}
-                <Text style={S.checkTxt}>{label}</Text>
-                <Text style={S.checkRef}>{val ?? '—'}</Text>
-              </View>
-            ))}
+          <View wrap={false}>
+            <Text style={S.h2}>3. Checklist Documental — §13.5.1.5</Text>
+            <View style={S.card}>
+              {[
+                { label: 'Prontuário do Vaso', val: d.prontuario },
+                { label: 'Registro de Segurança', val: d.registroSeguranca },
+                { label: 'Projeto de Instalação', val: d.projetoInstalacao },
+                { label: 'Relatórios Anteriores', val: d.relatoriosAnteriores },
+                { label: 'Placa de Identificação', val: d.placaIdentificacao },
+                { label: 'Certif. Dispositivos Segurança', val: d.certificadosDispositivos },
+                { label: 'Manual Operação (Português)', val: d.manualOperacao },
+              ].map(({ label, val }) => (
+                <View key={label} style={S.checkLine}>
+                  {val === 'Existe Integral' || val === 'Atualizado' || val === 'Existe' || val === 'Disponíveis' || val === 'Disponível em Português' || val === 'Fixada e Legível'
+                    ? <View style={S.dotOK} />
+                    : val === 'N/A' || val === 'Não Aplicável' || (!val)
+                      ? <View style={S.dotNA} />
+                      : <View style={S.dotNO} />}
+                  <Text style={S.checkTxt}>{label}</Text>
+                  <Text style={S.checkRef}>{val ?? '—'}</Text>
+                </View>
+              ))}
+            </View>
           </View>
         </View>
       </Page>
@@ -364,23 +383,25 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
         <View style={S.pg}>
           <Text style={[S.h2, { marginTop: 0 }]}>3.1 Segurança no Trabalho — Acessibilidade §13.5.2</Text>
 
-          <Text style={S.h3}>Acessibilidade Geral — Art. 13.5.2.1</Text>
-          <View style={S.card}>
-            <View style={S.checkLine}>
-              {d.segDrenosRespirosBV === 'Conforme' ? <View style={S.dotOK} /> : d.segDrenosRespirosBV === 'Não Aplicável' ? <View style={S.dotNA} /> : <View style={S.dotNO} />}
-              <Text style={S.checkTxt}>Drenos, respiros, bocas de visita e indicadores acessíveis</Text>
-              <Text style={S.checkRef}>{d.segDrenosRespirosBV ?? '—'}</Text>
-            </View>
-            <View style={S.checkLine}>
-              {d.segAspNormativosGerais === 'Conforme' ? <View style={S.dotOK} /> : d.segAspNormativosGerais === 'N/A' ? <View style={S.dotNA} /> : <View style={S.dotNO} />}
-              <Text style={S.checkTxt}>Adequação a normas de segurança, saúde e meio ambiente</Text>
-              <Text style={S.checkRef}>{d.segAspNormativosGerais ?? '—'}</Text>
+          <View wrap={false}>
+            <Text style={S.h3NoPage}>Acessibilidade Geral — Art. 13.5.2.1</Text>
+            <View style={S.card}>
+              <View style={S.checkLine}>
+                {d.segDrenosRespirosBV === 'Conforme' ? <View style={S.dotOK} /> : d.segDrenosRespirosBV === 'Não Aplicável' ? <View style={S.dotNA} /> : <View style={S.dotNO} />}
+                <Text style={S.checkTxt}>Drenos, respiros, bocas de visita e indicadores acessíveis</Text>
+                <Text style={S.checkRef}>{d.segDrenosRespirosBV ?? '—'}</Text>
+              </View>
+              <View style={S.checkLine}>
+                {d.segAspNormativosGerais === 'Conforme' ? <View style={S.dotOK} /> : d.segAspNormativosGerais === 'N/A' ? <View style={S.dotNA} /> : <View style={S.dotNO} />}
+                <Text style={S.checkTxt}>Adequação a normas de segurança, saúde e meio ambiente</Text>
+                <Text style={S.checkRef}>{d.segAspNormativosGerais ?? '—'}</Text>
+              </View>
             </View>
           </View>
 
           {d.ambiente === 'Fechado' && (
-            <>
-              <Text style={S.h3}>Ambiente Fechado — Art. 13.5.2.2</Text>
+            <View wrap={false}>
+              <Text style={S.h3NoPage}>Ambiente Fechado — Art. 13.5.2.2</Text>
               <View style={S.card}>
                 {[
                   { ref: 'Art. 13.5.2.2(a)', label: 'Mínimo de 2 saídas amplas e seguras', val: d.segDuasSaidasAmbFechado },
@@ -396,11 +417,11 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
                   </View>
                 ))}
               </View>
-            </>
+            </View>
           )}
           {d.ambiente === 'Aberto' && (
-            <>
-              <Text style={S.h3}>Ambiente Aberto — Art. 13.5.2.3</Text>
+            <View wrap={false}>
+              <Text style={S.h3NoPage}>Ambiente Aberto — Art. 13.5.2.3</Text>
               <View style={S.card}>
                 {[
                   { ref: '13.5.2.3 / .2.2(a)', label: 'Saídas amplas, desobstruídas e sinalizadas', val: d.segSaidasAmbAberto },
@@ -415,7 +436,7 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
                   </View>
                 ))}
               </View>
-            </>
+            </View>
           )}
         </View>
       </Page>
@@ -424,7 +445,6 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
       <Page size="A4" style={S.page}>
         <Header /><Footer />
         <View style={S.pg}>
-          {/* Header estilo NR-12 para Dispositivos */}
           <Text style={[S.h2, { marginTop: 0 }]}>4. Dispositivos de Segurança — §13.5.1.2</Text>
           <View style={{ backgroundColor: THEME.redLight, borderRadius: 6, padding: 8, marginBottom: 12 }}>
             <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: THEME.redDark }}>
@@ -434,7 +454,7 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
 
           {/* Tabela de dispositivos */}
           {(d.dispositivosSeguranca ?? []).length > 0 && (
-            <View style={{ marginBottom: 12 }}>
+            <View>
               <View style={S.tblHeader}>
                 <Text style={{ ...S.tblHdr, width: 80 }}>TAG</Text>
                 <Text style={{ ...S.tblHdr, width: 50 }}>Tipo</Text>
@@ -458,118 +478,126 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
             </View>
           )}
 
-          {/* Fotos dos dispositivos */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-            {(d.dispositivosSeguranca ?? []).map((disp: any, i: number) => {
-              const fotoUrl = fotosUrl[`dispositivo_${i}`];
-              if (!fotoUrl) return null;
-              return (
-                <View key={`disp-foto-${i}`} style={{ width: '48%', minWidth: '45%', backgroundColor: THEME.cardBg, borderWidth: 1, borderColor: THEME.borderLight, borderRadius: 6, overflow: 'hidden' }}>
-                  <PDFImage src={fotoUrl} style={{ width: '100%', height: 100, objectFit: 'cover' }} />
-                  <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 4, textAlign: 'center' }}>{disp.tag ?? 'Dispositivo'} — {disp.tipo}</Text>
+          {/* Fotos dos dispositivos — wrap=false evita quebra parcial */}
+          {Object.keys(fotosUrl).some(k => k.startsWith('dispositivo_')) && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }} wrap={false}>
+              {(d.dispositivosSeguranca ?? []).map((disp: any, i: number) => {
+                const fotoUrl = fotosUrl[`dispositivo_${i}`];
+                if (!fotoUrl) return null;
+                return (
+                  <View key={`disp-foto-${i}`} style={{ width: '48%', minWidth: '45%', backgroundColor: THEME.cardBg, borderWidth: 1, borderColor: THEME.borderLight, borderRadius: 6, overflow: 'hidden' }}>
+                    <PDFImage src={fotoUrl} style={{ width: '100%', height: 100, objectFit: 'cover' }} />
+                    <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 4, textAlign: 'center' }}>{disp.tag ?? 'Dispositivo'} — {disp.tipo}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Exame Externo e Interno — wrap=false mantém título + conteúdo juntos */}
+          <View wrap={false}>
+            <Text style={S.h2NoPage}>5. Exame Externo e Interno — §13.3.4</Text>
+            <View style={S.eqContainer}>
+              <View style={{ flexDirection: 'row', gap: 16, marginBottom: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 8, color: THEME.textSecondary, textTransform: 'uppercase' }}>Exame Externo</Text>
+                  <View style={{ marginTop: 4, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: d.exameExterno === 'Conforme' ? THEME.emeraldLight : '#fee2e2', borderRadius: 6 }}>
+                    <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: d.exameExterno === 'Conforme' ? THEME.emerald : THEME.redMain }}>
+                      {d.exameExterno ?? '—'}
+                    </Text>
+                  </View>
                 </View>
-              );
-            })}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 8, color: THEME.textSecondary, textTransform: 'uppercase' }}>Exame Interno</Text>
+                  <View style={{ marginTop: 4, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: d.exameInterno === 'Conforme' ? THEME.emeraldLight : d.exameInterno === 'Não Aplicável' ? THEME.greyCard : THEME.amberLight, borderRadius: 6 }}>
+                    <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: d.exameInterno === 'Conforme' ? THEME.emerald : d.exameInterno === 'Não Aplicável' ? THEME.textSecondary : THEME.amberAccent }}>
+                      {d.exameInterno ?? '—'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Fotos do exame */}
+              {(fotosUrl['exame_externo'] || fotosUrl['exame_interno']) && (
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                  {fotosUrl['exame_externo'] && (
+                    <View style={{ flex: 1, minWidth: '45%' }}>
+                      <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
+                      <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo</Text>
+                    </View>
+                  )}
+                  {fotosUrl['exame_externo_0'] && (
+                    <View style={{ flex: 1, minWidth: '45%' }}>
+                      <PDFImage src={fotosUrl['exame_externo_0']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
+                      <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo #2</Text>
+                    </View>
+                  )}
+                  {fotosUrl['exame_interno'] && (
+                    <View style={{ flex: 1, minWidth: '45%' }}>
+                      <PDFImage src={fotosUrl['exame_interno']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
+                      <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno</Text>
+                    </View>
+                  )}
+                  {fotosUrl['exame_interno_0'] && (
+                    <View style={{ flex: 1, minWidth: '45%' }}>
+                      <PDFImage src={fotosUrl['exame_interno_0']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
+                      <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno #2</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
           </View>
 
-          {/* Exame Externo e Interno — estilo NR-12 */}
-          <Text style={S.h2}>5. Exame Externo e Interno — §13.3.4</Text>
-          <View style={S.eqContainer}>
-            <View style={{ flexDirection: 'row', gap: 16, marginBottom: 12 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 8, color: THEME.textSecondary, textTransform: 'uppercase' }}>Exame Externo</Text>
-                <View style={{ marginTop: 4, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: d.exameExterno === 'Conforme' ? THEME.emeraldLight : '#fee2e2', borderRadius: 6 }}>
-                  <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: d.exameExterno === 'Conforme' ? THEME.emerald : THEME.redMain }}>
-                    {d.exameExterno ?? '—'}
-                  </Text>
+          {/* Medições de Espessura */}
+          <View wrap={false}>
+            <Text style={S.h2NoPage}>6. Medições de Espessura — §13.5.4.11(d)</Text>
+            {(d.medicoesEspessura ?? []).length > 0 && (
+              <View style={{ marginBottom: 16 }}>
+                <View style={S.tblHeader}>
+                  <Text style={{ ...S.tblHdr, width: 70 }}>Ponto</Text>
+                  <Text style={{ ...S.tblHdr, width: 100 }}>Esp. Orig (mm)</Text>
+                  <Text style={{ ...S.tblHdr, width: 110 }}>Esp. Medida</Text>
+                  <Text style={{ ...S.tblHdr, width: 100 }}>Esp. Mín. Adm</Text>
+                  <Text style={{ ...S.tblHdr, width: 90 }}>Situação</Text>
                 </View>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 8, color: THEME.textSecondary, textTransform: 'uppercase' }}>Exame Interno</Text>
-                <View style={{ marginTop: 4, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: d.exameInterno === 'Conforme' ? THEME.emeraldLight : d.exameInterno === 'Não Aplicável' ? THEME.greyCard : THEME.amberLight, borderRadius: 6 }}>
-                  <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: d.exameInterno === 'Conforme' ? THEME.emerald : d.exameInterno === 'Não Aplicável' ? THEME.textSecondary : THEME.amberAccent }}>
-                    {d.exameInterno ?? '—'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Fotos do exame */}
-            {(fotosUrl['exame_externo'] || fotosUrl['exame_interno']) && (
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                {fotosUrl['exame_externo'] && (
-                  <View style={{ flex: 1, minWidth: '45%' }}>
-                    <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
-                    <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo</Text>
+                {(d.medicoesEspessura ?? []).map((med: any, i: number) => (
+                  <View key={`med-${i}`} style={i % 2 === 1 ? S.tblRowAlt : S.tblRow}>
+                    <Text style={{ ...S.tblCell, width: 70, fontFamily: 'Helvetica-Bold' }}>{med.ponto ?? '—'}</Text>
+                    <Text style={{ ...S.tblCell, width: 100 }}>{med.espOriginal ?? 'N/D'}</Text>
+                    <Text style={{ ...S.tblCell, width: 110, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{med.espMedida ?? '—'}</Text>
+                    <Text style={{ ...S.tblCell, width: 100 }}>{med.espMinAdm ?? 'N/D'}</Text>
+                    <View style={{ width: 90 }}>
+                      <View style={med.situacao === 'OK' ? S.badgeOK : S.badgeErr}>
+                        <Text style={{ ...S.badgeTxt, color: med.situacao === 'OK' ? THEME.emerald : THEME.redMain }}>{med.situacao ?? '—'}</Text>
+                      </View>
+                    </View>
                   </View>
-                )}
-                {fotosUrl['exame_externo_0'] && (
-                  <View style={{ flex: 1, minWidth: '45%' }}>
-                    <PDFImage src={fotosUrl['exame_externo_0']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
-                    <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo #2</Text>
-                  </View>
-                )}
-                {fotosUrl['exame_interno'] && (
-                  <View style={{ flex: 1, minWidth: '45%' }}>
-                    <PDFImage src={fotosUrl['exame_interno']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
-                    <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno</Text>
-                  </View>
-                )}
-                {fotosUrl['exame_interno_0'] && (
-                  <View style={{ flex: 1, minWidth: '45%' }}>
-                    <PDFImage src={fotosUrl['exame_interno_0']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
-                    <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno #2</Text>
-                  </View>
-                )}
+                ))}
               </View>
             )}
           </View>
 
-          {/* Medições de Espessura */}
-          <Text style={S.h2}>6. Medições de Espessura — §13.5.4.11(d)</Text>
-          {(d.medicoesEspessura ?? []).length > 0 && (
-            <View style={{ marginBottom: 16 }}>
-              <View style={S.tblHeader}>
-                <Text style={{ ...S.tblHdr, width: 70 }}>Ponto</Text>
-                <Text style={{ ...S.tblHdr, width: 100 }}>Esp. Orig (mm)</Text>
-                <Text style={{ ...S.tblHdr, width: 110 }}>Esp. Medida</Text>
-                <Text style={{ ...S.tblHdr, width: 100 }}>Esp. Mín. Adm</Text>
-                <Text style={{ ...S.tblHdr, width: 90 }}>Situação</Text>
-              </View>
-              {(d.medicoesEspessura ?? []).map((med: any, i: number) => (
-                <View key={`med-${i}`} style={i % 2 === 1 ? S.tblRowAlt : S.tblRow}>
-                  <Text style={{ ...S.tblCell, width: 70, fontFamily: 'Helvetica-Bold' }}>{med.ponto ?? '—'}</Text>
-                  <Text style={{ ...S.tblCell, width: 100 }}>{med.espOriginal ?? 'N/D'}</Text>
-                  <Text style={{ ...S.tblCell, width: 110, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{med.espMedida ?? '—'}</Text>
-                  <Text style={{ ...S.tblCell, width: 100 }}>{med.espMinAdm ?? 'N/D'}</Text>
-                  <View style={{ width: 90 }}>
-                    <View style={med.situacao === 'OK' ? S.badgeOK : S.badgeErr}>
-                      <Text style={{ ...S.badgeTxt, color: med.situacao === 'OK' ? THEME.emerald : THEME.redMain }}>{med.situacao ?? '—'}</Text>
-                    </View>
+          {/* Fotos das medições de espessura — só renderizar se houver */}
+          {Object.keys(fotosUrl).some(k => k.startsWith('medicao_')) && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }} wrap={false}>
+              {(d.medicoesEspessura ?? []).map((med: any, i: number) => {
+                const fotoUrl = fotosUrl[`medicao_${i}`];
+                if (!fotoUrl) return null;
+                return (
+                  <View key={`med-foto-${i}`} style={{ width: '48%', minWidth: '45%', backgroundColor: THEME.cardBg, borderWidth: 1, borderColor: THEME.borderLight, borderRadius: 6, overflow: 'hidden' }}>
+                    <PDFImage src={fotoUrl} style={{ width: '100%', height: 100, objectFit: 'cover' }} />
+                    <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 4, textAlign: 'center' }}>Ponto {med.ponto ?? i + 1} — {med.situacao === 'Crítico' ? 'Crítico' : 'OK'}</Text>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
-
-          {/* Fotos das medições de espessura */}
-          <View style={{ marginBottom: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {(d.medicoesEspessura ?? []).map((med: any, i: number) => {
-              const fotoUrl = fotosUrl[`medicao_${i}`];
-              if (!fotoUrl) return null;
-              return (
-                <View key={`med-foto-${i}`} style={{ width: '48%', minWidth: '45%', backgroundColor: THEME.cardBg, borderWidth: 1, borderColor: THEME.borderLight, borderRadius: 6, overflow: 'hidden' }}>
-                  <PDFImage src={fotoUrl} style={{ width: '100%', height: 100, objectFit: 'cover' }} />
-                  <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 4, textAlign: 'center' }}>Ponto {med.ponto ?? i + 1} — {med.situacao === 'Crítico' ? 'Crítico' : 'OK'}</Text>
-                </View>
-              );
-            })}
-          </View>
         </View>
       </Page>
 
       {/* ====================== CÁLCULO ASME + PARECER ====================== */}
-      <Page size="A4" style={S.page}>
+      <Page size="A4" style={S.page} break>
         <Header /><Footer />
         <View style={S.pg}>
           {/* Avaliação Estrutural — estilo editorial NR-12 */}
@@ -632,64 +660,68 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
             </View>
           </View>
 
-          {/* Parecer Técnico — estilo NR-12 */}
-          <Text style={S.h2}>8. Parecer Técnico e Plano de Inspeção — §13.5.4.11</Text>
-          <View style={S.card}>
-            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Condição do Vaso</Text>
-                {(() => {
-                  const badge = STATUS_BADGE(d.statusFinalVaso)
-                  return (
-                    <View style={{ ...badge.style, marginTop: 4, paddingVertical: 6, paddingHorizontal: 10 }}>
-                      <Text style={{ ...S.badgeTxt, color: badge.color, fontSize: 9 }}>{badge.text}</Text>
-                    </View>
-                  )
-                })()}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>PMTA Fixada pelo PLH</Text>
-                <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: THEME.emerald, marginTop: 2 }}>
-                  {d.pmtaFixadaPLH ?? '—'} kgf/cm²
-                </Text>
-              </View>
-            </View>
-
-            {/* Próximas inspeções */}
-            <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.accent, marginBottom: 6 }}>Próximas Inspeções</Text>
-            <View style={[S.kpiRow, { marginBottom: 12 }]}>
-              <View style={S.kpi}>
-                <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Externa</Text>
-                <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{fmt(d.proximaInspecaoExterna)}</Text>
-              </View>
-              <View style={S.kpi}>
-                <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Interna</Text>
-                <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{fmt(d.proximaInspecaoInterna)}</Text>
-              </View>
-              <View style={S.kpi}>
-                <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Teste Dispositivos</Text>
-                <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{fmt(d.dataProximoTesteDispositivos)}</Text>
-              </View>
-            </View>
-
-            {/* Parecer com ícone estilo NR-12 */}
-            {d.parecerTecnico && (
-              <View style={{ borderTopWidth: 1, borderTopColor: THEME.borderLight, paddingTop: 12 }}>
-                <View style={S.detailTitleBox}>
-                  <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: THEME.iconDiag, justifyContent: 'center', alignItems: 'center', marginRight: 6 }}>
-                    <Text style={{ fontSize: 8, color: '#ffffff', fontFamily: 'Helvetica-Bold' }}>P</Text>
-                  </View>
-                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Parecer do PLH</Text>
+          {/* Parecer Técnico e Plano — wrap=false mantém título + conteúdo */}
+          <View wrap={false}>
+            <Text style={S.h2NoPage}>8. Parecer Técnico e Plano de Inspeção — §13.5.4.11</Text>
+            <View style={S.card}>
+              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Condição do Vaso</Text>
+                  {(() => {
+                    const badge = STATUS_BADGE(d.statusFinalVaso)
+                    return (
+                      <View style={{ ...badge.style, marginTop: 4, paddingVertical: 6, paddingHorizontal: 10 }}>
+                        <Text style={{ ...S.badgeTxt, color: badge.color, fontSize: 9 }}>{badge.text}</Text>
+                      </View>
+                    )
+                  })()}
                 </View>
-                <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.6, textAlign: 'justify', marginLeft: 20 }}>{d.parecerTecnico}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>PMTA Fixada pelo PLH</Text>
+                  <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: THEME.emerald, marginTop: 2 }}>
+                    {d.pmtaFixadaPLH ?? '—'} kgf/cm²
+                  </Text>
+                </View>
               </View>
-            )}
+
+              {/* Próximas inspeções */}
+              <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.accent, marginBottom: 6 }}>Próximas Inspeções</Text>
+              <View style={[S.kpiRow, { marginBottom: 12 }]}>
+                <View style={S.kpi}>
+                  <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Externa</Text>
+                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{fmt(d.proximaInspecaoExterna)}</Text>
+                </View>
+                <View style={S.kpi}>
+                  <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Interna</Text>
+                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{fmt(d.proximaInspecaoInterna)}</Text>
+                </View>
+                <View style={S.kpi}>
+                  <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Teste Dispositivos</Text>
+                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{fmt(d.dataProximoTesteDispositivos)}</Text>
+                </View>
+              </View>
+
+              {/* Parecer com ícone estilo NR-12 */}
+              {d.parecerTecnico && (
+                <View style={{ borderTopWidth: 1, borderTopColor: THEME.borderLight, paddingTop: 12 }}>
+                  <View style={S.detailTitleBox}>
+                    <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: THEME.iconDiag, justifyContent: 'center', alignItems: 'center', marginRight: 6 }}>
+                      <Text style={{ fontSize: 8, color: '#ffffff', fontFamily: 'Helvetica-Bold' }}>P</Text>
+                    </View>
+                    <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>Parecer do PLH</Text>
+                  </View>
+                  <Text style={{ fontSize: 9, color: THEME.textSecondary, lineHeight: 1.6, textAlign: 'justify', marginLeft: 20 }}>{d.parecerTecnico}</Text>
+                </View>
+              )}
+            </View>
           </View>
 
-          {/* Não Conformidades — estilo NR-12 */}
+          {/* Não Conformidades */}
           {d.naoConformidades && d.naoConformidades.length > 0 && (
             <>
-              <Text style={S.h2}>9. Não Conformidades — §13.5.4.11(j)</Text>
+              <View wrap={false}>
+                <Text style={S.h2NoPage}>9. Não Conformidades — §13.5.4.11(j)</Text>
+              </View>
               {(d.naoConformidades).map((nc: any, i: number) => {
                 const riscoColor = COR_RISCO[nc.grauRisco] ?? THEME.textPrimary
                 return (
@@ -719,7 +751,7 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
                       </View>
                     ) : null}
 
-                    {/* Referência e ação corretiva — estilo blocos NR-12 */}
+                    {/* Referência e ação corretiva */}
                     {nc.refNR13 && (
                       <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: THEME.accent, marginBottom: 4 }}>Ref NR-13: {nc.refNR13}</Text>
                     )}
