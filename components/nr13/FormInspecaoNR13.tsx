@@ -241,7 +241,7 @@ export default function FormInspecaoNR13() {
       }
     }
 
-    // Checklist Documental
+    // Checklist Documental — N/A não gera NC (é explicitamente não aplicável)
     const docNCs = [
       { key: 'prontuario', val: 'Existe Integral', ref: 'AUTO: §13.5.1.5(a)', desc: 'Prontuário do vaso inexistente ou incompleto', acao: 'Reconstituir prontuário completo com todos os documentos exigidos pela NR-13' },
       { key: 'registroSeguranca', val: 'Atualizado', ref: 'AUTO: §13.5.1.7', desc: 'Registro de Segurança desatualizado ou inexistente', acao: 'Atualizar Registro de Segurança com todas as informações exigidas' },
@@ -253,7 +253,7 @@ export default function FormInspecaoNR13() {
     ];
     for (const item of docNCs) {
       const actual = (vals as Record<string, any>)[item.key];
-      if (actual && actual !== item.val) {
+      if (actual && actual !== item.val && actual !== 'N/A') {
         nc.push({ descricao: item.desc, refNR13: item.ref, acaoCorretiva: item.acao, grauRisco: 'Moderado', prazo: 30, responsavel: r });
       }
     }
@@ -296,15 +296,23 @@ export default function FormInspecaoNR13() {
   const prevNcsRef = useRef<any>(null);
 
   useEffect(() => {
-    // Filtra NCs manuais (sem refNR13 começando com "AUTO:")
+    // Filtra NCs manuais e automáticas já existentes
     const atuais = watch('naoConformidades') ?? [];
     const manuais = atuais.filter((nc: any) => !nc?.refNR13?.startsWith('AUTO:'));
 
-    // Gera NCs automáticas
-    const autoNCs = autoNcsFromValues(v);
+    // Gera NCs automáticas novas
+    const novasAutoNCs = autoNcsFromValues(v);
 
-    // Combina: manuais + automáticas
-    const todas = [...manuais, ...autoNCs];
+    // Preserva fotoPath das NCs automáticas existentes (match por refNR13)
+    const autoNCsComFoto = novasAutoNCs.map(nova => {
+      const existente = atuais.find((nc: any) => nc?.refNR13 === nova.refNR13);
+      return existente && existente.fotoPath
+        ? { ...nova, fotoPath: existente.fotoPath }
+        : nova;
+    });
+
+    // Combina: manuais (intactos) + automáticas (com foto preservada)
+    const todas = [...manuais, ...autoNCsComFoto];
 
     // Só atualiza se houver mudança real
     const key = JSON.stringify(todas.length > 0 ? todas : []);
