@@ -7,6 +7,8 @@ interface UploadFotoNR13Props {
   label?: string
   onUpload: (file: File) => Promise<{ path: string | null; error: string | null }>
   onPhotoUploaded: (path: string) => void
+  onPhotoDelete?: () => void
+  fotoPreviewUrl?: string | null
   disabled?: boolean
   corBorda?: string
   compacto?: boolean
@@ -16,6 +18,8 @@ export default function UploadFotoNR13({
   label = 'Tirar / Selecionar foto',
   onUpload,
   onPhotoUploaded,
+  onPhotoDelete,
+  fotoPreviewUrl = null,
   disabled = false,
   corBorda = 'blue',
   compacto = false,
@@ -71,6 +75,47 @@ export default function UploadFotoNR13({
   const clsBtn = compacto
     ? 'p-1.5 border-2 border-dashed rounded cursor-pointer transition-colors text-xs'
     : 'flex items-center gap-2 px-3 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors text-sm font-medium'
+
+  if (fotoPreviewUrl) {
+    return (
+      <div className="flex items-center gap-2">
+        {compacto ? (
+          <div className="relative w-10 h-10 rounded overflow-hidden border-2 border-green-400 flex-shrink-0 group">
+            <img src={fotoPreviewUrl} alt={label} className="w-full h-full object-cover" />
+            {onPhotoDelete && (
+              <button
+                type="button"
+                onClick={onPhotoDelete}
+                className="absolute inset-0 bg-black/50 text-white text-lg font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                title="Remover foto"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="relative flex items-center gap-3 flex-1 p-2 rounded-lg bg-green-50 border border-green-200">
+            <div className="w-16 h-12 rounded overflow-hidden border border-green-300 flex-shrink-0">
+              <img src={fotoPreviewUrl} alt={label} className="w-full h-full object-cover" />
+            </div>
+            <p className="text-sm text-emerald-700 font-medium flex-1">✓ Foto registrada</p>
+            {onPhotoDelete && (
+              <button
+                type="button"
+                onClick={onPhotoDelete}
+                className="p-1 rounded-full hover:bg-red-100 text-red-500 transition-colors text-lg font-bold"
+                title="Remover foto"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div>

@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { calcularPMTACilindro, calcularPMTATampoToriesferico, calcularPMTAGlobal } from '../../lib/domain/nr13/pmta';
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse, LIMITES_GRUPO } from '../../lib/domain/nr13/categorization';
-import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, gerarUrlAssinadaNR13 } from '../../lib/nr13/storage';
+import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
 import UploadFotoNR13 from './UploadFotoNR13';
 import GaleriaFotosNR13 from './GaleriaFotosNR13';
 
@@ -424,29 +424,23 @@ export default function FormInspecaoNR13() {
 
         {/* 1.1.5 Foto da Placa de Identificação */}
         <p className={`${subTitle} mt-4`}>1.1.5 Foto da Placa de Identificação</p>
-        {urlFotoPlaca ? (
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-32 h-24 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0">
-              <img src={urlFotoPlaca} alt="Placa" className="w-full h-full object-cover" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-emerald-700 font-medium">✓ Foto da placa registrada</p>
-              <p className="text-xs text-slate-400">Será salva com a inspeção</p>
-            </div>
-          </div>
-        ) : (
-          <div className="mb-4">
-            <UploadFotoNR13
-              label="Foto da placa de identificação do vaso"
-              corBorda="slate"
-              onUpload={async (file) => await uploadFotoPlaca(file, v.tag || 'temp')}
-              onPhotoUploaded={(path) => {
-                setValue('fotoPlacaPath', path, { shouldValidate: true });
-                gerarUrlAssinadaNR13(path).then((url) => url && setUrlFotoPlaca(url));
-              }}
-            />
-          </div>
-        )}
+        <div className="mb-4">
+          <UploadFotoNR13
+            label="Foto da placa de identificação do vaso"
+            corBorda="slate"
+            fotoPreviewUrl={urlFotoPlaca}
+            onUpload={async (file) => await uploadFotoPlaca(file, v.tag || 'temp')}
+            onPhotoUploaded={(path) => {
+              setValue('fotoPlacaPath', path, { shouldValidate: true });
+              gerarUrlAssinadaNR13(path).then((url) => url && setUrlFotoPlaca(url));
+            }}
+            onPhotoDelete={async () => {
+              if (v.fotoPlacaPath) await removerFotoNR13(v.fotoPlacaPath);
+              setValue('fotoPlacaPath', '', { shouldValidate: true });
+              setUrlFotoPlaca(null);
+            }}
+          />
+        </div>
 
         {/* 1.2 Datas e Tipo de Inspeção */}
         <p className={`${subTitle} mt-4`}>1.2 Inspeção</p>
@@ -724,8 +718,10 @@ export default function FormInspecaoNR13() {
                   compacto
                   corBorda="green"
                   label="Foto dispositivo"
+                  fotoPreviewUrl={watch(`dispositivosSeguranca.${index}.fotoPath`) ? `data:image/svg+xml,` : null}
                   onUpload={async (f) => await uploadFotoNCNr13(f, `disp-${index}`, 0)}
                   onPhotoUploaded={(path) => setValue(`dispositivosSeguranca.${index}.fotoPath`, path, { shouldValidate: true })}
+                  onPhotoDelete={() => setValue(`dispositivosSeguranca.${index}.fotoPath`, '', { shouldValidate: true })}
                 />
               </div>
               <div className="flex items-end">
@@ -1092,6 +1088,11 @@ export default function FormInspecaoNR13() {
                     corBorda="purple"
                     onUpload={async (f) => await uploadFotoNCNr13(f, `nc-${index}`, 0)}
                     onPhotoUploaded={(path) => setValue(`naoConformidades.${index}.fotoPath`, path, { shouldValidate: true })}
+                    onPhotoDelete={() => {
+                      const fp = watch(`naoConformidades.${index}.fotoPath`);
+                      if (fp) removerFotoNR13(fp);
+                      setValue(`naoConformidades.${index}.fotoPath`, '', { shouldValidate: true });
+                    }}
                   />
                 </div>
               </div>
@@ -1150,6 +1151,44 @@ export default function FormInspecaoNR13() {
           onClick={async () => {
             setExportandoPDF(true);
             try {
+              // Gerar URLs assinadas para todas as fotos do relatório
+              const fotosUrlMap: Record<string, string> = {};
+
+              // Foto da placa
+              if (v.fotoPlacaPath && urlFotoPlaca) {
+                fotosUrlMap['placa'] = urlFotoPlaca;
+              }
+
+              // Fotos do exame (primeiras de cada tipo como representativas)
+              for (let i = 0; i < fotosExameFields.length; i++) {
+                const field = fotosExameFields[i];
+                const foto = field as any;
+                if (foto && foto.storagePath) {
+                  const url = await gerarUrlAssinadaNR13(foto.storagePath);
+                  if (url) {
+                    // Usa o tipo do exame como chave principal
+                    fotosUrlMap[foto.tipoExame] = url;
+                  }
+                }
+              }
+
+              // URLs do exame que já estão carregadas — sincroniza
+              urlsExame.forEach((url, i) => {
+                const fotosExame = watch('fotosExame');
+                if (fotosExame && fotosExame[i]?.storagePath) {
+                  fotosUrlMap.fotosExame = url; // fallback
+                }
+              });
+
+              // Fotos das NCs
+              for (let i = 0; i < ncFields.length; i++) {
+                const nc = watch(`naoConformidades.${i}.fotoPath`);
+                if (nc) {
+                  const url = await gerarUrlAssinadaNR13(nc);
+                  if (url) fotosUrlMap[`nc_${i}`] = url;
+                }
+              }
+
               const resposta = await fetch('/api/nr13-pdf', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1170,6 +1209,7 @@ export default function FormInspecaoNR13() {
                     })),
                   },
                   perfil: {},
+                  fotosUrl: fotosUrlMap,
                 }),
               });
               if (!resposta.ok) throw new Error('Erro ao gerar PDF');
