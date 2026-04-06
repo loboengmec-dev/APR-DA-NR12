@@ -190,6 +190,21 @@ const STATUS_BADGE = (status: string) => {
   return { style: S.badgeWarn, color: THEME.amberAccent, text: status || '—' }
 }
 
+/**
+ * Calcula altura proporcional da imagem para caber na largura do PDF.
+ * Largura útil = 515px - 80px margin = ~225px.
+ * Para 2 colunas: ~100px cada.
+ */
+function calcImageHeight(
+  dims: { width: number; height: number } | undefined,
+  containerWidth: number,
+  maxHeight: number = 400
+): number {
+  if (!dims) return 160; // fallback
+  const ratio = dims.height / dims.width;
+  return Math.min(containerWidth * ratio, maxHeight);
+}
+
 // ---------------------------------------------------------------------------
 // COMPONENTE PRINCIPAL
 // ---------------------------------------------------------------------------
@@ -197,9 +212,10 @@ interface LaudoNR13PDFProps {
   dados: Record<string, any>
   perfil?: Record<string, any>
   fotosUrl?: Record<string, string>
+  fotoDimensoes?: Record<string, { width: number; height: number }>
 }
 
-export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13PDFProps) {
+export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimensoes = {} }: LaudoNR13PDFProps) {
   const d = dados ?? {}
   const fmt = (dt: string | null | undefined) => dt ? new Date(dt + 'T00:00:00').toLocaleDateString('pt-BR') : '—'
 
@@ -486,7 +502,7 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
                 if (!fotoUrl) return null;
                 return (
                   <View key={`disp-foto-${i}`} style={{ width: '48%', minWidth: '45%', backgroundColor: THEME.cardBg, borderWidth: 1, borderColor: THEME.borderLight, borderRadius: 6, overflow: 'hidden' }}>
-                    <PDFImage src={fotoUrl} style={{ width: '100%', height: 100, objectFit: 'cover' }} />
+                    <PDFImage src={fotoUrl} style={{ width: '100%', height: 160, objectFit: 'contain', backgroundColor: '#fafafa' }} />
                     <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 4, textAlign: 'center' }}>{disp.tag ?? 'Dispositivo'} — {disp.tipo}</Text>
                   </View>
                 );
@@ -517,30 +533,39 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
                 </View>
               </View>
 
-              {/* Fotos do exame */}
-              {(fotosUrl['exame_externo'] || fotosUrl['exame_interno']) && (
-                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                  {fotosUrl['exame_externo'] && (
-                    <View style={{ flex: 1, minWidth: '45%' }}>
-                      <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
+              {/* Fotos do exame — 1 foto = full width, 2+ = lado-a-lado */}
+              {fotosUrl['exame_externo'] && (
+                <View style={{ marginBottom: 8 }} wrap={false}>
+                  {fotosUrl['exame_interno'] || fotosUrl['exame_externo_0'] ? (
+                    <>
+                      <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_0'] || fotoDimensoes['exame_externo'], 225, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
                       <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo</Text>
-                    </View>
+                    </>
+                  ) : (
+                    <>
+                      <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_0'] || fotoDimensoes['exame_externo'], 400, 450), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
+                      <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo</Text>
+                    </>
                   )}
+                </View>
+              )}
+              {(fotosUrl['exame_externo_0'] || fotosUrl['exame_interno'] || fotosUrl['exame_interno_0']) && (
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                   {fotosUrl['exame_externo_0'] && (
-                    <View style={{ flex: 1, minWidth: '45%' }}>
-                      <PDFImage src={fotosUrl['exame_externo_0']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
+                    <View style={{ flex: 1, minWidth: '45%' }} wrap={false}>
+                      <PDFImage src={fotosUrl['exame_externo_0']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_externo_0'], 200, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
                       <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo #2</Text>
                     </View>
                   )}
                   {fotosUrl['exame_interno'] && (
-                    <View style={{ flex: 1, minWidth: '45%' }}>
-                      <PDFImage src={fotosUrl['exame_interno']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
+                    <View style={{ flex: 1, minWidth: '45%' }} wrap={false}>
+                      <PDFImage src={fotosUrl['exame_interno']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_1'] || fotoDimensoes['exame_interno'], 200, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
                       <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno</Text>
                     </View>
                   )}
                   {fotosUrl['exame_interno_0'] && (
-                    <View style={{ flex: 1, minWidth: '45%' }}>
-                      <PDFImage src={fotosUrl['exame_interno_0']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
+                    <View style={{ flex: 1, minWidth: '45%' }} wrap={false}>
+                      <PDFImage src={fotosUrl['exame_interno_0']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_interno_0'], 200, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
                       <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno #2</Text>
                     </View>
                   )}
@@ -578,15 +603,19 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
             )}
           </View>
 
-          {/* Fotos das medições de espessura — só renderizar se houver */}
+          {/* Fotos das medições de espessura — 1 foto = full width, 2+ = lado-a-lado */}
           {Object.keys(fotosUrl).some(k => k.startsWith('medicao_')) && (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }} wrap={false}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
               {(d.medicoesEspessura ?? []).map((med: any, i: number) => {
                 const fotoUrl = fotosUrl[`medicao_${i}`];
                 if (!fotoUrl) return null;
+                const dims = fotoDimensoes[`medicao_${i}`];
+                const medCount = (d.medicoesEspessura ?? []).filter((m: any, idx: number) => fotosUrl[`medicao_${idx}`]).length;
+                const medWidth = medCount <= 1 ? '100%' : '48%';
+                const containerW = medCount <= 1 ? 400 : 200;
                 return (
-                  <View key={`med-foto-${i}`} style={{ width: '48%', minWidth: '45%', backgroundColor: THEME.cardBg, borderWidth: 1, borderColor: THEME.borderLight, borderRadius: 6, overflow: 'hidden' }}>
-                    <PDFImage src={fotoUrl} style={{ width: '100%', height: 100, objectFit: 'cover' }} />
+                  <View key={`med-foto-${i}`} style={{ width: medWidth, minWidth: '45%', backgroundColor: THEME.cardBg, borderWidth: 1, borderColor: THEME.borderLight, borderRadius: 6, overflow: 'hidden' }} wrap={false}>
+                    <PDFImage src={fotoUrl} style={{ width: '100%', height: calcImageHeight(dims, containerW, 400), objectFit: 'contain', backgroundColor: '#fafafa' }} />
                     <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 4, textAlign: 'center' }}>Ponto {med.ponto ?? i + 1} — {med.situacao === 'Crítico' ? 'Crítico' : 'OK'}</Text>
                   </View>
                 );
@@ -746,7 +775,7 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
                     {/* Foto da NC */}
                     {fotosUrl[`nc_${i}`] ? (
                       <View style={{ marginBottom: 8, borderRadius: 6, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
-                        <PDFImage src={fotosUrl[`nc_${i}`]} style={{ width: '100%', height: 130, objectFit: 'cover' }} />
+                        <PDFImage src={fotosUrl[`nc_${i}`]} style={{ width: '100%', height: 160, objectFit: 'contain', backgroundColor: '#fafafa' }} />
                         {nc.descricao && <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 4, textAlign: 'center' }}>{nc.descricao}</Text>}
                       </View>
                     ) : null}

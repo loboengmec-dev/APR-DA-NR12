@@ -166,6 +166,8 @@ export default function FormInspecaoNR13() {
   const [urlsMedicao, setUrlsMedicao] = useState<Record<string, string>>({});
   // URL previews para fotos compactas de dispositivos — map field.id → url
   const [urlsDispositivo, setUrlsDispositivo] = useState<Record<string, string>>({});
+  // Dimensões de fotos para o PDF (usado no envio pro gerar altura proporcional)
+  const [fotoDimensoes, setFotoDimensoes] = useState<Record<string, { width: number; height: number }>>({});
 
   // ─── Estado de exportação PDF ───
   const [exportandoPDF, setExportandoPDF] = useState(false);
@@ -658,8 +660,9 @@ export default function FormInspecaoNR13() {
             corBorda="slate"
             fotoPreviewUrl={urlFotoPlaca}
             onUpload={async (file) => await uploadFotoPlaca(file, v.tag || 'temp')}
-            onPhotoUploaded={(path) => {
+            onPhotoUploaded={(path, dims) => {
               setValue('fotoPlacaPath', path, { shouldValidate: true });
+              if (dims) setFotoDimensoes((prev) => ({ ...prev, ['placa']: dims }));
               gerarUrlAssinadaNR13(path).then((url) => url && setUrlFotoPlaca(url));
             }}
             onPhotoDelete={async () => {
@@ -677,8 +680,9 @@ export default function FormInspecaoNR13() {
             label="Foto do manômetro / indicador de pressão"
             corBorda="green"
             onUpload={async (file) => await uploadFotoManometro(file, v.tag || 'temp')}
-            onPhotoUploaded={(path) => {
+            onPhotoUploaded={(path, dims) => {
               setValue('fotoManometroPath', path, { shouldValidate: true });
+              if (dims) setFotoDimensoes((prev) => ({ ...prev, ['manometro']: dims }));
               gerarUrlAssinadaNR13(path).then((url) => url && setUrlFotoManometro(url));
             }}
             onPhotoDelete={async () => {
@@ -971,7 +975,10 @@ export default function FormInspecaoNR13() {
                     setUrlsDispositivo((prev) => ({ ...prev, [String(field.id)]: blobUrl }));
                     return await uploadFotoNCNr13(f, `disp-${field.id}`, 0);
                   }}
-                  onPhotoUploaded={(path) => setValue(`dispositivosSeguranca.${index}.fotoPath`, path, { shouldValidate: true })}
+                  onPhotoUploaded={(path, dims) => {
+                    setValue(`dispositivosSeguranca.${index}.fotoPath`, path, { shouldValidate: true });
+                    if (dims) setFotoDimensoes((prev) => ({ ...prev, [`dispositivo_${index}`]: dims }));
+                  }}
                   onPhotoDelete={() => {
                     const key = String(field.id);
                     if (urlsDispositivo[key]) URL.revokeObjectURL(urlsDispositivo[key]);
@@ -1029,8 +1036,9 @@ export default function FormInspecaoNR13() {
               const tipoExame = v.exameInterno !== 'Não Aplicável' ? 'interno' : 'externo';
               return await uploadFotoExame(file, 'temp', tipoExame, fotosExameFields.length);
             }}
-            onPhotoUploaded={(path) => {
-              fotosExameAppend({ tipoExame: 'externo', storagePath: path, ordem: fotosExameFields.length });
+            onPhotoUploaded={(path, dims) => {
+              const tipoExame = v.exameInterno !== 'Não Aplicável' ? 'interno' : 'externo';
+              fotosExameAppend({ tipoExame, storagePath: path, ordem: fotosExameFields.length });
               gerarUrlAssinadaNR13(path).then((url) => {
                 if (url) setUrlsExame((prev) => [...prev, url]);
               });
@@ -1095,7 +1103,10 @@ export default function FormInspecaoNR13() {
                       setUrlsMedicao((prev) => ({ ...prev, [String(field.id)]: blobUrl }));
                       return await uploadFotoMedicao(f, 'temp', watch(`medicoesEspessura.${index}.ponto`));
                     }}
-                    onPhotoUploaded={(path) => setValue(`medicoesEspessura.${index}.fotoPath`, path, { shouldValidate: true })}
+                    onPhotoUploaded={(path, dims) => {
+                      setValue(`medicoesEspessura.${index}.fotoPath`, path, { shouldValidate: true });
+                      if (dims) setFotoDimensoes((prev) => ({ ...prev, [`medicao_${index}`]: dims }));
+                    }}
                     onPhotoDelete={() => {
                       const key = String(field.id);
                       if (urlsMedicao[key]) URL.revokeObjectURL(urlsMedicao[key]);
@@ -1476,7 +1487,8 @@ export default function FormInspecaoNR13() {
                   if (url) {
                     const key = field.tipoExame === 'interno' ? 'exame_interno' : 'exame_externo';
                     // Se já existe, adiciona índice para múltiplas fotos
-                    fotosUrlMap[fotosUrlMap[key] ? `${key}_${i}` : key] = url;
+                    const fotoKey = fotosUrlMap[key] ? `${key}_${i}` : key;
+                  fotosUrlMap[fotoKey] = url;
                   }
                 }
               }
@@ -1530,6 +1542,7 @@ export default function FormInspecaoNR13() {
                   },
                   perfil: {},
                   fotosUrl: fotosUrlMap,
+                  fotoDimensoes,
                 }),
               });
               if (!resposta.ok) throw new Error('Erro ao gerar PDF');

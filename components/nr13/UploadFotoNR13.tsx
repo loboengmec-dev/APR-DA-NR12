@@ -6,12 +6,21 @@ import imageCompression from 'browser-image-compression'
 interface UploadFotoNR13Props {
   label?: string
   onUpload: (file: File) => Promise<{ path: string | null; error: string | null }>
-  onPhotoUploaded: (path: string) => void
+  onPhotoUploaded: (path: string, dims?: { width: number; height: number }) => void
   onPhotoDelete?: () => void
   fotoPreviewUrl?: string | null
   disabled?: boolean
   corBorda?: string
   compacto?: boolean
+}
+
+// Extrai dimensões de um File de imagem
+async function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.src = URL.createObjectURL(file);
+  });
 }
 
 export default function UploadFotoNR13({
@@ -62,7 +71,8 @@ export default function UploadFotoNR13({
         return
       }
 
-      onPhotoUploaded(path)
+      const dims = await getImageDimensions(comprimido)
+      onPhotoUploaded(path, dims)
       setProgresso('✓')
     } catch {
       setErro('Erro inesperado ao processar foto.')

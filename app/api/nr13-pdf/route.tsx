@@ -10,7 +10,7 @@ import LaudoNR13PDF from '@/components/pdf/LaudoNR13PDF'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { dados, perfil, fotosUrl } = body
+    const { dados, perfil, fotosUrl, fotoDimensoes } = body
 
     if (!dados) {
       return NextResponse.json({ error: 'Dados do formulário são obrigatórios' }, { status: 400 })
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       dados._condena = Number(dados.psvCalibracao) > dados._pmtaLimitante
     }
 
-    const document = <LaudoNR13PDF dados={dados} perfil={perfil ?? {}} fotosUrl={fotosUrl ?? {}} />
+    const document = <LaudoNR13PDF dados={dados} perfil={perfil ?? {}} fotosUrl={fotosUrl ?? {}} fotoDimensoes={fotoDimensoes ?? {}} />
     const pdfBlob = await pdf(document).toBlob()
 
     return new NextResponse(await pdfBlob.arrayBuffer(), {
