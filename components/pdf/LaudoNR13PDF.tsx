@@ -533,34 +533,41 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
                 </View>
               </View>
 
-              {/* Fotos do exame — 1 foto = full width, 2+ = lado-a-lado */}
-              {fotosUrl['exame_externo'] && (
-                <View style={{ marginBottom: 8 }} wrap={false}>
-                  {fotosUrl['exame_interno'] || fotosUrl['exame_externo_0'] ? (
+              {/* Fotos do exame externo e interno — renderiza todas que existirem */}
+              {(fotosUrl['exame_externo'] || fotosUrl['exame_interno'] || fotosUrl['exame_externo_0'] || fotosUrl['exame_interno_0']) && (
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' }} wrap={false}>
+                  {fotosUrl['exame_externo'] ? (
                     <>
-                      <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_0'] || fotoDimensoes['exame_externo'], 225, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
-                      <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo</Text>
+                      <View style={{ flex: 1, minWidth: '45%' }}>
+                        {fotosUrl['exame_interno'] ? (
+                          <>
+                            <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_0'] || fotoDimensoes['exame_externo'], 225, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
+                            <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo</Text>
+                          </>
+                        ) : (
+                          <>
+                            <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_0'] || fotoDimensoes['exame_externo'], 400, 450), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
+                            <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo</Text>
+                          </>
+                        )}
+                      </View>
+                      {fotosUrl['exame_interno'] && (
+                        <View style={{ flex: 1, minWidth: '45%' }}>
+                          <PDFImage src={fotosUrl['exame_interno']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_1'] || fotoDimensoes['exame_interno'], 225, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
+                          <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno</Text>
+                        </View>
+                      )}
                     </>
-                  ) : (
-                    <>
-                      <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_0'] || fotoDimensoes['exame_externo'], 400, 450), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
-                      <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo</Text>
-                    </>
-                  )}
-                </View>
-              )}
-              {(fotosUrl['exame_externo_0'] || fotosUrl['exame_interno'] || fotosUrl['exame_interno_0']) && (
-                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                  ) : fotosUrl['exame_interno'] ? (
+                    <View style={{ flex: 1, minWidth: '45%' }} wrap={false}>
+                      <PDFImage src={fotosUrl['exame_interno']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_1'] || fotoDimensoes['exame_interno'], 400, 450), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
+                      <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno</Text>
+                    </View>
+                  ) : null}
                   {fotosUrl['exame_externo_0'] && (
                     <View style={{ flex: 1, minWidth: '45%' }} wrap={false}>
                       <PDFImage src={fotosUrl['exame_externo_0']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_externo_0'], 200, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
                       <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo #2</Text>
-                    </View>
-                  )}
-                  {fotosUrl['exame_interno'] && (
-                    <View style={{ flex: 1, minWidth: '45%' }} wrap={false}>
-                      <PDFImage src={fotosUrl['exame_interno']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_1'] || fotoDimensoes['exame_interno'], 200, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
-                      <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno</Text>
                     </View>
                   )}
                   {fotosUrl['exame_interno_0'] && (
@@ -807,12 +814,12 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
           )}
 
           {/* Assinatura */}
-          <View style={S.sigBox} wrap={false}>
-            <View style={S.sigLine} />
-            <Text style={S.sigName}>{d.rthNome ?? perfil?.nome ?? 'Profissional Responsável'}</Text>
-            {d.rthProfissao && <Text style={S.sigSub}>{d.rthProfissao}</Text>}
-            {d.rthCrea ? <Text style={S.sigSub}>CREA: {d.rthCrea}</Text> : <Text style={S.sigSub}>CREA: —</Text>}
-            <Text style={S.sigSub}>PLH — Responsável Técnico pela Inspeção NR-13</Text>
+          <View style={{ ...S.sigBox, alignItems: 'center', marginTop: 30 }} wrap={false}>
+            <View style={{ width: 200, borderTopWidth: 1, borderTopColor: THEME.textPrimary, marginBottom: 4 }} />
+            <Text style={{ ...S.sigName, textAlign: 'center' }}>{d.rthNome ?? perfil?.nome ?? 'Profissional Responsável'}</Text>
+            {d.rthProfissao && <Text style={{ ...S.sigSub, textAlign: 'center' }}>{d.rthProfissao}</Text>}
+            {d.rthCrea ? <Text style={{ ...S.sigSub, textAlign: 'center' }}>CREA: {d.rthCrea}</Text> : <Text style={{ ...S.sigSub, textAlign: 'center' }}>CREA: —</Text>}
+            <Text style={{ ...S.sigSub, textAlign: 'center' }}>PLH — Responsável Técnico pela Inspeção NR-13</Text>
           </View>
         </View>
       </Page>
