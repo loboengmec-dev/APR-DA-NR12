@@ -471,7 +471,15 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[NR13] handleSubmit chamado, modoEdicao:', modoEdicao);
     setErroSalvar(null);
+
+    // Validação mínima — só campos que não podem faltar
+    if (!v.tag || !v.tag.trim()) {
+      setErroSalvar('Informe o TAG do vaso antes de salvar.');
+      return;
+    }
+
     setSalvando(true);
 
     // Monta payload com safe defaults — o servidor aceita dados parciais
@@ -522,12 +530,13 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
       rthProfissao: v.rthProfissao ?? null,
     };
 
-    console.log('[NR13] Salvando inspeção (modoEdicao:', modoEdicao, ')', payload);
+    console.log('[NR13] Payload a enviar:', JSON.stringify(payload).slice(0, 200));
 
     try {
       if (modoEdicao && inspecaoId) {
+        console.log('[NR13] Modo UPDATE, id:', inspecaoId);
         const res = await atualizarInspecaoNR13(inspecaoId, payload);
-        console.log('[NR13] Resultado UPDATE:', res);
+        console.log('[NR13] Resultado UPDATE:', JSON.stringify(res));
         if (res.error) {
           setErroSalvar(res.error);
           return;
@@ -535,21 +544,22 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
         setSalvoComSucesso(true);
         setTimeout(() => setSalvoComSucesso(false), 3000);
       } else {
+        console.log('[NR13] Modo INSERT — chamando server action');
         const response = await salvarInspecaoNR13(payload);
-        console.log('[NR13] Resultado INSERT:', response);
+        console.log('[NR13] Resultado INSERT:', JSON.stringify(response));
         if (!response.success) {
           const msgs = response.errors?.formErrors ?? ['Erro desconhecido'];
           setErroSalvar(msgs.join(', '));
           return;
         }
-        console.log('[NR13] Inspeção criada:', response.inspecaoId, '→ redirecionando');
+        console.log('[NR13] Inspeção criada:', response.inspecaoId);
         router.replace('/laudos/nr13');
         return;
       }
     } catch (err: any) {
       const msg = err?.message ?? 'Erro inesperado ao salvar.';
       setErroSalvar(msg);
-      console.error('[NR13] Erro ao salvar:', err);
+      console.error('[NR13] Erro completo ao salvar:', err);
     } finally {
       setSalvando(false);
     }
