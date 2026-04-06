@@ -56,6 +56,19 @@ const FormSchema = z.object({
   certificadosDispositivos: z.enum(['Disponíveis', 'Não Disponíveis', 'N/A']),
   manualOperacao: z.enum(['Disponível em Português', 'Ausente / Sem Tradução', 'N/A']),
 
+  // --- Seção 3: Checklist de Segurança no Trabalho — §13.5.2 (Acessibilidade) ---
+  segDrenosRespirosBV: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
+  segDuasSaidasAmbFechado: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
+  segAcessoManutencao: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
+  segVentilacaoPermanente: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
+  segIluminacaoFechado: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
+  segIluminacaoEmergenciaFechado: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
+  segSaidasAmbAberto: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
+  segAcessoAmbAberto: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
+  segIluminacaoAberto: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
+  segIluminacaoEmergenciaAberto: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
+  segAspNormativosGerais: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
+
   // --- Seção 4: Exame Externo §13.3.4 ---
   exameExterno: z.enum(['Conforme', 'Não Conforme']),
   exameInterno: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
@@ -144,6 +157,17 @@ export default function FormInspecaoNR13() {
       tipoInspecao: 'Periódica',
       statusFinalVaso: 'Aprovado',
       rthProfissao: 'Engenheiro Mecânico',
+      segDrenosRespirosBV: 'Conforme',
+      segDuasSaidasAmbFechado: 'Não Aplicável',
+      segAcessoManutencao: 'Não Aplicável',
+      segVentilacaoPermanente: 'Não Aplicável',
+      segIluminacaoFechado: 'Não Aplicável',
+      segIluminacaoEmergenciaFechado: 'Não Aplicável',
+      segSaidasAmbAberto: 'Não Aplicável',
+      segAcessoAmbAberto: 'Não Aplicável',
+      segIluminacaoAberto: 'Não Aplicável',
+      segIluminacaoEmergenciaAberto: 'Não Aplicável',
+      segAspNormativosGerais: 'Conforme',
       naoConformidades: [],
       medicoesEspessura: [{ ponto: 'PE-01', espOriginal: null, espMedida: 0, espMinAdm: null, situacao: 'OK' }],
       dispositivosSeguranca: [{ tag: '', tipo: 'VS', pressaoAjusteKpa: 0, ultimoTeste: '', situacao: 'OK' }],
@@ -391,10 +415,126 @@ export default function FormInspecaoNR13() {
       </section>
 
       {/* ================================================================
-          SEÇÃO 3 — DISPOSITIVOS DE SEGURANÇA  §13.5.1.2 / §13.5.4.11(n)
+          SEÇÃO 3 — SEGURANÇA NO TRABALHO — §13.5.2 (ACESSIBILIDADE)
+      ================================================================ */}
+      <section className="bg-slate-50 p-5 rounded-xl border border-slate-200">
+        <h2 className={sectionTitle}>3. Segurança no Trabalho — ACESSIBILIDADE §13.5.2</h2>
+
+        {/* 3.1 Acessibilidade Geral — Art. 13.5.2.1 */}
+        <div className="mb-6">
+          <p className={subTitle}>3.1 Acessibilidade Geral — Art. 13.5.2.1</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">
+                Drenos, respiros, bocas de visita e indicadores acessíveis por meios seguros
+              </label>
+              <span className="text-xs text-slate-400 block mb-2">Art. 13.5.2.1</span>
+              <select {...register('segDrenosRespirosBV')} className="block w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-slate-500 focus:border-slate-500">
+                <option value="Conforme">Conforme</option>
+                <option value="Não Conforme">Não Conforme</option>
+                <option value="Não Aplicável">Não Aplicável</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* 3.2 Vasos em Ambiente Fechado — Art. 13.5.2.2 */}
+        <div className="mb-6">
+          <p className={subTitle}>3.2 Vasos em Ambiente Fechado — Art. 13.5.2.2</p>
+          <p className="text-xs text-slate-500 mb-4">
+            {v.ambiente === 'Aberto'
+              ? '⚠ Ambiente definido como "Aberto" — estes itens são N/A para este vaso.'
+              : 'Aplicável para ambiente fechado.'}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[
+              { field: 'segDuasSaidasAmbFechado' as const, label: 'Mínimo de 2 saídas amplas, desobstruídas, sinalizadas e em direções distintas', ref: 'Art. 13.5.2.2(a)' },
+              { field: 'segAcessoManutencao' as const, label: 'Acesso fácil e seguro para manutenção, operação e inspeção; vãos de guarda-corpo adequados', ref: 'Art. 13.5.2.2(b)' },
+              { field: 'segVentilacaoPermanente' as const, label: 'Ventilação permanente com entradas de ar não bloqueáveis', ref: 'Art. 13.5.2.2(c)' },
+              { field: 'segIluminacaoFechado' as const, label: 'Iluminação conforme normas vigentes — ambiente fechado', ref: 'Art. 13.5.2.2(d)' },
+              { field: 'segIluminacaoEmergenciaFechado' as const, label: 'Sistema de iluminação de emergência (exceto vasos móveis sem operador permanente)', ref: 'Art. 13.5.2.2(e)' },
+            ].map(({ field, label, ref: r }) => (
+              <div key={field}>
+                <label className="block text-sm font-bold text-slate-700 mb-1">{label}</label>
+                <span className="text-xs text-slate-400 block mb-2">{r}</span>
+                <select
+                  {...register(field)}
+                  disabled={v.ambiente === 'Aberto'}
+                  className={`block w-full p-2.5 rounded-lg text-sm focus:ring-2 focus:border-slate-400 transition-colors ${
+                    v.ambiente === 'Aberto'
+                      ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                      : 'bg-white border-slate-300 focus:ring-slate-500'
+                  }`}
+                >
+                  <option value="Conforme">Conforme</option>
+                  <option value="Não Conforme">Não Conforme</option>
+                  <option value="Não Aplicável">Não Aplicável</option>
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 3.3 Vasos em Ambiente Aberto — Art. 13.5.2.3 */}
+        <div className="mb-6">
+          <p className={subTitle}>3.3 Vasos em Ambiente Aberto — Art. 13.5.2.3</p>
+          <p className="text-xs text-slate-500 mb-4">
+            {v.ambiente === 'Fechado'
+              ? '⚠ Ambiente definido como "Fechado" — estes itens são N/A para este vaso.'
+              : 'Aplicável para ambiente aberto.'}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[
+              { field: 'segSaidasAmbAberto' as const, label: 'Saídas amplas, desobstruídas, sinalizadas e em direções distintas', ref: 'Art. 13.5.2.3 / 13.5.2.2(a)' },
+              { field: 'segAcessoAmbAberto' as const, label: 'Acesso seguro para manutenção, operação e inspeção', ref: 'Art. 13.5.2.3 / 13.5.2.2(b)' },
+              { field: 'segIluminacaoAberto' as const, label: 'Iluminação conforme normas vigentes — ambiente aberto', ref: 'Art. 13.5.2.3 / 13.5.2.2(d)' },
+              { field: 'segIluminacaoEmergenciaAberto' as const, label: 'Sistema de iluminação de emergência (se aplicável)', ref: 'Art. 13.5.2.3 / 13.5.2.2(e)' },
+            ].map(({ field, label, ref: r }) => (
+              <div key={field}>
+                <label className="block text-sm font-bold text-slate-700 mb-1">{label}</label>
+                <span className="text-xs text-slate-400 block mb-2">{r}</span>
+                <select
+                  {...register(field)}
+                  disabled={v.ambiente === 'Fechado'}
+                  className={`block w-full p-2.5 rounded-lg text-sm focus:ring-2 focus:border-slate-400 transition-colors ${
+                    v.ambiente === 'Fechado'
+                      ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                      : 'bg-white border-slate-300 focus:ring-slate-500'
+                  }`}
+                >
+                  <option value="Conforme">Conforme</option>
+                  <option value="Não Conforme">Não Conforme</option>
+                  <option value="Não Aplicável">Não Aplicável</option>
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 3.4 Aspectos Normativos Gerais — Art. 13.5.2.4 */}
+        <div>
+          <p className={subTitle}>3.4 Aspectos Normativos Gerais — Art. 13.5.2.4</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">
+                Instalação obedece aos aspectos de segurança, saúde e meio ambiente das NRs aplicáveis
+              </label>
+              <span className="text-xs text-slate-400 block mb-2">Art. 13.5.2.4</span>
+              <select {...register('segAspNormativosGerais')} className="block w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-slate-500 focus:border-slate-500">
+                <option value="Conforme">Conforme</option>
+                <option value="Não Conforme">Não Conforme</option>
+                <option value="Não Aplicável">Não Aplicável</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================
+          SEÇÃO 4 — DISPOSITIVOS DE SEGURANÇA  §13.5.1.2 / §13.5.4.11(n)
       ================================================================ */}
       <section>
-        <h2 className={sectionTitle}>3. Dispositivos de Segurança — §13.5.1.2 / §13.5.4.11(n)</h2>
+        <h2 className={sectionTitle}>4. Dispositivos de Segurança — §13.5.1.2 / §13.5.4.11(n)</h2>
         <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-1.5 mb-4 font-semibold">
           ATENÇÃO: Ausência ou bloqueio de dispositivos configura Grave e Iminente Risco — Art. 13.3.1(a)(c)
         </p>
