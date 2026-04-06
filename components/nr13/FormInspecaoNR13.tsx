@@ -1083,19 +1083,21 @@ export default function FormInspecaoNR13() {
           </div>
           {fotosExameFields.length < 2 ? (
             <UploadFotoNR13
-              label="Adicionar foto do exame"
+              label={fotosExameFields.length === 0 ? 'Adicionar foto — Exame Externo' : 'Adicionar foto — Exame Interno'}
               corBorda="blue"
               onUpload={async (file) => {
-                const vals = watch('fotosExame') as any[];
-                const tipoExame = v.exameInterno !== 'Não Aplicável' ? 'interno' : 'externo';
-                const ordem = vals ? vals.filter((f: any) => f?.tipoExame === tipoExame).length : 0;
-                return await uploadFotoExame(file, 'temp', tipoExame, ordem);
+                // Primeira foto = externo, segunda = interno
+                const tipoExame = fotosExameFields.length === 0 ? 'externo' : 'interno';
+                return await uploadFotoExame(file, 'temp', tipoExame, fotosExameFields.length);
               }}
               onPhotoUploaded={(path, dims) => {
-                const vals = watch('fotosExame') as any[];
-                const tipoExame = v.exameInterno !== 'Não Aplicável' ? 'interno' : 'externo';
-                const ordem = vals ? vals.filter((f: any) => f?.tipoExame === tipoExame).length : 0;
-                fotosExameAppend({ tipoExame, storagePath: path, ordem, tamanhoBytes: 0 });
+                const tipoExame = fotosExameFields.length === 0 ? 'externo' : 'interno';
+                fotosExameAppend({ tipoExame, storagePath: path, ordem: fotosExameFields.length, tamanhoBytes: 0 });
+                // Salvar dimensões para o PDF usar altura proporcional
+                if (dims) {
+                  const dimKey = `exame_${tipoExame}`;
+                  setFotoDimensoes((prev) => ({ ...prev, [dimKey]: dims }));
+                }
                 gerarUrlAssinadaNR13(path).then((url) => {
                   if (url) setUrlsExame((prev) => [...prev, url]);
                 });
@@ -1112,7 +1114,7 @@ export default function FormInspecaoNR13() {
                 <FotoExameCard
                   key={i}
                   src={url}
-                  legenda={`Foto ${i + 1} — ${fotosExameFields[i]?.tipoExame === 'interno' ? 'Interno' : 'Externo'}`}
+                  legenda={i === 0 ? 'Exame Externo' : 'Exame Interno'}
                   onRemove={() => {
                     const novoUrls = [...urlsExame];
                     novoUrls.splice(i, 1);
@@ -1553,25 +1555,20 @@ export default function FormInspecaoNR13() {
                 if (url) fotosUrlMap['manometro'] = url;
               }
 
-              // Fotos do exame — chaves com prefixo exame_ que o PDF espera
-              // PDF espera: exame_externo, exame_interno, exame_externo_0, exame_interno_0
-              const fotosExame = watch('fotosExame') ?? [];
-              const extCount = { externo: 0, interno: 0 };
-              for (let i = 0; i < fotosExame.length; i++) {
-                const fe = fotosExame[i] as any;
+              // Fotos do exame — primeira = exame_externo, segunda = exame_interno
+              const fotosExameArr = (v.fotosExame as any[]) ?? [];
+              for (let i = 0; i < fotosExameArr.length; i++) {
+                const fe = fotosExameArr[i];
                 if (fe?.storagePath) {
                   const url = await gerarUrlAssinadaNR13(fe.storagePath);
                   if (url) {
-                    const tipo = fe.tipoExame === 'interno' ? 'interno' : 'externo';
-                    const idx = extCount[tipo as keyof typeof extCount];
-                    extCount[tipo as keyof typeof extCount]++;
-                    // Primeira foto: exame_externo / exame_interno
-                    // Segunda foto: exame_externo_0 / exame_interno_0
-                    const chave = `exame_${tipo}` + (idx === 0 ? '' : `_${idx - 1}`);
+                    // Usa exame_externo para primeira foto, exame_interno para segunda
+                    const chave = i === 0 ? 'exame_externo' : 'exame_interno';
                     fotosUrlMap[chave] = url;
                   }
                 }
               }
+              console.log('[NR13-PDF] fotosExame:', fotosExameArr.length, 'fotosUrlMap keys:', Object.keys(fotosUrlMap));
 
               // Fotos das medições de espessura — iterar pelos campos reais do form
               const medVals = watch('medicoesEspessura') ?? [];
