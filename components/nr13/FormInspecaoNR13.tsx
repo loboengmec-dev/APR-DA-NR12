@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { calcularPMTACilindro, calcularPMTATampoToriesferico, calcularPMTAGlobal } from '../../lib/domain/nr13/pmta';
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse, LIMITES_GRUPO } from '../../lib/domain/nr13/categorization';
-import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
+import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, uploadFotoManometro, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
 import { salvarInspecaoNR13 } from '../../lib/actions/nr13';
 import UploadFotoNR13 from './UploadFotoNR13';
 import GaleriaFotosNR13 from './GaleriaFotosNR13';
@@ -79,6 +79,9 @@ const FormSchema = z.object({
 
   // Foto da placa de identificação
   fotoPlacaPath: z.string().optional(),
+
+  // Foto do manômetro
+  fotoManometroPath: z.string().optional(),
 
   // Tabela de medições de espessura (múltiplos pontos) §13.5.4.11(d)
   medicoesEspessura: z.array(z.object({
@@ -156,6 +159,7 @@ export default function FormInspecaoNR13() {
 
   // ─── Estado de pré-visualização de fotos (urls assinadas temporárias) ───
   const [urlFotoPlaca, setUrlFotoPlaca] = useState<string | null>(null);
+  const [urlFotoManometro, setUrlFotoManometro] = useState<string | null>(null);
   const [urlsExame, setUrlsExame] = useState<string[]>([]);
 
   // ─── Estado de exportação PDF ───
@@ -492,8 +496,9 @@ export default function FormInspecaoNR13() {
     prontuario: 'Prontuário', registroSeguranca: 'Registro de Segurança', projetoInstalacao: 'Projeto de Instalação',
     relatoriosAnteriores: 'Relatórios Anteriores', placaIdentificacao: 'Placa de Identificação',
     certificadosDispositivos: 'Certificados Dispositivos', manualOperacao: 'Manual de Operação',
-    exameExterno: 'Exame Externo', exameInterno: 'Exame Interno', materialS: 'Tensão Admissível',
-    eficienciaE: 'Eficiência de Solda', diametroD: 'Diâmetro Interno', espessuraCostado: 'Espessura Costado',
+    exameExterno: 'Exame Externo', exameInterno: 'Exame Interno', fotoManometroPath: 'Foto do Manômetro',
+    materialS: 'Tensão Admissível', eficienciaE: 'Eficiência de Solda',
+    diametroD: 'Diâmetro Interno', espessuraCostado: 'Espessura Costado',
     espessuraTampo: 'Espessura Tampo', psvCalibracao: 'PSV Calibração', statusFinalVaso: 'Status Final',
     proximaInspecaoExterna: 'Próx. Inspeção Externa', proximaInspecaoInterna: 'Próx. Inspeção Interna',
     dataProximoTesteDispositivos: 'Teste Dispositivos', parecerTecnico: 'Parecer Técnico',
@@ -519,7 +524,7 @@ export default function FormInspecaoNR13() {
     'tag', 'fabricante', 'numeroSerie', 'tipoVaso', 'pmtaFabricante',
     'fluidoServico', 'fluidoClasse', 'pressaoOperacao', 'volume',
     'exameExterno', 'exameInterno',
-    'parecerTecnico', 'pmtaFixadaPLH', 'rthNome', 'rthCrea',
+    'parecerTecnico', 'pmtaFixadaPLH', 'rthNome', 'rthCrea', 'fotoManometroPath',
   ];
   const camposPreenchidos = camposManuais.filter(key => {
     const val = (v as Record<string, unknown>)[key];
@@ -656,6 +661,25 @@ export default function FormInspecaoNR13() {
               if (v.fotoPlacaPath) await removerFotoNR13(v.fotoPlacaPath);
               setValue('fotoPlacaPath', '', { shouldValidate: true });
               setUrlFotoPlaca(null);
+            }}
+          />
+        </div>
+
+        {/* 1.1.6 Foto do Manômetro */}
+        <p className={`${subTitle} mt-4`}>1.1.6 Foto do Manômetro</p>
+        <div className="mb-4">
+          <UploadFotoNR13
+            label="Foto do manômetro / indicador de pressão"
+            corBorda="green"
+            onUpload={async (file) => await uploadFotoManometro(file, v.tag || 'temp')}
+            onPhotoUploaded={(path) => {
+              setValue('fotoManometroPath', path, { shouldValidate: true });
+              gerarUrlAssinadaNR13(path).then((url) => url && setUrlFotoManometro(url));
+            }}
+            onPhotoDelete={async () => {
+              if (v.fotoManometroPath) await removerFotoNR13(v.fotoManometroPath);
+              setValue('fotoManometroPath', '', { shouldValidate: true });
+              setUrlFotoManometro(null);
             }}
           />
         </div>
@@ -1408,30 +1432,47 @@ export default function FormInspecaoNR13() {
               const fotosUrlMap: Record<string, string> = {};
 
               // Foto da placa
-              if (v.fotoPlacaPath && urlFotoPlaca) {
-                fotosUrlMap['placa'] = urlFotoPlaca;
+              if (v.fotoPlacaPath) {
+                const url = urlFotoPlaca || await gerarUrlAssinadaNR13(v.fotoPlacaPath);
+                if (url) fotosUrlMap['placa'] = url;
               }
 
-              // Fotos do exame (primeiras de cada tipo como representativas)
+              // Foto do manômetro
+              if (v.fotoManometroPath) {
+                const url = await gerarUrlAssinadaNR13(v.fotoManometroPath);
+                if (url) fotosUrlMap['manometro'] = url;
+              }
+
+              // Fotos do exame — usar chaves que o PDF espera (exame_externo / exame_interno)
               for (let i = 0; i < fotosExameFields.length; i++) {
-                const field = fotosExameFields[i];
-                const foto = field as any;
-                if (foto && foto.storagePath) {
-                  const url = await gerarUrlAssinadaNR13(foto.storagePath);
+                const field = fotosExameFields[i] as any;
+                if (field && field.storagePath) {
+                  const url = await gerarUrlAssinadaNR13(field.storagePath);
                   if (url) {
-                    // Usa o tipo do exame como chave principal
-                    fotosUrlMap[foto.tipoExame] = url;
+                    const key = field.tipoExame === 'interno' ? 'exame_interno' : 'exame_externo';
+                    // Se já existe, adiciona índice para múltiplas fotos
+                    fotosUrlMap[fotosUrlMap[key] ? `${key}_${i}` : key] = url;
                   }
                 }
               }
 
-              // URLs do exame que já estão carregadas — sincroniza
-              urlsExame.forEach((url, i) => {
-                const fotosExame = watch('fotosExame');
-                if (fotosExame && fotosExame[i]?.storagePath) {
-                  fotosUrlMap.fotosExame = url; // fallback
+              // Fotos das medições de espessura
+              for (let i = 0; i < v.medicoesEspessura?.length; i++) {
+                const med = v.medicoesEspessura[i];
+                if (med?.fotoPath) {
+                  const url = await gerarUrlAssinadaNR13(med.fotoPath);
+                  if (url) fotosUrlMap[`medicao_${i}`] = url;
                 }
-              });
+              }
+
+              // Fotos dos dispositivos de segurança
+              for (let i = 0; i < v.dispositivosSeguranca?.length; i++) {
+                const disp = v.dispositivosSeguranca[i];
+                if (disp?.fotoPath) {
+                  const url = await gerarUrlAssinadaNR13(disp.fotoPath);
+                  if (url) fotosUrlMap[`dispositivo_${i}`] = url;
+                }
+              }
 
               // Fotos das NCs
               for (let i = 0; i < ncFields.length; i++) {

@@ -49,6 +49,13 @@ export async function uploadFotoNCNr13(
   return uploadFile(file, bucketPath(`nc/${ncId}/${ordem}_${Date.now()}`))
 }
 
+export async function uploadFotoManometro(
+  file: File,
+  vasoId: string
+): Promise<{ path: string; error: string | null }> {
+  return uploadFile(file, bucketPath(`manometro/${vasoId}/${Date.now()}`))
+}
+
 // --------------------------------------------------------------------------
 // Helpers internos — usa o bucket existente 'fotos-nc'
 // --------------------------------------------------------------------------

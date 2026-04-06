@@ -280,6 +280,14 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
                 <Text style={{ fontSize: 8, color: THEME.textSecondary, padding: 6, textAlign: 'center' }}>Placa de Identificação — {d.tag}</Text>
               </View>
             ) : null}
+
+            {/* Foto do manômetro */}
+            {fotosUrl['manometro'] ? (
+              <View style={{ marginBottom: 16, backgroundColor: THEME.cardBg, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
+                <PDFImage src={fotosUrl['manometro']} style={{ width: '100%', height: 160, objectFit: 'contain' }} />
+                <Text style={{ fontSize: 8, color: THEME.textSecondary, padding: 6, textAlign: 'center' }}>Manômetro — {d.tag}</Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Dados da placa */}
@@ -424,8 +432,9 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
             </Text>
           </View>
 
+          {/* Tabela de dispositivos */}
           {(d.dispositivosSeguranca ?? []).length > 0 && (
-            <View style={{ marginBottom: 16 }}>
+            <View style={{ marginBottom: 12 }}>
               <View style={S.tblHeader}>
                 <Text style={{ ...S.tblHdr, width: 80 }}>TAG</Text>
                 <Text style={{ ...S.tblHdr, width: 50 }}>Tipo</Text>
@@ -448,6 +457,20 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
               ))}
             </View>
           )}
+
+          {/* Fotos dos dispositivos */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            {(d.dispositivosSeguranca ?? []).map((disp: any, i: number) => {
+              const fotoUrl = fotosUrl[`dispositivo_${i}`];
+              if (!fotoUrl) return null;
+              return (
+                <View key={`disp-foto-${i}`} style={{ width: '48%', minWidth: '45%', backgroundColor: THEME.cardBg, borderWidth: 1, borderColor: THEME.borderLight, borderRadius: 6, overflow: 'hidden' }}>
+                  <PDFImage src={fotoUrl} style={{ width: '100%', height: 100, objectFit: 'cover' }} />
+                  <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 4, textAlign: 'center' }}>{disp.tag ?? 'Dispositivo'} — {disp.tipo}</Text>
+                </View>
+              );
+            })}
+          </View>
 
           {/* Exame Externo e Interno — estilo NR-12 */}
           <Text style={S.h2}>5. Exame Externo e Interno — §13.3.4</Text>
@@ -472,16 +495,32 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
             </View>
 
             {/* Fotos do exame */}
-            {fotosUrl['exame_externo'] && (
-              <View style={{ marginBottom: 8 }}>
-                <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 6 }} />
-                <Text style={{ fontSize: 8, color: THEME.textSecondary, padding: 4, textAlign: 'center' }}>Foto do Exame Externo</Text>
-              </View>
-            )}
-            {fotosUrl['exame_interno'] && (
-              <View>
-                <PDFImage src={fotosUrl['exame_interno']} style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 6 }} />
-                <Text style={{ fontSize: 8, color: THEME.textSecondary, padding: 4, textAlign: 'center' }}>Foto do Exame Interno</Text>
+            {(fotosUrl['exame_externo'] || fotosUrl['exame_interno']) && (
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                {fotosUrl['exame_externo'] && (
+                  <View style={{ flex: 1, minWidth: '45%' }}>
+                    <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
+                    <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo</Text>
+                  </View>
+                )}
+                {fotosUrl['exame_externo_0'] && (
+                  <View style={{ flex: 1, minWidth: '45%' }}>
+                    <PDFImage src={fotosUrl['exame_externo_0']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
+                    <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo #2</Text>
+                  </View>
+                )}
+                {fotosUrl['exame_interno'] && (
+                  <View style={{ flex: 1, minWidth: '45%' }}>
+                    <PDFImage src={fotosUrl['exame_interno']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
+                    <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno</Text>
+                  </View>
+                )}
+                {fotosUrl['exame_interno_0'] && (
+                  <View style={{ flex: 1, minWidth: '45%' }}>
+                    <PDFImage src={fotosUrl['exame_interno_0']} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }} />
+                    <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno #2</Text>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -512,6 +551,20 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {} }: LaudoNR13
               ))}
             </View>
           )}
+
+          {/* Fotos das medições de espessura */}
+          <View style={{ marginBottom: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {(d.medicoesEspessura ?? []).map((med: any, i: number) => {
+              const fotoUrl = fotosUrl[`medicao_${i}`];
+              if (!fotoUrl) return null;
+              return (
+                <View key={`med-foto-${i}`} style={{ width: '48%', minWidth: '45%', backgroundColor: THEME.cardBg, borderWidth: 1, borderColor: THEME.borderLight, borderRadius: 6, overflow: 'hidden' }}>
+                  <PDFImage src={fotoUrl} style={{ width: '100%', height: 100, objectFit: 'cover' }} />
+                  <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 4, textAlign: 'center' }}>Ponto {med.ponto ?? i + 1} — {med.situacao === 'Crítico' ? 'Crítico' : 'OK'}</Text>
+                </View>
+              );
+            })}
+          </View>
         </View>
       </Page>
 
