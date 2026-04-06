@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { calcularPMTACilindro, calcularPMTATampoToriesferico, calcularPMTAGlobal } from '../../lib/domain/nr13/pmta';
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse, LIMITES_GRUPO } from '../../lib/domain/nr13/categorization';
 import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, uploadFotoManometro, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
-import { salvarInspecaoNR13, atualizarInspecaoNR13 } from '../../lib/actions/nr13';
+import { salvarInspecaoNR13, atualizarInspecaoNR13, type InspecaoNR13Data } from '../../lib/actions/nr13';
 import { useRouter } from 'next/navigation';
 import UploadFotoNR13 from './UploadFotoNR13';
 import GaleriaFotosNR13 from './GaleriaFotosNR13';
@@ -475,7 +475,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
     setSalvando(true);
 
     // Monta payload com safe defaults — o servidor aceita dados parciais
-    const payload: Record<string, unknown> = {
+    const payload: Partial<InspecaoNR13Data> = {
       tag: (v.tag ?? '').trim(),
       fabricante: (v.fabricante ?? '').trim(),
       numeroSerie: (v.numeroSerie ?? '').trim(),

@@ -102,12 +102,12 @@ const InspecaoNR13Schema = z.object({
   art: z.string().nullable().optional(),
 });
 
-type InspecaoNR13Data = z.infer<typeof InspecaoNR13Schema>;
+export type InspecaoNR13Data = z.infer<typeof InspecaoNR13Schema>;
 
 // ---------------------------------------------------------------------------
 // SERVER ACTION: Salvar inspeção completa
 // ---------------------------------------------------------------------------
-export async function salvarInspecaoNR13(formData: InspecaoNR13Data) {
+export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, errors: { formErrors: ['Não autenticado'], fieldErrors: {} } }
