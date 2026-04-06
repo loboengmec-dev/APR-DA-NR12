@@ -89,14 +89,15 @@ export default function ListaInspecoesNR13Page() {
 
       {inspecoes.length === 0 ? (
         <div className="card p-12 text-center">
-          <div className="text-4xl mb-4">🔧</div>
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-50 flex items-center justify-center">
+            <svg className="w-8 h-8 text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
+            </svg>
+          </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma inspeção NR-13 ainda</h3>
-          <p className="text-gray-500 text-sm mb-6">
-            Crie sua primeira inspeção de vaso de pressão.
+          <p className="text-gray-500 text-sm">
+            Use o botão acima para criar sua primeira inspeção de vaso de pressão.
           </p>
-          <Link href="/laudos/nr13/novo" className="btn-primary inline-block">
-            Criar primeira inspeção
-          </Link>
         </div>
       ) : (
         <div className="space-y-3">

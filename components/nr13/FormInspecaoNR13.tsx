@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { calcularPMTACilindro, calcularPMTATampoToriesferico, calcularPMTAGlobal } from '../../lib/domain/nr13/pmta';
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse, LIMITES_GRUPO } from '../../lib/domain/nr13/categorization';
 import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, uploadFotoManometro, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
-import { salvarInspecaoNR13 } from '../../lib/actions/nr13';
+import { salvarInspecaoNR13, atualizarInspecaoNR13 } from '../../lib/actions/nr13';
 import UploadFotoNR13 from './UploadFotoNR13';
 import GaleriaFotosNR13 from './GaleriaFotosNR13';
 
@@ -196,7 +196,15 @@ function FotoExameCard({ src, legenda, onRemove }: FotoExameCardProps) {
 // ---------------------------------------------------------------------------
 // COMPONENTE
 // ---------------------------------------------------------------------------
-export default function FormInspecaoNR13() {
+interface FormInspecaoNR13Props {
+  /** Dados iniciais para modo edição (vindos do banco). Se ausente, cria novo. */
+  initialData?: Record<string, any>;
+  /** ID da inspeção existente — se presente, submit faz UPDATE ao invés de INSERT. */
+  inspecaoId?: string;
+}
+
+export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspecaoNR13Props = {}) {
+  const modoEdicao = !!inspecaoId;
   const [alerta, setAlerta] = useState<string | null>(null);
   const [detalheCalculo, setDetalheCalculo] = useState<{
     pmtaCostado: number; pmtaTampo: number; pmtaLimitante: number;
@@ -227,45 +235,47 @@ export default function FormInspecaoNR13() {
   const [salvoComSucesso, setSalvoComSucesso] = useState(false);
   const [erroSalvar, setErroSalvar] = useState<string | null>(null);
 
+  const defaultsNovo = {
+    diametroD: 1000,
+    psvCalibracao: 8.16,
+    materialS: 1406.1,
+    eficienciaE: 0.85,
+    dataInspecao: new Date().toISOString().split('T')[0],
+    dataEmissaoLaudo: new Date().toISOString().split('T')[0],
+    codigoProjeto: 'ASME Sec. VIII Div 1',
+    anoFabricacao: new Date().getFullYear(),
+    prontuario: 'Existe Integral',
+    registroSeguranca: 'Atualizado',
+    projetoInstalacao: 'Existe',
+    relatoriosAnteriores: 'Disponíveis',
+    placaIdentificacao: 'Fixada e Legível',
+    certificadosDispositivos: 'Disponíveis',
+    manualOperacao: 'N/A',
+    tipoInspecao: 'Periódica',
+    statusFinalVaso: 'Aprovado',
+    rthProfissao: 'Engenheiro Mecânico',
+    segDrenosRespirosBV: 'Conforme',
+    segDuasSaidasAmbFechado: 'Não Aplicável',
+    segAcessoManutencao: 'Não Aplicável',
+    segVentilacaoPermanente: 'Não Aplicável',
+    segIluminacaoFechado: 'Não Aplicável',
+    segIluminacaoEmergenciaFechado: 'Não Aplicável',
+    segSaidasAmbAberto: 'Não Aplicável',
+    segAcessoAmbAberto: 'Não Aplicável',
+    segIluminacaoAberto: 'Não Aplicável',
+    segIluminacaoEmergenciaAberto: 'Não Aplicável',
+    segAspNormativosGerais: 'Conforme',
+    fotoPlacaPath: '',
+    naoConformidades: [],
+    fotosExame: [],
+    medicoesEspessura: [{ ponto: 'PE-01', espOriginal: null, espMedida: 0, espMinAdm: null, situacao: 'OK', fotoPath: '' }],
+    dispositivosSeguranca: [{ tag: '', tipo: 'VS', pressaoAjusteKpa: 0, ultimoTeste: '', situacao: 'OK', fotoPath: '' }],
+  };
+
   const { register, watch, setValue, control, formState: { errors, isValid } } = useForm<FormData>({
     resolver: zodResolver(FormSchema) as Resolver<FormData>,
     mode: 'onChange',
-    defaultValues: {
-      diametroD: 1000,
-      psvCalibracao: 8.16,
-      materialS: 1406.1,
-      eficienciaE: 0.85,
-      dataInspecao: new Date().toISOString().split('T')[0],
-      dataEmissaoLaudo: new Date().toISOString().split('T')[0],
-      codigoProjeto: 'ASME Sec. VIII Div 1',
-      anoFabricacao: new Date().getFullYear(),
-      prontuario: 'Existe Integral',
-      registroSeguranca: 'Atualizado',
-      projetoInstalacao: 'Existe',
-      relatoriosAnteriores: 'Disponíveis',
-      placaIdentificacao: 'Fixada e Legível',
-      certificadosDispositivos: 'Disponíveis',
-      manualOperacao: 'N/A',
-      tipoInspecao: 'Periódica',
-      statusFinalVaso: 'Aprovado',
-      rthProfissao: 'Engenheiro Mecânico',
-      segDrenosRespirosBV: 'Conforme',
-      segDuasSaidasAmbFechado: 'Não Aplicável',
-      segAcessoManutencao: 'Não Aplicável',
-      segVentilacaoPermanente: 'Não Aplicável',
-      segIluminacaoFechado: 'Não Aplicável',
-      segIluminacaoEmergenciaFechado: 'Não Aplicável',
-      segSaidasAmbAberto: 'Não Aplicável',
-      segAcessoAmbAberto: 'Não Aplicável',
-      segIluminacaoAberto: 'Não Aplicável',
-      segIluminacaoEmergenciaAberto: 'Não Aplicável',
-      segAspNormativosGerais: 'Conforme',
-      fotoPlacaPath: '',
-      naoConformidades: [],
-      fotosExame: [],
-      medicoesEspessura: [{ ponto: 'PE-01', espOriginal: null, espMedida: 0, espMinAdm: null, situacao: 'OK', fotoPath: '' }],
-      dispositivosSeguranca: [{ tag: '', tipo: 'VS', pressaoAjusteKpa: 0, ultimoTeste: '', situacao: 'OK', fotoPath: '' }],
-    },
+    defaultValues: (initialData ? { ...defaultsNovo, ...initialData } : defaultsNovo) as any,
   });
 
   const v = watch();
@@ -462,62 +472,71 @@ export default function FormInspecaoNR13() {
     setErroSalvar(null);
     setSalvando(true);
 
+    const payload = {
+      tag: v.tag!,
+      fabricante: v.fabricante!,
+      numeroSerie: v.numeroSerie!,
+      anoFabricacao: v.anoFabricacao!,
+      tipoVaso: v.tipoVaso!,
+      codigoProjeto: v.codigoProjeto!,
+      pmtaFabricante: v.pmtaFabricante!,
+      dataInspecao: v.dataInspecao!,
+      dataEmissaoLaudo: v.dataEmissaoLaudo!,
+      tipoInspecao: v.tipoInspecao!,
+      ambiente: v.ambiente!,
+      fluidoServico: v.fluidoServico!,
+      fluidoClasse: v.fluidoClasse!,
+      pressaoOperacao: v.pressaoOperacao!,
+      volume: v.volume!,
+      grupoPV: v.grupoPV!,
+      categoriaVaso: v.categoriaVaso!,
+      prontuario: v.prontuario!,
+      registroSeguranca: v.registroSeguranca!,
+      projetoInstalacao: v.projetoInstalacao!,
+      relatoriosAnteriores: v.relatoriosAnteriores!,
+      placaIdentificacao: v.placaIdentificacao!,
+      certificadosDispositivos: v.certificadosDispositivos!,
+      manualOperacao: v.manualOperacao!,
+      exameExterno: v.exameExterno!,
+      exameInterno: v.exameInterno!,
+      medicoesEspessura: v.medicoesEspessura!,
+      dispositivosSeguranca: v.dispositivosSeguranca!,
+      materialS: v.materialS!,
+      eficienciaE: v.eficienciaE!,
+      diametroD: v.diametroD!,
+      espessuraCostado: v.espessuraCostado!,
+      espessuraTampo: v.espessuraTampo!,
+      psvCalibracao: v.psvCalibracao!,
+      statusFinalVaso: v.statusFinalVaso!,
+      proximaInspecaoExterna: v.proximaInspecaoExterna!,
+      proximaInspecaoInterna: v.proximaInspecaoInterna!,
+      dataProximoTesteDispositivos: v.dataProximoTesteDispositivos!,
+      parecerTecnico: v.parecerTecnico!,
+      pmtaFixadaPLH: v.pmtaFixadaPLH!,
+      naoConformidades: v.naoConformidades,
+      rthNome: v.rthNome!,
+      rthCrea: v.rthCrea!,
+      rthProfissao: v.rthProfissao!,
+    };
+
     try {
-      const response = await salvarInspecaoNR13({
-        tag: v.tag!,
-        fabricante: v.fabricante!,
-        numeroSerie: v.numeroSerie!,
-        anoFabricacao: v.anoFabricacao!,
-        tipoVaso: v.tipoVaso!,
-        codigoProjeto: v.codigoProjeto!,
-        pmtaFabricante: v.pmtaFabricante!,
-        dataInspecao: v.dataInspecao!,
-        dataEmissaoLaudo: v.dataEmissaoLaudo!,
-        tipoInspecao: v.tipoInspecao!,
-        ambiente: v.ambiente!,
-        fluidoServico: v.fluidoServico!,
-        fluidoClasse: v.fluidoClasse!,
-        pressaoOperacao: v.pressaoOperacao!,
-        volume: v.volume!,
-        grupoPV: v.grupoPV!,
-        categoriaVaso: v.categoriaVaso!,
-        prontuario: v.prontuario!,
-        registroSeguranca: v.registroSeguranca!,
-        projetoInstalacao: v.projetoInstalacao!,
-        relatoriosAnteriores: v.relatoriosAnteriores!,
-        placaIdentificacao: v.placaIdentificacao!,
-        certificadosDispositivos: v.certificadosDispositivos!,
-        manualOperacao: v.manualOperacao!,
-        exameExterno: v.exameExterno!,
-        exameInterno: v.exameInterno!,
-        medicoesEspessura: v.medicoesEspessura!,
-        dispositivosSeguranca: v.dispositivosSeguranca!,
-        materialS: v.materialS!,
-        eficienciaE: v.eficienciaE!,
-        diametroD: v.diametroD!,
-        espessuraCostado: v.espessuraCostado!,
-        espessuraTampo: v.espessuraTampo!,
-        psvCalibracao: v.psvCalibracao!,
-        statusFinalVaso: v.statusFinalVaso!,
-        proximaInspecaoExterna: v.proximaInspecaoExterna!,
-        proximaInspecaoInterna: v.proximaInspecaoInterna!,
-        dataProximoTesteDispositivos: v.dataProximoTesteDispositivos!,
-        parecerTecnico: v.parecerTecnico!,
-        pmtaFixadaPLH: v.pmtaFixadaPLH!,
-        naoConformidades: v.naoConformidades,
-        rthNome: v.rthNome!,
-        rthCrea: v.rthCrea!,
-        rthProfissao: v.rthProfissao!,
-      });
-
-      if (!response.success) {
-        const msgs = response.errors?.formErrors ?? ['Erro desconhecido'];
-        setErroSalvar(msgs.join(', '));
-        return;
+      if (modoEdicao && inspecaoId) {
+        // UPDATE — edição de inspeção existente
+        const res = await atualizarInspecaoNR13(inspecaoId, payload);
+        if (res.error) { setErroSalvar(res.error); return; }
+        setSalvoComSucesso(true);
+        setTimeout(() => setSalvoComSucesso(false), 3000);
+      } else {
+        // INSERT — criação de nova inspeção
+        const response = await salvarInspecaoNR13(payload);
+        if (!response.success) {
+          const msgs = response.errors?.formErrors ?? ['Erro desconhecido'];
+          setErroSalvar(msgs.join(', '));
+          return;
+        }
+        setSalvoComSucesso(true);
+        alert(`Inspeção salva com sucesso! ID: ${response.inspecaoId}`);
       }
-
-      setSalvoComSucesso(true);
-      alert(`Inspeção salva com sucesso! ID: ${response.inspecaoId}`);
     } catch (err) {
       setErroSalvar('Erro inesperado ao salvar.');
       console.error(err);
@@ -1533,7 +1552,7 @@ export default function FormInspecaoNR13() {
       <div className="flex gap-3 mt-4">
         <button disabled={!isValid || salvando} type="submit"
           className="flex-1 bg-slate-800 text-white font-bold py-4 px-4 rounded-lg disabled:opacity-50 text-lg hover:bg-slate-700 transition">
-          {salvando ? 'Salvando inspeção...' : 'Confirmar Inspeção NR-13'}
+          {salvando ? 'Salvando...' : modoEdicao ? 'Salvar Alterações' : 'Confirmar Inspeção NR-13'}
         </button>
         <button
           disabled={exportandoPDF}

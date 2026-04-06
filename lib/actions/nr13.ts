@@ -270,23 +270,65 @@ export async function buscarInspecaoNR13(id: string): Promise<ActionResult<Inspe
 }
 
 // ---------------------------------------------------------------------------
-// SERVER ACTION: Atualizar inspeção
+// SERVER ACTION: Atualizar inspeção (camelCase → snake_case)
 // ---------------------------------------------------------------------------
 export async function atualizarInspecaoNR13(
   id: string,
-  form: Partial<InspecaoNR13Data> & { medicoesEspessura?: any[]; dispositivosSeguranca?: any[]; naoConformidades?: any[] }
+  form: Record<string, any>
 ): Promise<ActionResult<InspecoesNR13>> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Não autenticado' }
 
-  const updateData: Record<string, any> = { ...form }
+  // Mapeia camelCase do form → snake_case do banco (mesmo mapeamento do insert)
+  const updateData: Record<string, any> = {
+    tag: form.tag,
+    fabricante: form.fabricante,
+    numero_serie: form.numeroSerie,
+    ano_fabricacao: form.anoFabricacao,
+    tipo_vaso: form.tipoVaso,
+    codigo_projeto: form.codigoProjeto,
+    pmta_fabricante_kpa: form.pmtaFabricante,
+    data_inspecao: form.dataInspecao,
+    data_emissao_laudo: form.dataEmissaoLaudo,
+    tipo_inspecao: form.tipoInspecao,
+    ambiente: form.ambiente,
+    fluido_servico: form.fluidoServico,
+    fluido_classe: form.fluidoClasse,
+    pressao_operacao_mpa: form.pressaoOperacao,
+    volume_m3: form.volume,
+    grupo_pv: form.grupoPV,
+    categoria_vaso: form.categoriaVaso,
+    prontuario: form.prontuario,
+    registro_seguranca: form.registroSeguranca,
+    projeto_instalacao: form.projetoInstalacao,
+    relatorios_anteriores: form.relatoriosAnteriores,
+    placa_identificacao: form.placaIdentificacao,
+    certificados_dispositivos: form.certificadosDispositivos,
+    manual_operacao: form.manualOperacao,
+    exame_externo: form.exameExterno,
+    exame_interno: form.exameInterno,
+    medicoes_espessura: form.medicoesEspessura ? JSON.stringify(form.medicoesEspessura) : undefined,
+    dispositivos_seguranca: form.dispositivosSeguranca ? JSON.stringify(form.dispositivosSeguranca) : undefined,
+    material_s: form.materialS,
+    eficiencia_e: form.eficienciaE,
+    diametro_d: form.diametroD,
+    espessura_costado: form.espessuraCostado,
+    espessura_tampo: form.espessuraTampo,
+    psv_calibracao_kpa: form.psvCalibracao,
+    pmta_plh_kpa: form.pmtaFixadaPLH,
+    status_final: form.statusFinalVaso,
+    proxima_inspecao_externa: form.proximaInspecaoExterna,
+    proxima_inspecao_interna: form.proximaInspecaoInterna,
+    data_proximo_teste_dispositivos: form.dataProximoTesteDispositivos,
+    parecer_tecnico: form.parecerTecnico,
+    rth_nome: form.rthNome,
+    rth_crea: form.rthCrea,
+    rth_profissao: form.rthProfissao,
+  }
 
-  // Serializa arrays JSON
-  if (form.medicoesEspessura) updateData.medicoes_espessura = JSON.stringify(form.medicoesEspessura)
-  if (form.dispositivosSeguranca) updateData.dispositivos_seguranca = JSON.stringify(form.dispositivosSeguranca)
-
-  delete updateData.naoConformidades
+  // Remove campos undefined para não sobrescrever com null
+  Object.keys(updateData).forEach(k => { if (updateData[k] === undefined) delete updateData[k] })
 
   const { data, error } = await supabase
     .from('inspecoes_nr13')
@@ -296,5 +338,26 @@ export async function atualizarInspecaoNR13(
     .single()
 
   if (error) return { error: error.message }
+
+  // Atualiza NCs — deleta antigas e insere novas
+  const ncs = form.naoConformidades ?? []
+  await supabase.from('ncs_nr13').delete().eq('inspecao_id', id)
+  for (let i = 0; i < ncs.length; i++) {
+    const nc = ncs[i]
+    await supabase.from('ncs_nr13').insert({
+      inspecao_id: id,
+      descricao: nc.descricao,
+      ref_nr13: nc.refNR13,
+      acao_corretiva: nc.acaoCorretiva,
+      grau_risco: nc.grauRisco,
+      prazo_dias: nc.prazo,
+      responsavel: nc.responsavel,
+      ordem: i,
+    })
+  }
+
+  revalidatePath('/laudos/nr13')
+  revalidatePath(`/laudos/nr13/${id}`)
+
   return { data }
 }
