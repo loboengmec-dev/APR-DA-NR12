@@ -6,6 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { calcularPMTACilindro, calcularPMTATampoToriesferico, calcularPMTAGlobal } from '../../lib/domain/nr13/pmta';
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse, LIMITES_GRUPO } from '../../lib/domain/nr13/categorization';
+import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, gerarUrlAssinadaNR13 } from '../../lib/nr13/storage';
+import UploadFotoNR13 from './UploadFotoNR13';
+import GaleriaFotosNR13 from './GaleriaFotosNR13';
 
 // Intervalos de inspeção periódica por classe de fluido (NR-13 Anexo I)
 const INTERVALOS_NR13: Record<string, { externo: number; interno: number; label: string }> = {
@@ -73,6 +76,9 @@ const FormSchema = z.object({
   exameExterno: z.enum(['Conforme', 'Não Conforme']),
   exameInterno: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
 
+  // Foto da placa de identificação
+  fotoPlacaPath: z.string().optional(),
+
   // Tabela de medições de espessura (múltiplos pontos) §13.5.4.11(d)
   medicoesEspessura: z.array(z.object({
     ponto: z.string().min(1, 'Ponto obrigatório'),
@@ -80,7 +86,17 @@ const FormSchema = z.object({
     espMedida: z.coerce.number().positive('Espessura medida é obrigatória'),
     espMinAdm: z.coerce.number().nullable(),
     situacao: z.enum(['OK', 'Crítico']),
+    fotoPath: z.string().optional(),
   })).min(1, 'Registre ao menos um ponto de medição'),
+
+  // Fotos do exame externo/interno
+  fotosExame: z.array(z.object({
+    tipoExame: z.enum(['externo', 'interno']),
+    storagePath: z.string().min(1),
+    legenda: z.string().optional(),
+    tamanhoBytes: z.number().optional(),
+    ordem: z.number().int().optional(),
+  })).optional(),
 
   // --- Seção 4: Dispositivos de Segurança §13.5.1.2 / §13.5.4.11(n) ---
   dispositivosSeguranca: z.array(z.object({
@@ -89,6 +105,7 @@ const FormSchema = z.object({
     pressaoAjusteKpa: z.coerce.number().positive('Pressão de ajuste obrigatória'),
     ultimoTeste: z.string().min(10, 'Data obrigatória'),
     situacao: z.enum(['OK', 'Reparo']),
+    fotoPath: z.string().optional(),
   })).min(1, 'Registre ao menos um dispositivo de segurança'),
 
   // --- Seção 4: Cálculo ASME Sec. VIII ---
@@ -115,6 +132,7 @@ const FormSchema = z.object({
     grauRisco: z.enum(['GIR', 'Crítico', 'Moderado', 'Baixo']),
     prazo: z.coerce.number().int().positive('Prazo em dias'),
     responsavel: z.string().min(2, 'Responsável obrigatório'),
+    fotoPath: z.string().optional(),
   })).optional(),
 
   // --- Seção 5.5: RTH §13.5.4.11(m) ---
@@ -134,6 +152,13 @@ export default function FormInspecaoNR13() {
     pmtaCostado: number; pmtaTampo: number; pmtaLimitante: number;
     componenteFragil: 'Costado' | 'Tampo'; psvInformada: number; condena: boolean;
   } | null>(null);
+
+  // ─── Estado de pré-visualização de fotos (urls assinadas temporárias) ───
+  const [urlFotoPlaca, setUrlFotoPlaca] = useState<string | null>(null);
+  const [urlsExame, setUrlsExame] = useState<string[]>([]);
+
+  // ─── Estado de exportação PDF ───
+  const [exportandoPDF, setExportandoPDF] = useState(false);
 
   const { register, watch, setValue, control, formState: { errors, isValid } } = useForm<FormData>({
     resolver: zodResolver(FormSchema) as Resolver<FormData>,
@@ -168,9 +193,11 @@ export default function FormInspecaoNR13() {
       segIluminacaoAberto: 'Não Aplicável',
       segIluminacaoEmergenciaAberto: 'Não Aplicável',
       segAspNormativosGerais: 'Conforme',
+      fotoPlacaPath: '',
       naoConformidades: [],
-      medicoesEspessura: [{ ponto: 'PE-01', espOriginal: null, espMedida: 0, espMinAdm: null, situacao: 'OK' }],
-      dispositivosSeguranca: [{ tag: '', tipo: 'VS', pressaoAjusteKpa: 0, ultimoTeste: '', situacao: 'OK' }],
+      fotosExame: [],
+      medicoesEspessura: [{ ponto: 'PE-01', espOriginal: null, espMedida: 0, espMinAdm: null, situacao: 'OK', fotoPath: '' }],
+      dispositivosSeguranca: [{ tag: '', tipo: 'VS', pressaoAjusteKpa: 0, ultimoTeste: '', situacao: 'OK', fotoPath: '' }],
     },
   });
 
@@ -180,6 +207,7 @@ export default function FormInspecaoNR13() {
   const { fields: medFields, append: medAppend, remove: medRemove } = useFieldArray({ control, name: 'medicoesEspessura' });
   const { fields: dispFields, append: dispAppend, remove: dispRemove } = useFieldArray({ control, name: 'dispositivosSeguranca' });
   const { fields: ncFields, append: ncAppend, remove: ncRemove } = useFieldArray({ control, name: 'naoConformidades' });
+  const { fields: fotosExameFields, append: fotosExameAppend, remove: fotosExameRemove } = useFieldArray({ control, name: 'fotosExame' });
 
   // Auto-calcula Grupo P×V e Categoria ao mudar classe, pressão ou volume
   useEffect(() => {
@@ -302,6 +330,32 @@ export default function FormInspecaoNR13() {
             </select>
           </div>
         </div>
+
+        {/* 1.1.5 Foto da Placa de Identificação */}
+        <p className={`${subTitle} mt-4`}>1.1.5 Foto da Placa de Identificação</p>
+        {urlFotoPlaca ? (
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-32 h-24 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0">
+              <img src={urlFotoPlaca} alt="Placa" className="w-full h-full object-cover" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-emerald-700 font-medium">✓ Foto da placa registrada</p>
+              <p className="text-xs text-slate-400">Será salva com a inspeção</p>
+            </div>
+          </div>
+        ) : (
+          <div className="mb-4">
+            <UploadFotoNR13
+              label="Foto da placa de identificação do vaso"
+              corBorda="slate"
+              onUpload={async (file) => await uploadFotoPlaca(file, v.tag || 'temp')}
+              onPhotoUploaded={(path) => {
+                setValue('fotoPlacaPath', path, { shouldValidate: true });
+                gerarUrlAssinadaNR13(path).then((url) => url && setUrlFotoPlaca(url));
+              }}
+            />
+          </div>
+        )}
 
         {/* 1.2 Datas e Tipo de Inspeção */}
         <p className={`${subTitle} mt-4`}>1.2 Inspeção</p>
@@ -542,7 +596,7 @@ export default function FormInspecaoNR13() {
         {/* Tabela dinâmica de dispositivos */}
         <div className="space-y-3 mb-3">
           {dispFields.map((field, index) => (
-            <div key={field.id} className="grid grid-cols-2 md:grid-cols-6 gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 items-end">
+            <div key={field.id} className="grid grid-cols-2 md:grid-cols-7 gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 items-end">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">TAG</label>
                 <input {...register(`dispositivosSeguranca.${index}.tag`)} placeholder="Ex: VS-01" className={inputCls} />
@@ -570,6 +624,16 @@ export default function FormInspecaoNR13() {
                   <option value="Reparo">Reparo / Calibrar</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Foto</label>
+                <UploadFotoNR13
+                  compacto
+                  corBorda="green"
+                  label="Foto dispositivo"
+                  onUpload={async (f) => await uploadFotoNCNr13(f, `disp-${index}`, 0)}
+                  onPhotoUploaded={(path) => setValue(`dispositivosSeguranca.${index}.fotoPath`, path, { shouldValidate: true })}
+                />
+              </div>
               <div className="flex items-end">
                 <button type="button" onClick={() => dispRemove(index)} disabled={dispFields.length === 1}
                   className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors disabled:opacity-30">
@@ -581,7 +645,7 @@ export default function FormInspecaoNR13() {
             </div>
           ))}
         </div>
-        <button type="button" onClick={() => dispAppend({ tag: '', tipo: 'VS', pressaoAjusteKpa: 0, ultimoTeste: '', situacao: 'OK' })}
+        <button type="button" onClick={() => dispAppend({ tag: '', tipo: 'VS', pressaoAjusteKpa: 0, ultimoTeste: '', situacao: 'OK', fotoPath: '' })}
           className="flex items-center gap-2 text-sm font-medium text-slate-700 border border-dashed border-slate-400 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>
           Adicionar Dispositivo
@@ -606,6 +670,41 @@ export default function FormInspecaoNR13() {
           </div>
         </div>
 
+        {/* Fotos do Exame Externo/Interno */}
+        <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="flex items-center justify-between mb-3">
+            <p className={`${subTitle} mb-0`}>Fotos do Exame</p>
+            <span className="text-xs text-slate-400">{fotosExameFields.length} foto(s)</span>
+          </div>
+          <UploadFotoNR13
+            label="Adicionar foto do exame"
+            corBorda="blue"
+            onUpload={async (file) => {
+              const tipoExame = v.exameInterno !== 'Não Aplicável' ? 'interno' : 'externo';
+              return await uploadFotoExame(file, 'temp', tipoExame, fotosExameFields.length);
+            }}
+            onPhotoUploaded={(path) => {
+              fotosExameAppend({ tipoExame: 'externo', storagePath: path, ordem: fotosExameFields.length });
+              gerarUrlAssinadaNR13(path).then((url) => {
+                if (url) setUrlsExame((prev) => [...prev, url]);
+              });
+            }}
+          />
+          {urlsExame.length > 0 && (
+            <GaleriaFotosNR13
+              fotos={urlsExame.map((url, i) => ({ url, legenda: `Foto ${i + 1}`, removivel: true }))}
+              onRemove={(index) => {
+                urlsExame.splice(index, 1);
+                setUrlsExame([...urlsExame]);
+                fotosExameFields.splice(index, 1);
+                const vals = watch('fotosExame');
+                vals?.splice(index, 1);
+                setValue('fotosExame', vals);
+              }}
+            />
+          )}
+        </div>
+
         {/* Medições de Espessura §13.5.4.11(d) */}
         <div className="mt-6">
           <div className="flex items-center justify-between mb-3">
@@ -614,7 +713,7 @@ export default function FormInspecaoNR13() {
           </div>
           <div className="space-y-2 mb-3">
             {medFields.map((field, index) => (
-              <div key={field.id} className="grid grid-cols-2 md:grid-cols-6 gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 items-end">
+              <div key={field.id} className="grid grid-cols-2 md:grid-cols-7 gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 items-end">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Ponto</label>
                   <input {...register(`medicoesEspessura.${index}.ponto`)} placeholder="PE-01" className={inputCls} />
@@ -638,6 +737,16 @@ export default function FormInspecaoNR13() {
                     <option value="Crítico">Crítico</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Foto</label>
+                  <UploadFotoNR13
+                    compacto
+                    corBorda="blue"
+                    label="Foto ultrassom"
+                    onUpload={async (f) => await uploadFotoMedicao(f, 'temp', watch(`medicoesEspessura.${index}.ponto`))}
+                    onPhotoUploaded={(path) => setValue(`medicoesEspessura.${index}.fotoPath`, path, { shouldValidate: true })}
+                  />
+                </div>
                 <div className="flex items-end">
                   <button type="button" onClick={() => medRemove(index)} disabled={medFields.length === 1}
                     className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors disabled:opacity-30">
@@ -649,7 +758,7 @@ export default function FormInspecaoNR13() {
               </div>
             ))}
           </div>
-          <button type="button" onClick={() => medAppend({ ponto: `PE-0${medFields.length + 1}`, espOriginal: null, espMedida: 0, espMinAdm: null, situacao: 'OK' })}
+          <button type="button" onClick={() => medAppend({ ponto: `PE-0${medFields.length + 1}`, espOriginal: null, espMedida: 0, espMinAdm: null, situacao: 'OK', fotoPath: '' })}
             className="flex items-center gap-2 text-sm font-medium text-slate-700 border border-dashed border-slate-400 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>
             Adicionar Ponto de Medição
@@ -882,10 +991,19 @@ export default function FormInspecaoNR13() {
                     <input {...register(`naoConformidades.${index}.responsavel`)} placeholder="Ex: Manutenção" className={inputCls} />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Foto da NC</label>
+                  <UploadFotoNR13
+                    label={`Foto da NC ${String(index + 1).padStart(2, '0')}`}
+                    corBorda="purple"
+                    onUpload={async (f) => await uploadFotoNCNr13(f, `nc-${index}`, 0)}
+                    onPhotoUploaded={(path) => setValue(`naoConformidades.${index}.fotoPath`, path, { shouldValidate: true })}
+                  />
+                </div>
               </div>
             ))}
           </div>
-          <button type="button" onClick={() => ncAppend({ descricao: '', refNR13: '', acaoCorretiva: '', grauRisco: 'Moderado', prazo: 30, responsavel: '' })}
+          <button type="button" onClick={() => ncAppend({ descricao: '', refNR13: '', acaoCorretiva: '', grauRisco: 'Moderado', prazo: 30, responsavel: '', fotoPath: '' })}
             className="flex items-center gap-2 text-sm font-medium text-slate-700 border border-dashed border-slate-400 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>
             Adicionar Não Conformidade
@@ -928,10 +1046,75 @@ export default function FormInspecaoNR13() {
         </div>
       </section>
 
-      <button disabled={!isValid} type="submit"
-        className="w-full bg-slate-800 text-white font-bold py-4 px-4 rounded mt-4 disabled:opacity-50 text-lg hover:bg-slate-700 transition">
-        Confirmar Inspeção NR-13
-      </button>
+      <div className="flex gap-3 mt-4">
+        <button disabled={!isValid} type="submit"
+          className="flex-1 bg-slate-800 text-white font-bold py-4 px-4 rounded-lg disabled:opacity-50 text-lg hover:bg-slate-700 transition">
+          Confirmar Inspeção NR-13
+        </button>
+        <button
+          disabled={!isValid || exportandoPDF}
+          onClick={async () => {
+            setExportandoPDF(true);
+            try {
+              const resposta = await fetch('/api/nr13-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  dados: {
+                    ...v,
+                    medicoesEspessura: v.medicoesEspessura?.map((m: any) => ({
+                      ponto: m.ponto, espOriginal: m.espOriginal,
+                      espMedida: m.espMedida, espMinAdm: m.espMinAdm, situacao: m.situacao,
+                    })),
+                    dispositivosSeguranca: v.dispositivosSeguranca?.map((d: any) => ({
+                      tag: d.tag, tipo: d.tipo, pressaoAjusteKpa: d.pressaoAjusteKpa,
+                      ultimoTeste: d.ultimoTeste, situacao: d.situacao,
+                    })),
+                    naoConformidades: v.naoConformidades?.map((nc: any) => ({
+                      descricao: nc.descricao, refNR13: nc.refNR13, acaoCorretiva: nc.acaoCorretiva,
+                      grauRisco: nc.grauRisco, prazo: nc.prazo, responsavel: nc.responsavel,
+                    })),
+                  },
+                  perfil: {},
+                }),
+              });
+              if (!resposta.ok) throw new Error('Erro ao gerar PDF');
+              const blob = await resposta.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `Inspecao_NR13_${v.tag || 'vaso'}_${v.dataInspecao}.pdf`;
+              a.click();
+              URL.revokeObjectURL(url);
+            } catch (err) {
+              console.error('Erro ao exportar PDF:', err);
+              alert('Erro ao gerar o PDF. Verifique o console.');
+            } finally {
+              setExportandoPDF(false);
+            }
+          }}
+          type="button"
+          className="flex items-center justify-center gap-2 bg-blue-700 text-white font-bold py-4 px-6 rounded-lg disabled:opacity-50 text-lg hover:bg-blue-600 transition"
+        >
+          {exportandoPDF ? (
+            <>
+              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              Gerando PDF...
+            </>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.23a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.905 3.134V2.75z" />
+                <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+              </svg>
+              Exportar PDF
+            </>
+          )}
+        </button>
+      </div>
     </form>
   );
 }
