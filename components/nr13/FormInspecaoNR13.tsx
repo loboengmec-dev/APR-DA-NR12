@@ -148,6 +148,52 @@ const FormSchema = z.object({
 type FormData = z.infer<typeof FormSchema>;
 
 // ---------------------------------------------------------------------------
+// Mini-componentes de UI — cards/thumbnails reutilizáveis
+// ---------------------------------------------------------------------------
+interface FotoExameCardProps {
+  src: string;
+  legenda: string;
+  onRemove?: () => void;
+}
+
+/** Card compacto para fotos do exame com animação de check e indicador de foto carregada. */
+function FotoExameCard({ src, legenda, onRemove }: FotoExameCardProps) {
+  const [imgLoaded, setImgLoaded] = useState(false);
+  return (
+    <div className="relative group w-24 sm:w-28 rounded-lg overflow-hidden border border-slate-200 bg-white shadow-sm hover:shadow-md hover:border-emerald-300 transition-all">
+      <div className={`w-full aspect-square bg-slate-100 overflow-hidden ${imgLoaded ? 'block' : 'animate-pulse rounded-lg'}`}>
+        <img
+          src={src}
+          alt={legenda}
+          className="w-full h-full object-cover"
+          onLoad={() => setImgLoaded(true)}
+        />
+      </div>
+      {/* Check animado quando a foto carrega */}
+      <div className={imgLoaded
+        ? 'absolute top-1 right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xs font-bold animate-bounce'
+        : 'hidden'
+      }>
+        ✓
+      </div>
+      <p className="text-[10px] text-slate-500 truncate px-1 pb-0.5">{legenda}</p>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100"
+          title="Remover foto"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-white">
+            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // COMPONENTE
 // ---------------------------------------------------------------------------
 export default function FormInspecaoNR13() {
@@ -168,6 +214,9 @@ export default function FormInspecaoNR13() {
   const [urlsDispositivo, setUrlsDispositivo] = useState<Record<string, string>>({});
   // Dimensões de fotos para o PDF (usado no envio pro gerar altura proporcional)
   const [fotoDimensoes, setFotoDimensoes] = useState<Record<string, { width: number; height: number }>>({});
+
+  // ─── Preview URLs para fotos de NC (animação de foto carregada) ───
+  const [urlsNc, setUrlsNc] = useState<Record<string, string>>({});
 
   // ─── Estado de exportação PDF ───
   const [exportandoPDF, setExportandoPDF] = useState(false);
@@ -225,7 +274,7 @@ export default function FormInspecaoNR13() {
   const { fields: medFields, append: medAppend, remove: medRemove } = useFieldArray({ control, name: 'medicoesEspessura' });
   const { fields: dispFields, append: dispAppend, remove: dispRemove } = useFieldArray({ control, name: 'dispositivosSeguranca' });
   const { fields: ncFields, append: ncAppend, remove: ncRemove } = useFieldArray({ control, name: 'naoConformidades' });
-  const { fields: fotosExameFields, append: fotosExameAppend, remove: fotosExameRemove } = useFieldArray({ control, name: 'fotosExame' });
+  const { fields: fotosExameFields, append: fotosExameAppend, remove: fotosExameRemove, update: fotosExameUpdate } = useFieldArray({ control, name: 'fotosExame' });
 
   // ─── Auto-detecção de Não Conformidades ───
   function autoNcsFromValues(vals: typeof v): Array<{
@@ -1033,29 +1082,37 @@ export default function FormInspecaoNR13() {
             label="Adicionar foto do exame"
             corBorda="blue"
             onUpload={async (file) => {
+              const vals = watch('fotosExame') as any[];
               const tipoExame = v.exameInterno !== 'Não Aplicável' ? 'interno' : 'externo';
-              return await uploadFotoExame(file, 'temp', tipoExame, fotosExameFields.length);
+              const ordem = vals ? vals.filter((f: any) => f?.tipoExame === tipoExame).length : 0;
+              return await uploadFotoExame(file, 'temp', tipoExame, ordem);
             }}
             onPhotoUploaded={(path, dims) => {
+              const vals = watch('fotosExame') as any[];
               const tipoExame = v.exameInterno !== 'Não Aplicável' ? 'interno' : 'externo';
-              fotosExameAppend({ tipoExame, storagePath: path, ordem: fotosExameFields.length });
+              const ordem = vals ? vals.filter((f: any) => f?.tipoExame === tipoExame).length : 0;
+              fotosExameAppend({ tipoExame, storagePath: path, ordem, tamanhoBytes: 0 });
               gerarUrlAssinadaNR13(path).then((url) => {
                 if (url) setUrlsExame((prev) => [...prev, url]);
               });
             }}
           />
           {urlsExame.length > 0 && (
-            <GaleriaFotosNR13
-              fotos={urlsExame.map((url, i) => ({ url, legenda: `Foto ${i + 1}`, removivel: true }))}
-              onRemove={(index) => {
-                urlsExame.splice(index, 1);
-                setUrlsExame([...urlsExame]);
-                fotosExameFields.splice(index, 1);
-                const vals = watch('fotosExame');
-                vals?.splice(index, 1);
-                setValue('fotosExame', vals);
-              }}
-            />
+            <div className="flex flex-wrap gap-3 mt-3">
+              {urlsExame.map((url, i) => (
+                <FotoExameCard
+                  key={i}
+                  src={url}
+                  legenda={`Foto ${i + 1} — ${fotosExameFields[i]?.tipoExame === 'interno' ? 'Interno' : 'Externo'}`}
+                  onRemove={() => {
+                    const novoUrls = [...urlsExame];
+                    novoUrls.splice(i, 1);
+                    setUrlsExame(novoUrls);
+                    fotosExameRemove(i);
+                  }}
+                />
+              ))}
+            </div>
           )}
         </div>
 
@@ -1387,12 +1444,20 @@ export default function FormInspecaoNR13() {
                   <UploadFotoNR13
                     label={`Foto da NC ${String(index + 1).padStart(2, '0')}`}
                     corBorda="purple"
+                    fotoPreviewUrl={urlsNc[String(index)] ?? null}
                     onUpload={async (f) => await uploadFotoNCNr13(f, `nc-${index}`, 0)}
-                    onPhotoUploaded={(path) => setValue(`naoConformidades.${index}.fotoPath`, path, { shouldValidate: true })}
+                    onPhotoUploaded={(path, dims) => {
+                      setValue(`naoConformidades.${index}.fotoPath`, path, { shouldValidate: true });
+                      if (dims) setFotoDimensoes((prev) => ({ ...prev, [`nc_${index}`]: dims }));
+                      gerarUrlAssinadaNR13(path).then((url) => {
+                        if (url) setUrlsNc((prev) => ({ ...prev, [String(index)]: url }));
+                      });
+                    }}
                     onPhotoDelete={() => {
                       const fp = watch(`naoConformidades.${index}.fotoPath`);
                       if (fp) removerFotoNR13(fp);
                       setValue(`naoConformidades.${index}.fotoPath`, '', { shouldValidate: true });
+                      setUrlsNc((prev) => { const n = { ...prev }; delete n[String(index)]; return n; });
                     }}
                   />
                 </div>
@@ -1480,15 +1545,16 @@ export default function FormInspecaoNR13() {
               }
 
               // Fotos do exame — usar chaves que o PDF espera (exame_externo / exame_interno)
-              for (let i = 0; i < fotosExameFields.length; i++) {
-                const field = fotosExameFields[i] as any;
-                if (field && field.storagePath) {
-                  const url = await gerarUrlAssinadaNR13(field.storagePath);
+              const fotosExame = watch('fotosExame') ?? [];
+              for (let i = 0; i < fotosExame.length; i++) {
+                const fe = fotosExame[i] as any;
+                if (fe?.storagePath) {
+                  const url = await gerarUrlAssinadaNR13(fe.storagePath);
                   if (url) {
-                    const key = field.tipoExame === 'interno' ? 'exame_interno' : 'exame_externo';
-                    // Se já existe, adiciona índice para múltiplas fotos
-                    const fotoKey = fotosUrlMap[key] ? `${key}_${i}` : key;
-                  fotosUrlMap[fotoKey] = url;
+                    const key = fe.tipoExame === 'interno' ? 'exame_interno' : 'exame_externo';
+                    // Separa por tipo: primeiro de cada tipo vai sem índice, demais com _1, _2...
+                    const existing = Object.keys(fotosUrlMap).filter(k => k.startsWith(key)).length;
+                    fotosUrlMap[key + (existing === 0 ? '' : `_${existing}`)] = url;
                   }
                 }
               }
@@ -1513,10 +1579,11 @@ export default function FormInspecaoNR13() {
               }
 
               // Fotos das NCs
-              for (let i = 0; i < ncFields.length; i++) {
-                const nc = watch(`naoConformidades.${i}.fotoPath`);
-                if (nc) {
-                  const url = await gerarUrlAssinadaNR13(nc);
+              const ncVals = (watch('naoConformidades') as any[]) ?? [];
+              for (let i = 0; i < ncVals.length; i++) {
+                const ncPath = ncVals[i]?.fotoPath;
+                if (ncPath) {
+                  const url = await gerarUrlAssinadaNR13(ncPath);
                   if (url) fotosUrlMap[`nc_${i}`] = url;
                 }
               }
