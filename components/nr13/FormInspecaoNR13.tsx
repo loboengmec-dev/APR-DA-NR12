@@ -160,7 +160,12 @@ export default function FormInspecaoNR13() {
   // ─── Estado de pré-visualização de fotos (urls assinadas temporárias) ───
   const [urlFotoPlaca, setUrlFotoPlaca] = useState<string | null>(null);
   const [urlFotoManometro, setUrlFotoManometro] = useState<string | null>(null);
+  const [urlFotoManometroUploaded, setUrlFotoManometroUploaded] = useState<string | null>(null);
   const [urlsExame, setUrlsExame] = useState<string[]>([]);
+  // URL previews para fotos compactas de medição — map field.id → url
+  const [urlsMedicao, setUrlsMedicao] = useState<Record<string, string>>({});
+  // URL previews para fotos compactas de dispositivos — map field.id → url
+  const [urlsDispositivo, setUrlsDispositivo] = useState<Record<string, string>>({});
 
   // ─── Estado de exportação PDF ───
   const [exportandoPDF, setExportandoPDF] = useState(false);
@@ -959,11 +964,20 @@ export default function FormInspecaoNR13() {
                 <UploadFotoNR13
                   compacto
                   corBorda="green"
+                  fotoPreviewUrl={urlsDispositivo[String(field.id)] ?? null}
                   label="Foto dispositivo"
-                  fotoPreviewUrl={watch(`dispositivosSeguranca.${index}.fotoPath`) ? `data:image/svg+xml,` : null}
-                  onUpload={async (f) => await uploadFotoNCNr13(f, `disp-${index}`, 0)}
+                  onUpload={async (f) => {
+                    const blobUrl = URL.createObjectURL(f);
+                    setUrlsDispositivo((prev) => ({ ...prev, [String(field.id)]: blobUrl }));
+                    return await uploadFotoNCNr13(f, `disp-${field.id}`, 0);
+                  }}
                   onPhotoUploaded={(path) => setValue(`dispositivosSeguranca.${index}.fotoPath`, path, { shouldValidate: true })}
-                  onPhotoDelete={() => setValue(`dispositivosSeguranca.${index}.fotoPath`, '', { shouldValidate: true })}
+                  onPhotoDelete={() => {
+                    const key = String(field.id);
+                    if (urlsDispositivo[key]) URL.revokeObjectURL(urlsDispositivo[key]);
+                    setUrlsDispositivo((prev) => { const n = { ...prev }; delete n[key]; return n; });
+                    setValue(`dispositivosSeguranca.${index}.fotoPath`, '', { shouldValidate: true });
+                  }}
                 />
               </div>
               <div className="flex items-end">
@@ -1074,9 +1088,20 @@ export default function FormInspecaoNR13() {
                   <UploadFotoNR13
                     compacto
                     corBorda="blue"
+                    fotoPreviewUrl={urlsMedicao[String(field.id)] ?? null}
                     label="Foto ultrassom"
-                    onUpload={async (f) => await uploadFotoMedicao(f, 'temp', watch(`medicoesEspessura.${index}.ponto`))}
+                    onUpload={async (f) => {
+                      const blobUrl = URL.createObjectURL(f);
+                      setUrlsMedicao((prev) => ({ ...prev, [String(field.id)]: blobUrl }));
+                      return await uploadFotoMedicao(f, 'temp', watch(`medicoesEspessura.${index}.ponto`));
+                    }}
                     onPhotoUploaded={(path) => setValue(`medicoesEspessura.${index}.fotoPath`, path, { shouldValidate: true })}
+                    onPhotoDelete={() => {
+                      const key = String(field.id);
+                      if (urlsMedicao[key]) URL.revokeObjectURL(urlsMedicao[key]);
+                      setUrlsMedicao((prev) => { const n = { ...prev }; delete n[key]; return n; });
+                      setValue(`medicoesEspessura.${index}.fotoPath`, '', { shouldValidate: true });
+                    }}
                   />
                 </div>
                 <div className="flex items-end">
@@ -1456,9 +1481,10 @@ export default function FormInspecaoNR13() {
                 }
               }
 
-              // Fotos das medições de espessura
-              for (let i = 0; i < v.medicoesEspessura?.length; i++) {
-                const med = v.medicoesEspessura[i];
+              // Fotos das medições de espessura — iterar pelos campos reais do form
+              const medVals = watch('medicoesEspessura') ?? [];
+              for (let i = 0; i < medVals.length; i++) {
+                const med = medVals[i] as any;
                 if (med?.fotoPath) {
                   const url = await gerarUrlAssinadaNR13(med.fotoPath);
                   if (url) fotosUrlMap[`medicao_${i}`] = url;
