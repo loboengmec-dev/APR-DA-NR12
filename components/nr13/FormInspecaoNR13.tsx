@@ -17,6 +17,7 @@ import {
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse, LIMITES_GRUPO } from '../../lib/domain/nr13/categorization';
 import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, uploadFotoManometro, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
 import { salvarInspecaoNR13, atualizarInspecaoNR13, type InspecaoNR13Data } from '../../lib/actions/nr13';
+import { createClient } from '../../lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import UploadFotoNR13 from './UploadFotoNR13';
 import GaleriaFotosNR13 from './GaleriaFotosNR13';
@@ -246,6 +247,9 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
 
   // ─── Preview URLs para fotos de NC (animação de foto carregada) ───
   const [urlsNc, setUrlsNc] = useState<Record<string, string>>({});
+
+  // ─── Perfil do usuário (para PDF) ───
+  const [perfilUsuario, setPerfilUsuario] = useState<Record<string, any>>({});
 
   // ─── Estado de exportação PDF ───
   const [exportandoPDF, setExportandoPDF] = useState(false);
@@ -504,6 +508,16 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
     setValue('grupoPV', grupo, { shouldValidate: true });
     setValue('categoriaVaso', cat, { shouldValidate: true });
   }, [v.fluidoClasse, v.pressaoOperacao, v.volume, setValue]);
+
+  // Carrega perfil do usuário uma única vez (para incluir logo no PDF)
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from('usuarios').select('nome,crea,logo_url').eq('id', user.id).single()
+        .then(({ data }) => { if (data) setPerfilUsuario(data); });
+    });
+  }, []);
 
   // Auto-calcula datas das próximas inspeções ao mudar classe ou data
   useEffect(() => {
@@ -1931,7 +1945,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
                       grauRisco: nc.grauRisco, prazo: nc.prazo, responsavel: nc.responsavel,
                     })),
                   },
-                  perfil: {},
+                  perfil: perfilUsuario,
                   fotosUrl: fotosUrlMap,
                   fotoDimensoes,
                 }),

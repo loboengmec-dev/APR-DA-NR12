@@ -66,7 +66,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const document = <LaudoNR13PDF dados={dados} perfil={perfil ?? {}} fotosUrl={fotosUrl ?? {}} fotoDimensoes={fotoDimensoes ?? {}} />
+    // Monta URL pública da logo (bucket logos-usuario é público)
+    const perfilComLogo = { ...(perfil ?? {}) }
+    if (perfilComLogo.logo_url) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      perfilComLogo._logoPublicUrl = `${supabaseUrl}/storage/v1/object/public/logos-usuario/${perfilComLogo.logo_url}`
+    }
+
+    const document = <LaudoNR13PDF dados={dados} perfil={perfilComLogo} fotosUrl={fotosUrl ?? {}} fotoDimensoes={fotoDimensoes ?? {}} />
     const pdfBlob = await pdf(document).toBlob()
 
     return new NextResponse(await pdfBlob.arrayBuffer(), {

@@ -219,11 +219,18 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
   const d = dados ?? {}
   const fmt = (dt: string | null | undefined) => dt ? new Date(dt + 'T00:00:00').toLocaleDateString('pt-BR') : '—'
 
+  const logoUrl: string | null = perfil?._logoPublicUrl ?? null
+
   const Header = () => (
     <View style={S.header} fixed>
-      <View>
-        <Text style={S.headerTitle}>RELATÓRIO DE INSPEÇÃO — NR-13</Text>
-        <Text style={S.headerSub}>{d.tag ?? '—'} | {d.fabricante ?? '—'}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {logoUrl ? (
+          <PDFImage src={logoUrl} style={{ height: 22, maxWidth: 70, objectFit: 'contain' }} />
+        ) : null}
+        <View>
+          <Text style={S.headerTitle}>RELATÓRIO DE INSPEÇÃO — NR-13</Text>
+          <Text style={S.headerSub}>{d.tag ?? '—'} | {d.fabricante ?? '—'}</Text>
+        </View>
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={S.headerSub}>Doc: {d.tag ?? '—'} | Rev: 0</Text>
@@ -249,6 +256,12 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
       {/* ======================== CAPA ======================== */}
       <Page size="A4" style={S.page}>
         <View style={S.coverRoot}>
+          {/* Logo da empresa — exibida no topo da capa quando disponível */}
+          {logoUrl ? (
+            <View style={{ marginBottom: 20, alignItems: 'center' }}>
+              <PDFImage src={logoUrl} style={{ maxHeight: 60, maxWidth: 200, objectFit: 'contain' }} />
+            </View>
+          ) : null}
           <Text style={S.title}>Laudo Técnico NR-13</Text>
           <Text style={S.subtitle}>
             Documento de avaliação técnica de integridade mecânica e conformidade de vaso de pressão estacionário, em conformidade com a NR-13 e o Código ASME Sec. VIII Div. 1.
