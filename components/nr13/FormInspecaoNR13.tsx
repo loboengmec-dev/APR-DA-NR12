@@ -4,7 +4,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useForm, useFieldArray, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { calcularPMTACilindro, calcularPMTATampoToriesferico, calcularPMTAGlobal } from '../../lib/domain/nr13/pmta';
+import {
+  calcularPMTACostado,
+  calcularPMTATampo,
+  calcularPMTAGlobal,
+  calcularPMTADual,
+  calcularFatorM,
+  type GeometriaCostado,
+  type GeometriaTampo,
+  type ResultadoPMTADual,
+} from '../../lib/domain/nr13/pmta';
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse, LIMITES_GRUPO } from '../../lib/domain/nr13/categorization';
 import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, uploadFotoManometro, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
 import { salvarInspecaoNR13, atualizarInspecaoNR13, type InspecaoNR13Data } from '../../lib/actions/nr13';
@@ -114,11 +123,19 @@ const FormSchema = z.object({
   })).min(1, 'Registre ao menos um dispositivo de segurança'),
 
   // --- Seção 4: Cálculo ASME Sec. VIII ---
+  geometriaCostado: z.enum(['cilindrico', 'esferico']),
+  geometriaTampo: z.enum(['elipsoidal', 'toriesferico', 'semiesferico', 'conico']),
   materialS: z.coerce.number().positive(),
+  materialSQuente: z.coerce.number().positive().optional(),
   eficienciaE: z.coerce.number().max(1).min(0.1),
   diametroD: z.coerce.number().positive().min(50),
   espessuraCostado: z.coerce.number().positive(),
+  espessuraCostadoNominal: z.coerce.number().positive().optional(),
   espessuraTampo: z.coerce.number().positive(),
+  espessuraTampoNominal: z.coerce.number().positive().optional(),
+  raioAbaulamento: z.coerce.number().positive().optional(),
+  raioRebordo: z.coerce.number().positive().optional(),
+  anguloConeDeg: z.coerce.number().min(1).max(89).optional(),
   psvCalibracao: z.coerce.number().positive(),
 
   // --- Seção 5: Parecer e Plano §13.5.4.11(j)(k)(l) ---
@@ -211,6 +228,8 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
   const [detalheCalculo, setDetalheCalculo] = useState<{
     pmtaCostado: number; pmtaTampo: number; pmtaLimitante: number;
     componenteFragil: 'Costado' | 'Tampo'; psvInformada: number; condena: boolean;
+    dualCostado?: ResultadoPMTADual; dualTampo?: ResultadoPMTADual;
+    fatorM?: number;
   } | null>(null);
 
   // ─── Estado de pré-visualização de fotos (urls assinadas temporárias) ───
@@ -238,10 +257,18 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
   const [erroSalvar, setErroSalvar] = useState<string | null>(null);
 
   const defaultsNovo = {
+    geometriaCostado: 'cilindrico',
+    geometriaTampo: 'toriesferico',
     diametroD: 1000,
     psvCalibracao: 8.16,
     materialS: 1406.1,
+    materialSQuente: undefined,
     eficienciaE: 0.85,
+    espessuraCostadoNominal: undefined,
+    espessuraTampoNominal: undefined,
+    raioAbaulamento: undefined,
+    raioRebordo: undefined,
+    anguloConeDeg: undefined,
     dataInspecao: new Date().toISOString().split('T')[0],
     dataEmissaoLaudo: new Date().toISOString().split('T')[0],
     codigoProjeto: 'ASME Sec. VIII Div 1',
@@ -489,34 +516,85 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
     setValue('dataProximoTesteDispositivos', somarAnos(dataInspecao, intervalo.interno), { shouldValidate: true });
   }, [v.fluidoClasse, v.dataInspecao, setValue]);
 
-  // Auto-calcula PMTA em tempo real e auto-sugere PMTA fixada pelo PLH
-  // materialS e psvCalibracao agora são em kgf/cm² — converte para MPa internamente
+  // Auto-calcula PMTA em tempo real — suporta todas as geometrias ASME + condição dual
+  // materialS e psvCalibracao em kgf/cm² — converte para MPa internamente
   useEffect(() => {
     if (!v.materialS || !v.eficienciaE || !v.diametroD || !v.espessuraCostado || !v.espessuraTampo || !v.psvCalibracao) return;
     const R = v.diametroD / 2;
-    const sMpa = Number(v.materialS) / 10.197;  // kgf/cm² → MPa
-    const psvMpa = Number(v.psvCalibracao) / 10.197; // kgf/cm² → MPa
-    const pmtaCostado = calcularPMTACilindro({ S: sMpa, E: v.eficienciaE, t: v.espessuraCostado, R, D: v.diametroD });
-    const pmtaTampo = calcularPMTATampoToriesferico({ S: sMpa, E: v.eficienciaE, t: v.espessuraTampo, R, D: v.diametroD });
+    const sMpa = Number(v.materialS) / 10.197;
+    const sQuenteMpa = v.materialSQuente ? Number(v.materialSQuente) / 10.197 : sMpa;
+    const psvMpa = Number(v.psvCalibracao) / 10.197;
+    const geoCostado = (v.geometriaCostado || 'cilindrico') as GeometriaCostado;
+    const geoTampo = (v.geometriaTampo || 'toriesferico') as GeometriaTampo;
+
+    // Parâmetros base (condição corroída = espessura medida em campo)
+    const paramsCostado = {
+      S: sMpa, E: v.eficienciaE, t: v.espessuraCostado,
+      R, D: v.diametroD, alpha: v.anguloConeDeg,
+    };
+    const paramsTampo = {
+      S: sMpa, E: v.eficienciaE, t: v.espessuraTampo,
+      R, D: v.diametroD,
+      L: v.raioAbaulamento || undefined,
+      r: v.raioRebordo || undefined,
+      alpha: v.anguloConeDeg,
+    };
+
+    const pmtaCostado = calcularPMTACostado(geoCostado, paramsCostado);
+    const pmtaTampo = calcularPMTATampo(geoTampo, paramsTampo);
     const calc = calcularPMTAGlobal(pmtaCostado, pmtaTampo, psvMpa);
+
+    // Cálculo dual se houver dados de condição Nova/Fria
+    let dualCostado: ResultadoPMTADual | undefined;
+    let dualTampo: ResultadoPMTADual | undefined;
+    const tNominalCostado = v.espessuraCostadoNominal || v.espessuraCostado;
+    const tNominalTampo = v.espessuraTampoNominal || v.espessuraTampo;
+
+    if (v.materialSQuente || v.espessuraCostadoNominal || v.espessuraTampoNominal) {
+      dualCostado = calcularPMTADual(geoCostado, {
+        S_frio: sMpa, S_quente: sQuenteMpa, E: v.eficienciaE,
+        t_nominal: tNominalCostado, t_corroido: v.espessuraCostado,
+        D: v.diametroD, alpha: v.anguloConeDeg,
+      });
+      dualTampo = calcularPMTADual(geoTampo, {
+        S_frio: sMpa, S_quente: sQuenteMpa, E: v.eficienciaE,
+        t_nominal: tNominalTampo, t_corroido: v.espessuraTampo,
+        D: v.diametroD, L: v.raioAbaulamento || undefined,
+        r: v.raioRebordo || undefined, alpha: v.anguloConeDeg,
+      });
+    }
+
+    // Fator M para exibição (apenas torisférico)
+    let fatorM: number | undefined;
+    if (geoTampo === 'toriesferico') {
+      const L = v.raioAbaulamento || v.diametroD;
+      const rK = v.raioRebordo || 0.06 * v.diametroD;
+      fatorM = calcularFatorM(L, rK);
+    }
+
     setDetalheCalculo({
       pmtaCostado, pmtaTampo,
       pmtaLimitante: calc.pmtaLimitante,
       componenteFragil: calc.componenteFragil,
       psvInformada: Number(v.psvCalibracao),
       condena: calc.condena,
+      dualCostado, dualTampo, fatorM,
     });
+
     const psvKgf = Number(v.psvCalibracao);
     const pmtaLimitanteKgf = calc.pmtaLimitante * 10.197;
     setAlerta(calc.condena
       ? `A PSV está calibrada em ${psvKgf.toFixed(2)} kgf/cm², mas a PMTA recalculada é apenas ${pmtaLimitanteKgf.toFixed(2)} kgf/cm². A válvula não abrirá a tempo.`
       : '✅ Vaso Conforme — PSV abrirá antes do limite estrutural.'
     );
-    // Sugere PMTA fixada pelo PLH = limitante ASME (já em kgf/cm²)
     if (!v.pmtaFixadaPLH) {
       setValue('pmtaFixadaPLH', parseFloat(pmtaLimitanteKgf.toFixed(2)), { shouldValidate: false });
     }
-  }, [v.materialS, v.eficienciaE, v.diametroD, v.espessuraCostado, v.espessuraTampo, v.psvCalibracao]);
+  }, [v.materialS, v.materialSQuente, v.eficienciaE, v.diametroD,
+      v.espessuraCostado, v.espessuraCostadoNominal,
+      v.espessuraTampo, v.espessuraTampoNominal,
+      v.psvCalibracao, v.geometriaCostado, v.geometriaTampo,
+      v.raioAbaulamento, v.raioRebordo, v.anguloConeDeg]);
 
   // Auto-sugere status final com base no resultado ASME + exames físicos
   useEffect(() => {
@@ -1306,66 +1384,200 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
       {/* ================================================================
           SEÇÃO 4 — CÁLCULO ASME SEC. VIII
       ================================================================ */}
-      <section className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+      <section className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-6">
         <h2 className={sectionTitle}>4. Base de Cálculo ASME Sec. VIII Div. 1</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className={labelCls}>Material — Tensão Admissível S (kgf/cm²)</label>
-            <select {...register('materialS')} className={`${baseSelectCls} mt-1`}>
-              <option value="1406.1">SA-285 / SA-516 (1406 kgf/cm²)</option>
-              <option value="1167.4">SA-36 Estrutural (1167 kgf/cm²)</option>
-              <option value="1172.5">SA-240 304L Inox (1172 kgf/cm²)</option>
-            </select>
+
+        {/* 4.1 — Geometria do Vaso */}
+        <div>
+          <h3 className={subTitle}>4.1 Geometria do Vaso</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Geometria do Costado</label>
+              <select {...register('geometriaCostado')} className={`${baseSelectCls} mt-1`}>
+                <option value="cilindrico">Cilíndrico — UG-27(c)(1)</option>
+                <option value="esferico">Esférico — UG-27(d)</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Geometria do Tampo</label>
+              <select {...register('geometriaTampo')} className={`${baseSelectCls} mt-1`}>
+                <option value="elipsoidal">Elipsoidal 2:1 — UG-32(d)</option>
+                <option value="toriesferico">Torisférico (F&D) — UG-32(e)</option>
+                <option value="semiesferico">Semiesférico — UG-32(f)</option>
+                <option value="conico">Cônico — UG-32(g)</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label className={labelCls}>Eficiência de Solda — E</label>
-            <select {...register('eficienciaE')} className={`${baseSelectCls} mt-1`}>
-              <option value="1.0">1.00 — Total (100% Radiografado)</option>
-              <option value="0.85">0.85 — Spot (Parcial)</option>
-              <option value="0.70">0.70 — Sem Radiografia</option>
-            </select>
-          </div>
+
+          {/* Campos condicionais para Torisférico */}
+          {v.geometriaTampo === 'toriesferico' && (
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs font-medium text-blue-700 mb-2">Parâmetros do Tampo Torisférico (opcional — padrão comercial: L = D, r = 0.06·D)</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className={`${labelCls} text-blue-700`}>Raio de Abaulamento — L (mm)</label>
+                  <input type="number" step="1" {...register('raioAbaulamento')} className={`${inputCls('raioAbaulamento')} border-blue-300 bg-white`} placeholder={`Padrão: ${v.diametroD || 1000} (= D)`} />
+                </div>
+                <div>
+                  <label className={`${labelCls} text-blue-700`}>Raio de Rebordo — r (mm)</label>
+                  <input type="number" step="0.1" {...register('raioRebordo')} className={`${inputCls('raioRebordo')} border-blue-300 bg-white`} placeholder={`Padrão: ${((v.diametroD || 1000) * 0.06).toFixed(0)} (= 0.06·D)`} />
+                </div>
+              </div>
+              {detalheCalculo?.fatorM && (
+                <p className="text-xs text-blue-600 mt-2">
+                  Fator M calculado: <span className="font-bold">{detalheCalculo.fatorM.toFixed(4)}</span>
+                  {' '}(L/r = {((v.raioAbaulamento || v.diametroD) / (v.raioRebordo || 0.06 * v.diametroD)).toFixed(2)})
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Campo condicional para Cônico */}
+          {v.geometriaTampo === 'conico' && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs font-medium text-amber-700 mb-2">Semi-ângulo do cone (obrigatório para tampo cônico)</p>
+              <div className="max-w-xs">
+                <label className={`${labelCls} text-amber-700`}>Semi-ângulo — α (graus)</label>
+                <input type="number" step="0.5" min="1" max="89" {...register('anguloConeDeg')} className={`${inputCls('anguloConeDeg')} border-amber-300 bg-white`} placeholder="Ex: 30" />
+                {(v.anguloConeDeg ?? 0) > 30 && (
+                  <p className="text-xs text-red-600 mt-1 font-semibold">ASME requer análise especial para α &gt; 30°</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className={labelCls}>Diâmetro Interno — D (mm)</label>
-            <input type="number" step="1" {...register('diametroD')} className={inputCls('diametroD')} />
+
+        {/* 4.2 — Material e Junta */}
+        <div>
+          <h3 className={subTitle}>4.2 Material e Eficiência de Junta</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Tensão Admissível S — Fria/Ambiente (kgf/cm²)</label>
+              <select {...register('materialS')} className={`${baseSelectCls} mt-1`}>
+                <option value="1406.1">SA-285 / SA-516 (1406 kgf/cm²)</option>
+                <option value="1167.4">SA-36 Estrutural (1167 kgf/cm²)</option>
+                <option value="1172.5">SA-240 304L Inox (1172 kgf/cm²)</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Eficiência de Solda — E</label>
+              <select {...register('eficienciaE')} className={`${baseSelectCls} mt-1`}>
+                <option value="1.0">1.00 — Total (100% Radiografado)</option>
+                <option value="0.85">0.85 — Spot (Parcial)</option>
+                <option value="0.70">0.70 — Sem Radiografia</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label className={`${labelCls} text-blue-700`}>Ultrassom Costado — t (mm)</label>
-            <input type="number" step="0.1" {...register('espessuraCostado')} className={`${inputCls('espessuraCostado')} border-blue-300 bg-blue-50`} placeholder="Ex: 5.5" />
-          </div>
-          <div>
-            <label className={`${labelCls} text-blue-700`}>Ultrassom Tampo — t (mm)</label>
-            <input type="number" step="0.1" {...register('espessuraTampo')} className={`${inputCls('espessuraTampo')} border-blue-300 bg-blue-50`} placeholder="Ex: 4.8" />
+
+          {/* Condição quente (opcional — expande painel dual) */}
+          <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <p className="text-xs font-medium text-orange-700 mb-2">
+              Condição Quente (opcional) — Preencha para comparar Nova/Fria vs Corroída/Quente
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className={`${labelCls} text-orange-700`}>S Quente (kgf/cm²)</label>
+                <input type="number" step="0.1" {...register('materialSQuente')} className={`${inputCls('materialSQuente')} border-orange-300 bg-white`} placeholder="S na temp. de operação" />
+              </div>
+              <div>
+                <label className={`${labelCls} text-orange-700`}>Espessura Nominal Costado (mm)</label>
+                <input type="number" step="0.1" {...register('espessuraCostadoNominal')} className={`${inputCls('espessuraCostadoNominal')} border-orange-300 bg-white`} placeholder="t original de projeto" />
+              </div>
+              <div>
+                <label className={`${labelCls} text-orange-700`}>Espessura Nominal Tampo (mm)</label>
+                <input type="number" step="0.1" {...register('espessuraTampoNominal')} className={`${inputCls('espessuraTampoNominal')} border-orange-300 bg-white`} placeholder="t original de projeto" />
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* 4.3 — Medições de Campo */}
         <div>
-          <label className={`${labelCls} text-purple-800 mt-4 mb-1 block`}>Pressão de Calibração da PSV (kgf/cm²)</label>
+          <h3 className={subTitle}>4.3 Medições de Campo (Ultrassom)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className={labelCls}>Diâmetro Interno — D (mm)</label>
+              <input type="number" step="1" {...register('diametroD')} className={inputCls('diametroD')} />
+            </div>
+            <div>
+              <label className={`${labelCls} text-blue-700`}>Ultrassom Costado — t medido (mm)</label>
+              <input type="number" step="0.1" {...register('espessuraCostado')} className={`${inputCls('espessuraCostado')} border-blue-300 bg-blue-50`} placeholder="Ex: 5.5" />
+            </div>
+            <div>
+              <label className={`${labelCls} text-blue-700`}>Ultrassom Tampo — t medido (mm)</label>
+              <input type="number" step="0.1" {...register('espessuraTampo')} className={`${inputCls('espessuraTampo')} border-blue-300 bg-blue-50`} placeholder="Ex: 4.8" />
+            </div>
+          </div>
+        </div>
+
+        {/* 4.4 — PSV */}
+        <div>
+          <label className={`${labelCls} text-purple-800 mb-1 block`}>Pressão de Calibração da PSV (kgf/cm²)</label>
           <input type="number" step="0.01" {...register('psvCalibracao')} className={`${inputCls('psvCalibracao')} border-purple-300 bg-purple-50 max-w-xs`} placeholder="Ex: 0.8" />
         </div>
 
-        {/* Resultado ASME */}
-        <div className="mt-6 p-5 bg-white rounded-xl border border-slate-300 shadow-sm space-y-4">
+        {/* ── Resultado ASME ── */}
+        <div className="mt-2 p-5 bg-white rounded-xl border border-slate-300 shadow-sm space-y-4">
           <h3 className="font-semibold text-lg text-slate-800 border-b pb-2">Resultado — Avaliação Estrutural ASME</h3>
           {detalheCalculo ? (
             <div className="space-y-4">
+              {/* Cards de PMTA por componente */}
               <div className="grid grid-cols-2 gap-3">
                 {(['Costado', 'Tampo'] as const).map(comp => {
                   const valMpa = comp === 'Costado' ? detalheCalculo.pmtaCostado : detalheCalculo.pmtaTampo;
                   const valKgf = valMpa * 10.197;
                   const fragil = detalheCalculo.componenteFragil === comp;
+                  const geo = comp === 'Costado' ? v.geometriaCostado : v.geometriaTampo;
+                  const geoLabel: Record<string, string> = {
+                    cilindrico: 'Cilíndrico', esferico: 'Esférico',
+                    elipsoidal: 'Elipsoidal 2:1', toriesferico: 'Torisférico',
+                    semiesferico: 'Semiesférico', conico: 'Cônico',
+                  };
                   return (
                     <div key={comp} className={`p-3 rounded-lg border ${fragil ? 'bg-amber-50 border-amber-300' : 'bg-gray-50 border-gray-200'}`}>
                       <p className="text-xs font-medium text-gray-500 uppercase">PMTA {comp}</p>
+                      <p className="text-[10px] text-gray-400">{geoLabel[geo || ''] || geo}</p>
                       <p className="text-2xl font-bold text-gray-900">{valKgf.toFixed(2)}</p>
-                      <p className="text-xs text-gray-400">kgf/cm²</p>
-                      {fragil && <span className="inline-block mt-1 text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">⚠ Mais frágil</span>}
+                      <p className="text-xs text-gray-400">kgf/cm² ({valMpa.toFixed(4)} MPa)</p>
+                      {fragil && <span className="inline-block mt-1 text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">Componente limitante</span>}
                     </div>
                   );
                 })}
               </div>
+
+              {/* Painel dual Nova/Fria vs Corroída/Quente */}
+              {detalheCalculo.dualCostado && detalheCalculo.dualTampo && (
+                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                  <p className="text-xs font-bold text-orange-800 uppercase mb-2">Comparativo: Nova/Fria vs Corroída/Quente</p>
+                  <div className="grid grid-cols-2 gap-3 text-center">
+                    {(['Costado', 'Tampo'] as const).map(comp => {
+                      const dual = comp === 'Costado' ? detalheCalculo.dualCostado! : detalheCalculo.dualTampo!;
+                      return (
+                        <div key={comp} className="bg-white rounded-lg p-3 border border-orange-100">
+                          <p className="text-xs font-semibold text-gray-600 mb-2">{comp}</p>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="bg-sky-50 rounded p-1.5">
+                              <p className="text-sky-600 font-medium">Nova/Fria</p>
+                              <p className="text-lg font-bold text-sky-800">{(dual.novaFria * 10.197).toFixed(2)}</p>
+                              <p className="text-[10px] text-sky-500">kgf/cm²</p>
+                            </div>
+                            <div className="bg-red-50 rounded p-1.5">
+                              <p className="text-red-600 font-medium">Corr./Quente</p>
+                              <p className="text-lg font-bold text-red-800">{(dual.corroidaQuente * 10.197).toFixed(2)}</p>
+                              <p className="text-[10px] text-red-500">kgf/cm²</p>
+                            </div>
+                          </div>
+                          <p className="text-[10px] mt-1 text-gray-500">
+                            Limitante: <span className="font-bold">{(dual.limitante * 10.197).toFixed(2)}</span> ({dual.condicaoLimitante})
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Comparação PSV vs PMTA */}
               <div className={`p-4 rounded-xl border-2 ${detalheCalculo.condena ? 'bg-red-50 border-red-300' : 'bg-emerald-50 border-emerald-300'}`}>
                 <div className="grid grid-cols-3 items-center text-center">
                   <div>

@@ -13,7 +13,7 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResult, InspecoesNR13 } from '@/types'
 import { z } from 'zod'
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse } from '../domain/nr13/categorization'
-import { calcularPMTACilindro, calcularPMTATampoToriesferico, calcularPMTAGlobal } from '../domain/nr13/pmta'
+import { calcularPMTACostado, calcularPMTATampo, calcularPMTAGlobal, type GeometriaCostado, type GeometriaTampo } from '../domain/nr13/pmta'
 
 // ---------------------------------------------------------------------------
 // SCHEMA — aceita rascunhos parciais (campos opcionais) para permitir
@@ -137,8 +137,10 @@ export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>) {
     const R = d.diametroD / 2
     const sMpa = d.materialS / 10.197
     const psvMpa = d.psvCalibracao / 10.197
-    const pmtaCostado = calcularPMTACilindro({ S: sMpa, E: d.eficienciaE, t: d.espessuraCostado, R, D: d.diametroD })
-    const pmtaTampo = calcularPMTATampoToriesferico({ S: sMpa, E: d.eficienciaE, t: d.espessuraTampo, R, D: d.diametroD })
+    const geoCostado = (d.geometriaCostado || 'cilindrico') as GeometriaCostado
+    const geoTampo = (d.geometriaTampo || 'toriesferico') as GeometriaTampo
+    const pmtaCostado = calcularPMTACostado(geoCostado, { S: sMpa, E: d.eficienciaE, t: d.espessuraCostado, R, D: d.diametroD, alpha: d.anguloConeDeg })
+    const pmtaTampo = calcularPMTATampo(geoTampo, { S: sMpa, E: d.eficienciaE, t: d.espessuraTampo, R, D: d.diametroD, L: d.raioAbaulamento, r: d.raioRebordo, alpha: d.anguloConeDeg })
     const limitante = calcularPMTAGlobal(pmtaCostado, pmtaTampo, psvMpa)
     pmtaAsmeKpa = limitante.pmtaLimitante * 1000
     statusSeguranca = limitante.condena ? 'Downgrade_Necessario' : 'Conforme'
