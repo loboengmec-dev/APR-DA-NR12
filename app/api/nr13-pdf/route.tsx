@@ -67,10 +67,23 @@ export async function POST(req: NextRequest) {
     }
 
     // Monta URL pública da logo (bucket logos-usuario é público)
+    // @react-pdf/renderer tem dificuldades com URLs remotas, então converte para Data URL
     const perfilComLogo = { ...(perfil ?? {}) }
     if (perfilComLogo.logo_url) {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      perfilComLogo._logoPublicUrl = `${supabaseUrl}/storage/v1/object/public/logos-usuario/${perfilComLogo.logo_url}`
+      const logoUrl = `${supabaseUrl}/storage/v1/object/public/logos-usuario/${perfilComLogo.logo_url}`
+      try {
+        const logoResponse = await fetch(logoUrl)
+        if (logoResponse.ok) {
+          const buffer = await logoResponse.arrayBuffer()
+          const base64 = Buffer.from(buffer).toString('base64')
+          const contentType = logoResponse.headers.get('content-type') || 'image/png'
+          perfilComLogo._logoPublicUrl = `data:${contentType};base64,${base64}`
+        }
+      } catch (logoErr) {
+        console.warn('Erro ao carregar logo:', logoErr)
+        // Se falhar, deixa vazio (logo não aparece, mas PDF não quebra)
+      }
     }
 
     const document = <LaudoNR13PDF dados={dados} perfil={perfilComLogo} fotosUrl={fotosUrl ?? {}} fotoDimensoes={fotoDimensoes ?? {}} />
