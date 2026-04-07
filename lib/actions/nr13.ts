@@ -96,6 +96,17 @@ const InspecaoNR13Schema = z.object({
   rthCrea: z.string().optional().nullable(),
   rthProfissao: z.string().optional().nullable(),
 
+  // Fotos persistidas (storage paths)
+  fotoPlacaPath: z.string().optional().nullable(),
+  fotoManometroPath: z.string().optional().nullable(),
+  fotosExame: z.array(z.object({
+    tipoExame: z.string(),
+    storagePath: z.string(),
+    legenda: z.string().optional(),
+    tamanhoBytes: z.number().optional(),
+    ordem: z.number().int().optional(),
+  })).optional().nullable(),
+
   // Extras
   clienteId: z.string().nullable().optional(),
   numeroDocumento: z.string().nullable().optional(),
@@ -221,6 +232,10 @@ export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>) {
     rth_nome: d.rthNome || null,
     rth_crea: d.rthCrea || null,
     rth_profissao: d.rthProfissao || null,
+    // Fotos
+    foto_placa_path: d.fotoPlacaPath || null,
+    foto_manometro_path: d.fotoManometroPath || null,
+    fotos_exame: d.fotosExame ? JSON.stringify(d.fotosExame) : null,
   }
   console.log('[NR13-Server] Criando inspeção com vaso_id:', novoVaso.id, 'tag:', d.tag)
   const { data: inspecao, error: inspError } = await supabase
@@ -244,6 +259,7 @@ export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>) {
       grau_risco: ncs[i].grauRisco || 'Moderado',
       prazo_dias: ncs[i].prazo || 30,
       responsavel: ncs[i].responsavel || '',
+      foto_path: ncs[i].fotoPath || null,
       ordem: i,
     })
   }
@@ -357,6 +373,10 @@ export async function atualizarInspecaoNR13(
     rth_nome: form.rthNome,
     rth_crea: form.rthCrea,
     rth_profissao: form.rthProfissao,
+    // Fotos
+    foto_placa_path: form.fotoPlacaPath ?? undefined,
+    foto_manometro_path: form.fotoManometroPath ?? undefined,
+    fotos_exame: form.fotosExame ? JSON.stringify(form.fotosExame) : undefined,
   }
 
   // Remove campos undefined para não sobrescrever com null
@@ -384,6 +404,7 @@ export async function atualizarInspecaoNR13(
       grau_risco: nc.grauRisco,
       prazo_dias: nc.prazo,
       responsavel: nc.responsavel,
+      foto_path: nc.fotoPath || null,
       ordem: i,
     })
   }

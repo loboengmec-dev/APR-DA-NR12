@@ -58,11 +58,15 @@ function dbToForm(row: InspecoesNR13, ncs: NcNR13[]) {
       grauRisco: nc.grau_risco as any,
       prazo: nc.prazo_dias ?? 30,
       responsavel: nc.responsavel ?? '',
-      fotoPath: '',
+      fotoPath: nc.foto_path ?? '',
     })),
     rthNome: row.rth_nome ?? '',
     rthCrea: row.rth_crea ?? '',
     rthProfissao: row.rth_profissao ?? 'Engenheiro Mecânico',
+    // Fotos persistidas
+    fotoPlacaPath: row.foto_placa_path ?? '',
+    fotoManometroPath: row.foto_manometro_path ?? '',
+    fotosExame: parseJsonArray(row.fotos_exame, []),
   }
 }
 
@@ -112,10 +116,34 @@ export default function EditarInspecaoNR13Page() {
     const formData = dbToForm(inspecao as InspecoesNR13, (ncs ?? []) as NcNR13[])
     setInitialData(formData)
 
-    // Carrega URLs de fotos (placa, manometro, exame, etc.)
+    // Carrega URLs de fotos (placa, manometro, exame, medições, dispositivos, NCs)
     const urlMap: Record<string, string> = {}
     const medicoesArr = parseJsonArray(inspecao.medicoes_espessura, [])
     const dispArr = parseJsonArray(inspecao.dispositivos_seguranca, [])
+    const fotosExameArr = parseJsonArray(inspecao.fotos_exame, [])
+
+    // Foto da placa de identificação
+    if (inspecao.foto_placa_path) {
+      const url = await gerarUrlAssinadaNR13(inspecao.foto_placa_path)
+      if (url) urlMap['placa'] = url
+    }
+
+    // Foto do manômetro
+    if (inspecao.foto_manometro_path) {
+      const url = await gerarUrlAssinadaNR13(inspecao.foto_manometro_path)
+      if (url) urlMap['manometro'] = url
+    }
+
+    // Fotos do exame externo/interno
+    for (let i = 0; i < fotosExameArr.length; i++) {
+      if (fotosExameArr[i]?.storagePath) {
+        const url = await gerarUrlAssinadaNR13(fotosExameArr[i].storagePath)
+        if (url) {
+          const chave = i === 0 ? 'exame_externo' : 'exame_interno'
+          urlMap[chave] = url
+        }
+      }
+    }
 
     // Fotos de medições
     for (let i = 0; i < medicoesArr.length; i++) {
@@ -130,6 +158,15 @@ export default function EditarInspecaoNR13Page() {
       if (dispArr[i]?.fotoPath) {
         const url = await gerarUrlAssinadaNR13(dispArr[i].fotoPath)
         if (url) urlMap[`dispositivo_${i}`] = url
+      }
+    }
+
+    // Fotos de NCs
+    for (let i = 0; i < (ncs ?? []).length; i++) {
+      const nc = (ncs ?? [])[i] as any
+      if (nc?.foto_path) {
+        const url = await gerarUrlAssinadaNR13(nc.foto_path)
+        if (url) urlMap[`nc_${i}`] = url
       }
     }
 

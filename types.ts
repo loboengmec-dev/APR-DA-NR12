@@ -232,6 +232,9 @@ export interface InspecoesNR13 {
   rth_nome: string | null
   rth_crea: string | null
   rth_profissao: string | null
+  foto_placa_path: string | null
+  foto_manometro_path: string | null
+  fotos_exame: any | null
   created_at: string
 }
 
@@ -244,6 +247,7 @@ export interface NcNR13 {
   grau_risco: string
   prazo_dias: number | null
   responsavel: string | null
+  foto_path: string | null
   ordem: number
   created_at: string
 }

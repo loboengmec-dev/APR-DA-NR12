@@ -288,6 +288,64 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
   const { fields: ncFields, append: ncAppend, remove: ncRemove } = useFieldArray({ control, name: 'naoConformidades' });
   const { fields: fotosExameFields, append: fotosExameAppend, remove: fotosExameRemove, update: fotosExameUpdate } = useFieldArray({ control, name: 'fotosExame' });
 
+  // ─── Restaurar previews de fotos salvas ao carregar inspeção existente ───
+  useEffect(() => {
+    if (!initialData) return;
+    const carregarFotosSalvas = async () => {
+      // Foto da placa
+      if (initialData.fotoPlacaPath) {
+        const url = await gerarUrlAssinadaNR13(initialData.fotoPlacaPath);
+        if (url) setUrlFotoPlaca(url);
+      }
+      // Foto do manômetro
+      if (initialData.fotoManometroPath) {
+        const url = await gerarUrlAssinadaNR13(initialData.fotoManometroPath);
+        if (url) setUrlFotoManometro(url);
+      }
+      // Fotos do exame
+      const fotosExameArr = Array.isArray(initialData.fotosExame) ? initialData.fotosExame : [];
+      const exameUrls: string[] = [];
+      for (const fe of fotosExameArr) {
+        if (fe?.storagePath) {
+          const url = await gerarUrlAssinadaNR13(fe.storagePath);
+          if (url) exameUrls.push(url);
+        }
+      }
+      if (exameUrls.length > 0) setUrlsExame(exameUrls);
+      // Fotos de medições
+      const medicoesArr = Array.isArray(initialData.medicoesEspessura) ? initialData.medicoesEspessura : [];
+      const medUrlMap: Record<string, string> = {};
+      for (let i = 0; i < medicoesArr.length; i++) {
+        if (medicoesArr[i]?.fotoPath) {
+          const url = await gerarUrlAssinadaNR13(medicoesArr[i].fotoPath);
+          if (url) medUrlMap[`med_${i}`] = url;
+        }
+      }
+      if (Object.keys(medUrlMap).length > 0) setUrlsMedicao(medUrlMap);
+      // Fotos de dispositivos
+      const dispArr = Array.isArray(initialData.dispositivosSeguranca) ? initialData.dispositivosSeguranca : [];
+      const dispUrlMap: Record<string, string> = {};
+      for (let i = 0; i < dispArr.length; i++) {
+        if (dispArr[i]?.fotoPath) {
+          const url = await gerarUrlAssinadaNR13(dispArr[i].fotoPath);
+          if (url) dispUrlMap[`disp_${i}`] = url;
+        }
+      }
+      if (Object.keys(dispUrlMap).length > 0) setUrlsDispositivo(dispUrlMap);
+      // Fotos de NCs
+      const ncsArr = Array.isArray(initialData.naoConformidades) ? initialData.naoConformidades : [];
+      const ncUrlMap: Record<string, string> = {};
+      for (let i = 0; i < ncsArr.length; i++) {
+        if (ncsArr[i]?.fotoPath) {
+          const url = await gerarUrlAssinadaNR13(ncsArr[i].fotoPath);
+          if (url) ncUrlMap[`nc_${i}`] = url;
+        }
+      }
+      if (Object.keys(ncUrlMap).length > 0) setUrlsNc(ncUrlMap);
+    };
+    carregarFotosSalvas();
+  }, [initialData]);
+
   // ─── Auto-detecção de Não Conformidades ───
   function autoNcsFromValues(vals: typeof v): Array<{
     descricao: string; refNR13: string; acaoCorretiva: string;
@@ -471,7 +529,6 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert('[DEBUG] Botão foi clicado. Modo:', modoEdicao ? 'edição' : 'novo');
     console.log('[NR13] handleSubmit chamado, modoEdicao:', modoEdicao);
     setErroSalvar(null);
 
@@ -529,6 +586,10 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
       rthNome: (v.rthNome ?? '').trim(),
       rthCrea: (v.rthCrea ?? '').trim(),
       rthProfissao: v.rthProfissao ?? null,
+      // Fotos persistidas (storage paths para cross-device)
+      fotoPlacaPath: v.fotoPlacaPath || null,
+      fotoManometroPath: v.fotoManometroPath || null,
+      fotosExame: (v.fotosExame as any[]) ?? [],
     };
 
     console.log('[NR13] Payload a enviar:', JSON.stringify(payload).slice(0, 200));
