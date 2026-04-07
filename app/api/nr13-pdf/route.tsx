@@ -66,23 +66,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Monta URL pública da logo (bucket logos-usuario é público)
-    // @react-pdf/renderer tem dificuldades com URLs remotas, então converte para Data URL
+    // Carrega logo do Storage via URL assinada e converte para Data URL (base64)
+    // @react-pdf/renderer não carrega URLs remotas bem, então precisa ser data URI
     const perfilComLogo = { ...(perfil ?? {}) }
     if (perfilComLogo.logo_url) {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const logoUrl = `${supabaseUrl}/storage/v1/object/public/logos-usuario/${perfilComLogo.logo_url}`
       try {
-        const logoResponse = await fetch(logoUrl)
-        if (logoResponse.ok) {
-          const buffer = await logoResponse.arrayBuffer()
-          const base64 = Buffer.from(buffer).toString('base64')
-          const contentType = logoResponse.headers.get('content-type') || 'image/png'
-          perfilComLogo._logoPublicUrl = `data:${contentType};base64,${base64}`
+        const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+        const supabaseAdmin = createServiceClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        )
+        const { data: signedData } = await supabaseAdmin.storage
+          .from('logos-usuario')
+          .createSignedUrl(perfilComLogo.logo_url, 60)
+
+        if (signedData?.signedUrl) {
+          const logoResponse = await fetch(signedData.signedUrl)
+          if (logoResponse.ok) {
+            const buffer = await logoResponse.arrayBuffer()
+            const base64 = Buffer.from(buffer).toString('base64')
+            const contentType = logoResponse.headers.get('content-type') || 'image/png'
+            perfilComLogo._logoPublicUrl = `data:${contentType};base64,${base64}`
+          }
         }
       } catch (logoErr) {
-        console.warn('Erro ao carregar logo:', logoErr)
-        // Se falhar, deixa vazio (logo não aparece, mas PDF não quebra)
+        console.warn('Erro ao carregar logo para PDF:', logoErr)
       }
     }
 

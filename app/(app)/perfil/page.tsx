@@ -5,11 +5,16 @@ import { createClient } from '@/lib/supabase/client'
 import { uploadLogo } from '@/lib/storage'
 import type { Usuario } from '@/types'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const BUCKET_LOGOS = 'logos-usuario'
 
-function urlPublicaLogo(storagePath: string): string {
-  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_LOGOS}/${storagePath}`
+/** Gera URL assinada (1h) para a logo no Storage */
+async function gerarUrlLogo(storagePath: string): Promise<string | null> {
+  const supabase = createClient()
+  const { data, error } = await supabase.storage
+    .from(BUCKET_LOGOS)
+    .createSignedUrl(storagePath, 3600)
+  if (error || !data?.signedUrl) return null
+  return data.signedUrl
 }
 
 export default function PerfilPage() {
@@ -42,7 +47,10 @@ export default function PerfilPage() {
         setPerfil(data)
         setNome(data.nome ?? '')
         setCrea(data.crea ?? '')
-        if (data.logo_url) setLogoPreview(urlPublicaLogo(data.logo_url))
+        if (data.logo_url) {
+          const url = await gerarUrlLogo(data.logo_url)
+          if (url) setLogoPreview(url)
+        }
       }
     }
     carregar()
@@ -100,7 +108,12 @@ export default function PerfilPage() {
 
     if (uploadError || !path) {
       setErroLogo('Erro ao enviar logo: ' + (uploadError ?? 'tente novamente.'))
-      setLogoPreview(perfil.logo_url ? urlPublicaLogo(perfil.logo_url) : null)
+      if (perfil.logo_url) {
+        const fallbackUrl = await gerarUrlLogo(perfil.logo_url)
+        setLogoPreview(fallbackUrl)
+      } else {
+        setLogoPreview(null)
+      }
       setUploadandoLogo(false)
       return
     }
@@ -115,7 +128,8 @@ export default function PerfilPage() {
       setErroLogo('Logo enviada, mas erro ao salvar no perfil: ' + dbError.message)
     } else {
       setPerfil(prev => ({ ...prev, logo_url: path }))
-      setLogoPreview(urlPublicaLogo(path))
+      const novaUrl = await gerarUrlLogo(path)
+      if (novaUrl) setLogoPreview(novaUrl)
       setMensagem('Logo atualizada com sucesso.')
     }
 
