@@ -6,6 +6,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pdf } from '@react-pdf/renderer'
 import LaudoNR13PDF from '@/components/pdf/LaudoNR13PDF'
+import {
+  calcularPMTACostado,
+  calcularPMTATampo,
+  calcularPMTAGlobal,
+  calcularFatorM,
+  type GeometriaCostado,
+  type GeometriaTampo,
+} from '@/lib/domain/nr13/pmta'
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,20 +30,40 @@ export async function POST(req: NextRequest) {
       dados.espessuraCostado && dados.espessuraTampo && dados.psvCalibracao
     ) {
       const R = dados.diametroD / 2
-      const sMpa = Number(dados.materialS) / 10.197       // kgf/cm² → MPa
-      const psvMpa = Number(dados.psvCalibracao) / 10.197  // kgf/cm² → MPa
+      const sMpa = Number(dados.materialS) / 10.197
+      const psvMpa = Number(dados.psvCalibracao) / 10.197
+      const geoCostado = (dados.geometriaCostado || 'cilindrico') as GeometriaCostado
+      const geoTampo = (dados.geometriaTampo || 'toriesferico') as GeometriaTampo
 
-      // Costado cilíndrico: P = (S * E * t) / (R + 0.6 * t), resultado em MPa
-      const pmtaCostadoMpa = (sMpa * dados.eficienciaE * dados.espessuraCostado) / (R + 0.6 * dados.espessuraCostado)
+      const paramsCostado = {
+        S: sMpa, E: dados.eficienciaE, t: dados.espessuraCostado,
+        R, D: dados.diametroD, alpha: dados.anguloConeDeg,
+      }
+      const paramsTampo = {
+        S: sMpa, E: dados.eficienciaE, t: dados.espessuraTampo,
+        R, D: dados.diametroD,
+        L: dados.raioAbaulamento || undefined,
+        r: dados.raioRebordo || undefined,
+        alpha: dados.anguloConeDeg,
+      }
 
-      // Tampo semi-elíptico 2:1: P = (2 * S * E * t) / (D + 0.2 * t)
-      const pmtaTampoMpa = (2 * sMpa * dados.eficienciaE * dados.espessuraTampo) / (dados.diametroD + 0.2 * dados.espessuraTampo)
+      const pmtaCostadoMpa = calcularPMTACostado(geoCostado, paramsCostado)
+      const pmtaTampoMpa = calcularPMTATampo(geoTampo, paramsTampo)
+      const global = calcularPMTAGlobal(pmtaCostadoMpa, pmtaTampoMpa, psvMpa)
 
       // Converte para kgf/cm² para exibição no PDF
       dados._pmtaCostado = pmtaCostadoMpa * 10.197
       dados._pmtaTampo = pmtaTampoMpa * 10.197
-      dados._pmtaLimitante = Math.min(pmtaCostadoMpa, pmtaTampoMpa) * 10.197
-      dados._condena = Number(dados.psvCalibracao) > dados._pmtaLimitante
+      dados._pmtaLimitante = global.pmtaLimitante * 10.197
+      dados._componenteFragil = global.componenteFragil
+      dados._condena = global.condena
+
+      // Fator M para torisférico
+      if (geoTampo === 'toriesferico') {
+        const L = dados.raioAbaulamento || dados.diametroD
+        const rK = dados.raioRebordo || 0.06 * dados.diametroD
+        dados._fatorM = calcularFatorM(L, rK)
+      }
     }
 
     const document = <LaudoNR13PDF dados={dados} perfil={perfil ?? {}} fotosUrl={fotosUrl ?? {}} fotoDimensoes={fotoDimensoes ?? {}} />

@@ -655,14 +655,14 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
               <View style={[S.kpi, { borderLeftWidth: 3, borderLeftColor: THEME.amberAccent }]}>
                 <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>PMTA Tampo</Text>
                 <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: THEME.amberAccent, marginTop: 4 }}>
-                  {d._pmtaTampo != null ? (Number(d._pmtaTampo) * 10.197).toFixed(2) : '—'}
+                  {d._pmtaTampo != null ? Number(d._pmtaTampo).toFixed(2) : '—'}
                   <Text style={{ fontSize: 8, color: THEME.textSecondary, fontFamily: 'Helvetica' }}> kgf/cm²</Text>
                 </Text>
               </View>
               <View style={[S.kpi, { borderLeftWidth: 3, borderLeftColor: THEME.emerald }]}>
                 <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>PMTA Limitante</Text>
                 <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: THEME.emerald, marginTop: 4 }}>
-                  {d._pmtaLimitante != null ? (Number(d._pmtaLimitante) * 10.197).toFixed(2) : '—'}
+                  {d._pmtaLimitante != null ? Number(d._pmtaLimitante).toFixed(2) : '—'}
                   <Text style={{ fontSize: 8, color: THEME.textSecondary, fontFamily: 'Helvetica' }}> kgf/cm²</Text>
                 </Text>
               </View>
@@ -679,20 +679,65 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
             )}
 
             {/* Parâmetros de entrada */}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: THEME.borderLight }}>
-              {[
-                ['Tensão Admissível S', d.materialS ? `${d.materialS} kgf/cm²` : '—'],
-                ['Eficiência de Solda E', d.eficienciaE ?? '—'],
-                ['Diâmetro Interno D', d.diametroD ? `${d.diametroD} mm` : '—'],
-                ['Espessura Costado', d.espessuraCostado ? `${d.espessuraCostado} mm` : '—'],
-                ['Espessura Tampo', d.espessuraTampo ? `${d.espessuraTampo} mm` : '—'],
-                ['PSV Calibração', d.psvCalibracao ? `${d.psvCalibracao} kgf/cm²` : '—'],
-              ].map(([l, v]: any) => (
-                <View key={l} style={{ flex: 1, minWidth: '40%' }}>
-                  <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>{l}</Text>
-                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{v ?? '—'}</Text>
-                </View>
-              ))}
+            <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: THEME.borderLight }}>
+              {/* Geometria */}
+              {(() => {
+                const geoLabels: Record<string, string> = {
+                  cilindrico: 'Cilíndrico — UG-27(c)(1)',
+                  esferico: 'Esférico — UG-27(d)',
+                  elipsoidal: 'Elipsoidal 2:1 — UG-32(d)',
+                  toriesferico: 'Torisférico (F&D) — UG-32(e)',
+                  semiesferico: 'Semiesférico — UG-32(f)',
+                  conico: 'Cônico — UG-32(g)',
+                }
+                return (
+                  <View style={{ flexDirection: 'row', gap: 16, marginBottom: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Geometria do Costado</Text>
+                      <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>
+                        {geoLabels[d.geometriaCostado] ?? d.geometriaCostado ?? 'Cilíndrico — UG-27(c)(1)'}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Geometria do Tampo</Text>
+                      <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>
+                        {geoLabels[d.geometriaTampo] ?? d.geometriaTampo ?? 'Torisférico — UG-32(e)'}
+                      </Text>
+                    </View>
+                    {d._componenteFragil && (
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Componente Limitante</Text>
+                        <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: THEME.amberAccent }}>{d._componenteFragil}</Text>
+                      </View>
+                    )}
+                  </View>
+                )
+              })()}
+
+              {/* Campos numéricos */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
+                {[
+                  ['Tensão Admissível S', d.materialS ? `${d.materialS} kgf/cm²` : '—'],
+                  ['Eficiência de Solda E', d.eficienciaE ?? '—'],
+                  ['Diâmetro Interno D', d.diametroD ? `${d.diametroD} mm` : '—'],
+                  ['Espessura Costado', d.espessuraCostado ? `${d.espessuraCostado} mm` : '—'],
+                  ['Espessura Tampo', d.espessuraTampo ? `${d.espessuraTampo} mm` : '—'],
+                  ['PSV Calibração', d.psvCalibracao ? `${d.psvCalibracao} kgf/cm²` : '—'],
+                  ...(d.geometriaTampo === 'toriesferico' && d._fatorM
+                    ? [['Fator M (torisférico)', Number(d._fatorM).toFixed(4)]] : []),
+                  ...(d.geometriaTampo === 'conico' && d.anguloConeDeg
+                    ? [['Semi-ângulo α', `${d.anguloConeDeg}°`]] : []),
+                  ...(d.geometriaTampo === 'toriesferico' && d.raioAbaulamento
+                    ? [['Raio Abaulamento L', `${d.raioAbaulamento} mm`]] : []),
+                  ...(d.geometriaTampo === 'toriesferico' && d.raioRebordo
+                    ? [['Raio Rebordo r', `${d.raioRebordo} mm`]] : []),
+                ].map(([l, v]: any) => (
+                  <View key={l} style={{ flex: 1, minWidth: '40%' }}>
+                    <Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>{l}</Text>
+                    <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: THEME.textPrimary }}>{v ?? '—'}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
           </View>
 
