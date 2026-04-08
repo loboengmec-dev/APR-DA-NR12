@@ -118,12 +118,12 @@ export type InspecaoNR13Data = z.infer<typeof InspecaoNR13Schema>;
 // ---------------------------------------------------------------------------
 // SERVER ACTION: Salvar inspeção completa
 // ---------------------------------------------------------------------------
-export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>) {
+export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>, clienteId?: string | null) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, errors: { formErrors: ['Não autenticado'], fieldErrors: {} } }
 
-  console.log('[NR13-Server] salvarInspecaoNR13 — usuario:', user.id)
+  console.log('[NR13-Server] salvarInspecaoNR13 — usuario:', user.id, 'clienteId:', clienteId ?? formData.clienteId ?? 'nulo')
   console.log('[NR13-Server] dados:', JSON.stringify(formData, null, 2).slice(0, 500))
 
   // Usa os dados crus — NÃO valida com Zod para permitir rascunhos parciais
@@ -147,16 +147,31 @@ export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>) {
   }
 
   // 1. Encontrar ou criar cliente (necessário para RLS)
-  const { data: clientes } = await supabase.from('clientes').select('id').eq('usuario_id', user.id).limit(1)
-  let clienteId: string | null = clientes?.[0]?.id ?? null
+  // Prioridade: 1) clienteId passado como argumento, 2) payload.clienteId, 3) fallback
+  let cid: string | null = clienteId ?? d.clienteId ?? null
 
-  if (!clienteId) {
+  if (cid) {
+    // Verifica se o cliente informado existe e pertence ao usuário
+    const { data: cli, error: cliErr } = await supabase
+      .from('clientes')
+      .select('id')
+      .eq('id', cid)
+      .eq('usuario_id', user.id)
+      .single()
+    if (cliErr || !cli) {
+      console.warn('[NR13-Server] clienteId inválido ou não pertence ao usuário, buscando alternativo')
+      cid = null
+    }
+  }
+
+  if (!cid) {
     const { data: clientes } = await supabase.from('clientes').select('id').eq('usuario_id', user.id).limit(1)
-    clienteId = clientes?.[0]?.id ?? null
+    cid = clientes?.[0]?.id ?? null
+  }
 
-    if (!clienteId) {
-      const tag = d.tag || 'Cliente'
-      console.log('[NR13-Server] Criando cliente com tag:', tag)
+  if (!cid) {
+    const tag = d.tag || 'Cliente'
+    console.log('[NR13-Server] Criando cliente com tag:', tag)
     const { data: novoCliente, error: cliErr } = await supabase
       .from('clientes')
       .insert({ usuario_id: user.id, razao_social: tag })
@@ -165,12 +180,12 @@ export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>) {
       console.error('[NR13-Server] Erro ao criar cliente:', cliErr)
       return { success: false, errors: { formErrors: [cliErr?.message ?? 'Não foi possível criar cliente'] } }
     }
-    clienteId = novoCliente.id
+    cid = novoCliente.id
   }
 
   // 2. Criar vaso_pressao (necessário para RLS)
   const vasoData: any = {
-    cliente_id: clienteId,
+    cliente_id: cid,
     tag: d.tag || 'SEM_TAG',
     fabricante: d.fabricante || null,
     numero_serie: d.numeroSerie || null,

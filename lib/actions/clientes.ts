@@ -66,3 +66,18 @@ export async function excluirCliente(id: string): Promise<ActionResult> {
   revalidatePath('/dashboard')
   return {}
 }
+
+export async function buscarCliente(id: string): Promise<ActionResult<Cliente>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Não autenticado' }
+
+  const { data, error } = await supabase
+    .from('clientes')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) return { error: error.message }
+  return { data }
+}

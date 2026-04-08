@@ -222,7 +222,7 @@ interface FormInspecaoNR13Props {
   /** ID da inspeção existente — se presente, submit faz UPDATE ao invés de INSERT. */
   inspecaoId?: string;
   /** ID do cliente para nova inspeção. */
-  clienteId?: string;
+  clienteId?: string | null;
 }
 
 export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }: FormInspecaoNR13Props = {}) {
