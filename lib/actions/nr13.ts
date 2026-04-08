@@ -13,7 +13,8 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResult, InspecoesNR13 } from '@/types'
 import { z } from 'zod'
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse } from '../domain/nr13/categorization'
-import { calcularPMTACostado, calcularPMTATampo, calcularPMTAGlobal, type GeometriaCostado, type GeometriaTampo } from '../domain/nr13/pmta'
+import { calcularPMTACostadoPorNorma, calcularPMTATampoPorNorma, calcularPMTAGlobal, type GeometriaCostado, type GeometriaTampo } from '../domain/nr13/pmta'
+import type { NormaCalculo } from '../domain/nr13/materiais'
 
 // ---------------------------------------------------------------------------
 // SCHEMA — aceita rascunhos parciais (campos opcionais) para permitir
@@ -68,6 +69,7 @@ const InspecaoNR13Schema = z.object({
     fotoPath: z.string().optional().nullable(),
   })).optional().nullable(),
 
+  normaCalculo: z.enum(['ASME', 'GBT150']).optional().default('ASME'),
   materialS: z.number().optional().nullable(),
   eficienciaE: z.number().optional().nullable(),
   diametroD: z.number().optional().nullable(),
@@ -137,10 +139,12 @@ export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>, cl
     const R = d.diametroD / 2
     const sMpa = d.materialS / 10.197
     const psvMpa = d.psvCalibracao / 10.197
+    const norma = (d.normaCalculo || 'ASME') as NormaCalculo
     const geoCostado = (d.geometriaCostado || 'cilindrico') as GeometriaCostado
     const geoTampo = (d.geometriaTampo || 'toriesferico') as GeometriaTampo
-    const pmtaCostado = calcularPMTACostado(geoCostado, { S: sMpa, E: d.eficienciaE, t: d.espessuraCostado, R, D: d.diametroD, alpha: d.anguloConeDeg })
-    const pmtaTampo = calcularPMTATampo(geoTampo, { S: sMpa, E: d.eficienciaE, t: d.espessuraTampo, R, D: d.diametroD, L: d.raioAbaulamento, r: d.raioRebordo, alpha: d.anguloConeDeg })
+    // Double-check server-side: usa o mesmo dispatcher de norma do frontend
+    const pmtaCostado = calcularPMTACostadoPorNorma(norma, geoCostado, { S: sMpa, E: d.eficienciaE, t: d.espessuraCostado, R, D: d.diametroD, alpha: d.anguloConeDeg })
+    const pmtaTampo = calcularPMTATampoPorNorma(norma, geoTampo, { S: sMpa, E: d.eficienciaE, t: d.espessuraTampo, R, D: d.diametroD, L: d.raioAbaulamento, r: d.raioRebordo, alpha: d.anguloConeDeg })
     const limitante = calcularPMTAGlobal(pmtaCostado, pmtaTampo, psvMpa)
     pmtaAsmeKpa = limitante.pmtaLimitante * 1000
     statusSeguranca = limitante.condena ? 'Downgrade_Necessario' : 'Conforme'
@@ -236,6 +240,7 @@ export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>, cl
     exame_interno: d.exameInterno || null,
     medicoes_espessura: d.medicoesEspessura ? JSON.stringify(d.medicoesEspessura) : null,
     dispositivos_seguranca: d.dispositivosSeguranca ? JSON.stringify(d.dispositivosSeguranca) : null,
+    norma_calculo: d.normaCalculo || 'ASME',
     material_s: d.materialS || null,
     eficiencia_e: d.eficienciaE || null,
     diametro_d: d.diametroD || null,
@@ -379,6 +384,7 @@ export async function atualizarInspecaoNR13(
     exame_interno: form.exameInterno,
     medicoes_espessura: form.medicoesEspessura ? JSON.stringify(form.medicoesEspessura) : undefined,
     dispositivos_seguranca: form.dispositivosSeguranca ? JSON.stringify(form.dispositivosSeguranca) : undefined,
+    norma_calculo: form.normaCalculo ?? undefined,
     material_s: form.materialS,
     eficiencia_e: form.eficienciaE,
     diametro_d: form.diametroD,

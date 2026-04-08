@@ -1,18 +1,25 @@
 /**
- * Especialista NR-13 (ASME Sec. VIII Div 1)
+ * Motor de Cálculo PMTA (Pressão Máxima de Trabalho Admissível)
  * Módulo de Domínio Isolado (Domain-Driven Design)
  *
- * Cálculos de PMTA (Pressão Máxima de Trabalho Admissível) para
- * todas as geometrias previstas na norma ASME Sec. VIII Div 1.
+ * Suporta dois sistemas normativos:
  *
- * Referências:
+ * ASME Sec. VIII Div. 1:
  *  - UG-27(c)(1): Casco cilíndrico
  *  - UG-27(d):    Casco esférico
  *  - UG-32(d):    Tampo elipsoidal 2:1
  *  - UG-32(e):    Tampo torisférico
  *  - UG-32(f):    Tampo semiesférico
  *  - UG-32(g):    Tampo cônico (sem transição)
+ *
+ * GB/T 150-2011 (norma chinesa de vasos de pressão):
+ *  - Cláusula 5.2:   Casco cilíndrico
+ *  - Cláusula 5.3.1: Tampo torisférico
+ *
+ * Unidades: MPa para tensão, mm para dimensões → resultado em MPa.
  */
+
+export type { NormaCalculo } from './materiais';
 
 // ---------------------------------------------------------------------------
 // TIPOS
@@ -274,6 +281,115 @@ export function calcularPMTAGlobal(
   const condena = pressaoOperacao ? pmtaLimitante < pressaoOperacao : false;
 
   return { pmtaLimitante, componenteFragil, condena };
+}
+
+// ---------------------------------------------------------------------------
+// GB/T 150-2011 — COSTADO CILÍNDRICO (Cláusula 5.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * PMTA para Costado Cilíndrico conforme GB/T 150-2011 (Cláusula 5.2).
+ *
+ * Fórmula: P = (2 · [σ] · φ · te) / (Di + te)
+ *
+ * Diferenças em relação ao ASME:
+ *  - Usa Di (diâmetro interno) no denominador, não Ri
+ *  - Fator 2 no numerador (tensão circunferencial)
+ *  - Sem fator 0.6 de ajuste de Lamé no denominador
+ *
+ * @param S   - Tensão admissível [σ] (MPa)
+ * @param E   - Eficiência de junta φ (ex: 1.0, 0.85)
+ * @param t   - Espessura efetiva te (mm)
+ * @param D   - Diâmetro interno Di (mm)
+ */
+export function calcularPMTACilindroGBT150({ S, E, t, D }: ParametrosPMTA): number {
+  if (t <= 0 || D <= 0) return 0;
+  return (2 * S * E * t) / (D + t);
+}
+
+// ---------------------------------------------------------------------------
+// GB/T 150-2011 — TAMPO TORISFÉRICO (Cláusula 5.3.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fator K para tampo torisférico conforme GB/T 150-2011 (Cláusula 5.3.1).
+ *
+ * Regra de seleção:
+ *  1. Se r/Di = 0.06 (padrão comercial) → K = 0.93
+ *  2. Caso contrário → K = (1/6) · (3 + √(L/r))
+ *
+ * @param Di - Diâmetro interno (mm)
+ * @param L  - Raio de abaulamento (mm)
+ * @param r  - Raio de rebordo knuckle (mm)
+ */
+export function calcularFatorK_GBT150(Di: number, L: number, r: number): number {
+  if (r <= 0 || Di <= 0) return 0.93; // fallback padrão comercial
+  const razaoRebordo = r / Di;
+  // Tolerância de ±0.001 para comparações de ponto flutuante
+  if (Math.abs(razaoRebordo - 0.06) <= 0.001) return 0.93;
+  if (L <= 0) return 0.93;
+  return (1 / 6) * (3 + Math.sqrt(L / r));
+}
+
+/**
+ * PMTA para Tampo Torisférico conforme GB/T 150-2011 (Cláusula 5.3.1).
+ *
+ * Fórmula: P = (2 · [σ] · φ · te) / (K · Di + 0,5 · te)
+ *
+ * @param L - Raio de abaulamento (mm). Default = Di.
+ * @param r - Raio de rebordo knuckle (mm). Default = 0.06·Di.
+ */
+export function calcularPMTATampoToriesfericoGBT150({ S, E, t, D, L, r: rKnuckle }: ParametrosPMTA): number {
+  if (t <= 0 || D <= 0) return 0;
+  const raioAbaulamento = L ?? D;
+  const raioRebordo = rKnuckle ?? 0.06 * D;
+  const K = calcularFatorK_GBT150(D, raioAbaulamento, raioRebordo);
+  return (2 * S * E * t) / (K * D + 0.5 * t);
+}
+
+// ---------------------------------------------------------------------------
+// DISPATCHERS POR NORMA
+// ---------------------------------------------------------------------------
+
+import type { NormaCalculo } from './materiais';
+
+/**
+ * Calcula PMTA do costado despachando pela norma e geometria selecionadas.
+ *
+ * GB/T 150 implementa apenas costado cilíndrico.
+ * Para geometria esférica com GB/T 150, usa a fórmula ASME como fallback
+ * (a norma não define esfera separada neste contexto).
+ */
+export function calcularPMTACostadoPorNorma(
+  norma: NormaCalculo,
+  geometria: GeometriaCostado,
+  params: ParametrosPMTA
+): number {
+  if (norma === 'GBT150') {
+    // GB/T 150 define apenas casco cilíndrico; esférico usa ASME como fallback
+    if (geometria === 'cilindrico') return calcularPMTACilindroGBT150(params);
+    return calcularPMTAEsfera(params); // fallback ASME para esfera
+  }
+  return calcularPMTACostado(geometria, params);
+}
+
+/**
+ * Calcula PMTA do tampo despachando pela norma e geometria selecionadas.
+ *
+ * GB/T 150 implementa apenas tampo torisférico.
+ * Para demais geometrias com GB/T 150, usa as fórmulas ASME como fallback.
+ */
+export function calcularPMTATampoPorNorma(
+  norma: NormaCalculo,
+  geometria: GeometriaTampo,
+  params: ParametrosPMTA
+): number {
+  if (norma === 'GBT150') {
+    if (geometria === 'toriesferico') return calcularPMTATampoToriesfericoGBT150(params);
+    // Demais geometrias: fallback para ASME
+    return calcularPMTATampo(geometria, params);
+  }
+  return calcularPMTATampo(geometria, params);
 }
 
 // ---------------------------------------------------------------------------

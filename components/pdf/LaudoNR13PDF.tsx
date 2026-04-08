@@ -645,12 +645,20 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
         </View>
       </Page>
 
-      {/* ====================== CÁLCULO ASME + PARECER ====================== */}
+      {/* ====================== CÁLCULO PMTA + PARECER ====================== */}
       <Page size="A4" style={S.page} break>
         <Header /><Footer />
         <View style={S.pg}>
-          {/* Avaliação Estrutural — estilo editorial NR-12 */}
-          <Text style={[S.h2, { marginTop: 0 }]}>7. Avaliação Estrutural — ASME Sec VIII Div. 1</Text>
+          {/* Avaliação Estrutural — título dinâmico por norma */}
+          <Text style={[S.h2, { marginTop: 0 }]}>
+            7. Avaliação Estrutural — {d._normaSelecionada ?? 'ASME Sec VIII Div. 1'}
+          </Text>
+          {/* Critério de Cálculo */}
+          <View style={{ marginBottom: 10, backgroundColor: '#eff6ff', borderRadius: 4, paddingHorizontal: 10, paddingVertical: 6, borderLeftWidth: 3, borderLeftColor: '#1d4ed8' }}>
+            <Text style={{ fontSize: 8, color: '#1d4ed8', fontFamily: 'Helvetica-Bold' }}>
+              Critério de Cálculo: {d._normaSelecionada ?? 'ASME Sec VIII Div. 1'}
+            </Text>
+          </View>
 
           {/* Card do Cabeçalho com TAG */}
           <View style={{ marginBottom: 20, backgroundColor: THEME.bg, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: THEME.borderLight }} wrap={false}>
@@ -695,11 +703,12 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
             <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: THEME.borderLight }}>
               {/* Geometria */}
               {(() => {
+                const isGBT = d.normaCalculo === 'GBT150'
                 const geoLabels: Record<string, string> = {
-                  cilindrico: 'Cilíndrico — UG-27(c)(1)',
+                  cilindrico: isGBT ? 'Cilíndrico — GB/T 150 Cláus. 5.2' : 'Cilíndrico — UG-27(c)(1)',
                   esferico: 'Esférico — UG-27(d)',
                   elipsoidal: 'Elipsoidal 2:1 — UG-32(d)',
-                  toriesferico: 'Torisférico (F&D) — UG-32(e)',
+                  toriesferico: isGBT ? 'Torisférico — GB/T 150 Cláus. 5.3.1' : 'Torisférico (F&D) — UG-32(e)',
                   semiesferico: 'Semiesférico — UG-32(f)',
                   conico: 'Cônico — UG-32(g)',
                 }
@@ -730,14 +739,20 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
               {/* Campos numéricos */}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
                 {[
-                  ['Tensão Admissível S', d.materialS ? `${d.materialS} kgf/cm²` : '—'],
-                  ['Eficiência de Solda E', d.eficienciaE ?? '—'],
+                  ['Tensão Admissível S', d.materialS
+                    ? `${Number(d.materialS).toFixed(1)} kgf/cm²  /  ${(Number(d.materialS) / 10.197).toFixed(1)} MPa`
+                    : '—'],
+                  ['Eficiência de Solda φ', d.eficienciaE ?? '—'],
                   ['Diâmetro Interno D', d.diametroD ? `${d.diametroD} mm` : '—'],
                   ['Espessura Costado', d.espessuraCostado ? `${d.espessuraCostado} mm` : '—'],
                   ['Espessura Tampo', d.espessuraTampo ? `${d.espessuraTampo} mm` : '—'],
-                  ['PSV Calibração', d.psvCalibracao ? `${d.psvCalibracao} kgf/cm²` : '—'],
+                  ['PSV Calibração', d.psvCalibracao
+                    ? `${Number(d.psvCalibracao).toFixed(2)} kgf/cm²  /  ${(Number(d.psvCalibracao) / 10.197).toFixed(2)} MPa`
+                    : '—'],
                   ...(d.geometriaTampo === 'toriesferico' && d._fatorM
-                    ? [['Fator M (torisférico)', Number(d._fatorM).toFixed(4)]] : []),
+                    ? [['Fator M (ASME UG-32e)', Number(d._fatorM).toFixed(4)]] : []),
+                  ...(d.geometriaTampo === 'toriesferico' && d._fatorK
+                    ? [['Fator K (GB/T 150 Cláus. 5.3.1)', Number(d._fatorK).toFixed(4)]] : []),
                   ...(d.geometriaTampo === 'conico' && d.anguloConeDeg
                     ? [['Semi-ângulo α', `${d.anguloConeDeg}°`]] : []),
                   ...(d.geometriaTampo === 'toriesferico' && d.raioAbaulamento

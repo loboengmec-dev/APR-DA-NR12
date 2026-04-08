@@ -7,13 +7,21 @@ import { z } from 'zod';
 import {
   calcularPMTACostado,
   calcularPMTATampo,
+  calcularPMTACostadoPorNorma,
+  calcularPMTATampoPorNorma,
   calcularPMTAGlobal,
   calcularPMTADual,
   calcularFatorM,
+  calcularFatorK_GBT150,
   type GeometriaCostado,
   type GeometriaTampo,
   type ResultadoPMTADual,
 } from '../../lib/domain/nr13/pmta';
+import {
+  getMateriaisPorNorma,
+  LABEL_NORMA,
+  type NormaCalculo,
+} from '../../lib/domain/nr13/materiais';
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse, LIMITES_GRUPO } from '../../lib/domain/nr13/categorization';
 import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, uploadFotoManometro, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
 import { salvarInspecaoNR13, atualizarInspecaoNR13, type InspecaoNR13Data } from '../../lib/actions/nr13';
@@ -124,7 +132,8 @@ const FormSchema = z.object({
     fotoPath: z.string().optional(),
   })).min(1, 'Registre ao menos um dispositivo de segurança'),
 
-  // --- Seção 4: Cálculo ASME Sec. VIII ---
+  // --- Seção 4: Cálculo (ASME ou GB/T 150) ---
+  normaCalculo: z.enum(['ASME', 'GBT150']).default('ASME'),
   geometriaCostado: z.enum(['cilindrico', 'esferico']),
   geometriaTampo: z.enum(['elipsoidal', 'toriesferico', 'semiesferico', 'conico']),
   materialS: z.coerce.number().positive(),
@@ -245,7 +254,8 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
     pmtaCostado: number; pmtaTampo: number; pmtaLimitante: number;
     componenteFragil: 'Costado' | 'Tampo'; psvInformada: number; condena: boolean;
     dualCostado?: ResultadoPMTADual; dualTampo?: ResultadoPMTADual;
-    fatorM?: number;
+    fatorM?: number;  // ASME UG-32(e)
+    fatorK?: number;  // GB/T 150-2011 Cláusula 5.3.1
   } | null>(null);
 
   // ─── Estado de pré-visualização de fotos (urls assinadas temporárias) ───
@@ -276,6 +286,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
   const [erroSalvar, setErroSalvar] = useState<string | null>(null);
 
   const defaultsNovo = {
+    normaCalculo: 'ASME' as NormaCalculo,
     geometriaCostado: 'cilindrico',
     geometriaTampo: 'toriesferico',
     diametroD: 1000,
@@ -545,7 +556,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
     setValue('dataProximoTesteDispositivos', somarAnos(dataInspecao, intervalo.interno), { shouldValidate: true });
   }, [v.fluidoClasse, v.dataInspecao, setValue]);
 
-  // Auto-calcula PMTA em tempo real — suporta todas as geometrias ASME + condição dual
+  // Auto-calcula PMTA em tempo real — suporta ASME e GB/T 150 + condição dual
   // materialS e psvCalibracao em kgf/cm² — converte para MPa internamente
   useEffect(() => {
     if (!v.materialS || !v.eficienciaE || !v.diametroD || !v.espessuraCostado || !v.espessuraTampo || !v.psvCalibracao) return;
@@ -553,6 +564,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
     const sMpa = Number(v.materialS) / 10.197;
     const sQuenteMpa = v.materialSQuente ? Number(v.materialSQuente) / 10.197 : sMpa;
     const psvMpa = Number(v.psvCalibracao) / 10.197;
+    const norma = (v.normaCalculo || 'ASME') as NormaCalculo;
     const geoCostado = (v.geometriaCostado || 'cilindrico') as GeometriaCostado;
     const geoTampo = (v.geometriaTampo || 'toriesferico') as GeometriaTampo;
 
@@ -569,8 +581,9 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
       alpha: v.anguloConeDeg,
     };
 
-    const pmtaCostado = calcularPMTACostado(geoCostado, paramsCostado);
-    const pmtaTampo = calcularPMTATampo(geoTampo, paramsTampo);
+    // Despacha pelo sistema normativo selecionado
+    const pmtaCostado = calcularPMTACostadoPorNorma(norma, geoCostado, paramsCostado);
+    const pmtaTampo = calcularPMTATampoPorNorma(norma, geoTampo, paramsTampo);
     const calc = calcularPMTAGlobal(pmtaCostado, pmtaTampo, psvMpa);
 
     // Cálculo dual se houver dados de condição Nova/Fria
@@ -593,12 +606,17 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
       });
     }
 
-    // Fator M para exibição (apenas torisférico)
+    // Fator M (ASME) ou Fator K (GB/T 150) para tampo torisférico
     let fatorM: number | undefined;
+    let fatorK: number | undefined;
     if (geoTampo === 'toriesferico') {
       const L = v.raioAbaulamento || v.diametroD;
       const rK = v.raioRebordo || 0.06 * v.diametroD;
-      fatorM = calcularFatorM(L, rK);
+      if (norma === 'GBT150') {
+        fatorK = calcularFatorK_GBT150(v.diametroD, L, rK);
+      } else {
+        fatorM = calcularFatorM(L, rK);
+      }
     }
 
     setDetalheCalculo({
@@ -607,7 +625,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
       componenteFragil: calc.componenteFragil,
       psvInformada: Number(v.psvCalibracao),
       condena: calc.condena,
-      dualCostado, dualTampo, fatorM,
+      dualCostado, dualTampo, fatorM, fatorK,
     });
 
     const psvKgf = Number(v.psvCalibracao);
@@ -619,11 +637,22 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
     if (!v.pmtaFixadaPLH) {
       setValue('pmtaFixadaPLH', parseFloat(pmtaLimitanteKgf.toFixed(2)), { shouldValidate: false });
     }
-  }, [v.materialS, v.materialSQuente, v.eficienciaE, v.diametroD,
+  }, [v.normaCalculo, v.materialS, v.materialSQuente, v.eficienciaE, v.diametroD,
       v.espessuraCostado, v.espessuraCostadoNominal,
       v.espessuraTampo, v.espessuraTampoNominal,
       v.psvCalibracao, v.geometriaCostado, v.geometriaTampo,
       v.raioAbaulamento, v.raioRebordo, v.anguloConeDeg]);
+
+  // Ao trocar a norma, redefine materialS para o primeiro material da nova lista
+  // (evita que um valor ASME fique selecionado quando a norma muda para GB/T 150)
+  useEffect(() => {
+    const norma = (v.normaCalculo as NormaCalculo) || 'ASME';
+    const materiais = getMateriaisPorNorma(norma);
+    const materialAtualValido = materiais.some(m => m.tensaoKgfCm2 === Number(v.materialS));
+    if (!materialAtualValido) {
+      setValue('materialS', materiais[0].tensaoKgfCm2, { shouldValidate: true });
+    }
+  }, [v.normaCalculo]);
 
   // Auto-sugere status final com base no resultado ASME + exames físicos
   useEffect(() => {
@@ -677,6 +706,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
       exameInterno: v.exameInterno ?? null,
       medicoesEspessura: v.medicoesEspessura ?? null,
       dispositivosSeguranca: v.dispositivosSeguranca ?? null,
+      normaCalculo: (v.normaCalculo as NormaCalculo) ?? 'ASME',
       materialS: v.materialS ?? null,
       eficienciaE: v.eficienciaE ?? null,
       diametroD: v.diametroD ?? null,
@@ -1454,8 +1484,14 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
               </div>
               {detalheCalculo?.fatorM && (
                 <p className="text-xs text-blue-600 mt-2">
-                  Fator M calculado: <span className="font-bold">{detalheCalculo.fatorM.toFixed(4)}</span>
+                  Fator M (ASME UG-32e): <span className="font-bold">{detalheCalculo.fatorM.toFixed(4)}</span>
                   {' '}(L/r = {((v.raioAbaulamento || v.diametroD) / (v.raioRebordo || 0.06 * v.diametroD)).toFixed(2)})
+                </p>
+              )}
+              {detalheCalculo?.fatorK && (
+                <p className="text-xs text-blue-600 mt-2">
+                  Fator K (GB/T 150 Cláusula 5.3.1): <span className="font-bold">{detalheCalculo.fatorK.toFixed(4)}</span>
+                  {' '}(r/Di = {((v.raioRebordo || 0.06 * v.diametroD) / v.diametroD).toFixed(3)})
                 </p>
               )}
             </div>
@@ -1476,16 +1512,41 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
           )}
         </div>
 
-        {/* 4.2 — Material e Junta */}
+        {/* 4.2 — Norma, Material e Junta */}
         <div>
-          <h3 className={subTitle}>4.2 Material e Eficiência de Junta</h3>
+          <h3 className={subTitle}>4.2 Norma, Material e Eficiência de Junta</h3>
+
+          {/* Seleção da Norma de Referência */}
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <label className={`${labelCls} text-blue-800`}>Norma de Referência para Cálculo de PMTA</label>
+            <select
+              {...register('normaCalculo')}
+              className={`${baseSelectCls} mt-1 border-blue-300`}
+            >
+              <option value="ASME">ASME Sec. VIII Div. 1</option>
+              <option value="GBT150">GB/T 150-2011 (Norma Chinesa)</option>
+            </select>
+            {(v.normaCalculo as NormaCalculo) === 'GBT150' && (
+              <p className="text-xs text-blue-700 mt-1">
+                Fórmulas GB/T 150.3 — Costado: P = (2·[σ]·φ·te)/(Di+te) | Tampo Torisférico: P = (2·[σ]·φ·te)/(K·Di+0,5·te)
+              </p>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Tensão Admissível S — Fria/Ambiente (kgf/cm²)</label>
+              <label className={labelCls}>
+                Tensão Admissível S — Fria/Ambiente (kgf/cm²)
+                {(v.normaCalculo as NormaCalculo) === 'GBT150' && (
+                  <span className="ml-1 text-blue-600 font-normal">[σ] GB/T 150.2</span>
+                )}
+              </label>
               <select {...register('materialS')} className={`${baseSelectCls} mt-1`}>
-                <option value="1406.1">SA-285 / SA-516 (1406 kgf/cm²)</option>
-                <option value="1167.4">SA-36 Estrutural (1167 kgf/cm²)</option>
-                <option value="1172.5">SA-240 304L Inox (1172 kgf/cm²)</option>
+                {getMateriaisPorNorma((v.normaCalculo as NormaCalculo) || 'ASME').map((mat) => (
+                  <option key={mat.nome} value={mat.tensaoKgfCm2}>
+                    {mat.nome} ({mat.tensaoKgfCm2.toFixed(0)} kgf/cm² / {mat.tensaoMPa.toFixed(0)} MPa)
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -1545,9 +1606,14 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
           <input type="number" step="0.01" {...register('psvCalibracao')} className={`${inputCls('psvCalibracao')} border-purple-300 bg-purple-50 max-w-xs`} placeholder="Ex: 0.8" />
         </div>
 
-        {/* ── Resultado ASME ── */}
+        {/* ── Resultado PMTA ── */}
         <div className="mt-2 p-5 bg-white rounded-xl border border-slate-300 shadow-sm space-y-4">
-          <h3 className="font-semibold text-lg text-slate-800 border-b pb-2">Resultado — Avaliação Estrutural ASME</h3>
+          <h3 className="font-semibold text-lg text-slate-800 border-b pb-2">
+            Resultado — Avaliação Estrutural
+            <span className="ml-2 text-sm font-normal text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+              {LABEL_NORMA[(v.normaCalculo as NormaCalculo) || 'ASME']}
+            </span>
+          </h3>
           {detalheCalculo ? (
             <div className="space-y-4">
               {/* Cards de PMTA por componente */}

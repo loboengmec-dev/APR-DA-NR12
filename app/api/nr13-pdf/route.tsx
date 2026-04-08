@@ -7,13 +7,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { pdf } from '@react-pdf/renderer'
 import LaudoNR13PDF from '@/components/pdf/LaudoNR13PDF'
 import {
-  calcularPMTACostado,
-  calcularPMTATampo,
+  calcularPMTACostadoPorNorma,
+  calcularPMTATampoPorNorma,
   calcularPMTAGlobal,
   calcularFatorM,
+  calcularFatorK_GBT150,
   type GeometriaCostado,
   type GeometriaTampo,
 } from '@/lib/domain/nr13/pmta'
+import { LABEL_NORMA, type NormaCalculo } from '@/lib/domain/nr13/materiais'
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,11 +26,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Dados do formulário são obrigatórios' }, { status: 400 })
     }
 
-    // Cálculos ASME — valores de pressão chegam em kgf/cm², converte para MPa
+    // Cálculo PMTA — despacha por norma; pressões chegam em kgf/cm², converte para MPa
     if (
       dados.materialS && dados.eficienciaE && dados.diametroD &&
       dados.espessuraCostado && dados.espessuraTampo && dados.psvCalibracao
     ) {
+      const norma = (dados.normaCalculo || 'ASME') as NormaCalculo
       const R = dados.diametroD / 2
       const sMpa = Number(dados.materialS) / 10.197
       const psvMpa = Number(dados.psvCalibracao) / 10.197
@@ -47,8 +50,8 @@ export async function POST(req: NextRequest) {
         alpha: dados.anguloConeDeg,
       }
 
-      const pmtaCostadoMpa = calcularPMTACostado(geoCostado, paramsCostado)
-      const pmtaTampoMpa = calcularPMTATampo(geoTampo, paramsTampo)
+      const pmtaCostadoMpa = calcularPMTACostadoPorNorma(norma, geoCostado, paramsCostado)
+      const pmtaTampoMpa = calcularPMTATampoPorNorma(norma, geoTampo, paramsTampo)
       const global = calcularPMTAGlobal(pmtaCostadoMpa, pmtaTampoMpa, psvMpa)
 
       // Converte para kgf/cm² para exibição no PDF
@@ -57,12 +60,17 @@ export async function POST(req: NextRequest) {
       dados._pmtaLimitante = global.pmtaLimitante * 10.197
       dados._componenteFragil = global.componenteFragil
       dados._condena = global.condena
+      dados._normaSelecionada = LABEL_NORMA[norma]
 
-      // Fator M para torisférico
+      // Fator geométrico para tampo torisférico
       if (geoTampo === 'toriesferico') {
         const L = dados.raioAbaulamento || dados.diametroD
         const rK = dados.raioRebordo || 0.06 * dados.diametroD
-        dados._fatorM = calcularFatorM(L, rK)
+        if (norma === 'GBT150') {
+          dados._fatorK = calcularFatorK_GBT150(dados.diametroD, L, rK)
+        } else {
+          dados._fatorM = calcularFatorM(L, rK)
+        }
       }
     }
 

@@ -20,8 +20,13 @@ import {
   calcularPMTATampoSemiesferico,
   calcularPMTAConico,
   calcularFatorM,
+  calcularFatorK_GBT150,
+  calcularPMTACilindroGBT150,
+  calcularPMTATampoToriesfericoGBT150,
   calcularPMTACostado,
   calcularPMTATampo,
+  calcularPMTACostadoPorNorma,
+  calcularPMTATampoPorNorma,
   calcularPMTADual,
   calcularPMTAGlobal,
   type ParametrosPMTA,
@@ -654,4 +659,162 @@ describe('Testes de Regressão', () => {
   });
 });
 
-console.log('✅ Todos os testes de PMTA carregados!');
+// ---------------------------------------------------------------------------
+// TESTES GB/T 150-2011
+// ---------------------------------------------------------------------------
+
+describe('GB/T 150-2011 — Fator K (Cláusula 5.3.1)', () => {
+
+  test('K = 0.93 quando r/Di = 0.06 exatamente', () => {
+    // Exemplo do prompt: Di=950, r=57 → r/Di=0.06
+    const K = calcularFatorK_GBT150(950, 950, 57);
+    expect(K).toBe(0.93);
+  });
+
+  test('K = 0.93 para tolerância de arredondamento (r/Di ≈ 0.06)', () => {
+    // r/Di ligeiramente diferente por ponto flutuante
+    const K = calcularFatorK_GBT150(1000, 1000, 60.001);
+    expect(K).toBe(0.93);
+  });
+
+  test('Fórmula geral K = (1/6)*(3+√(L/r)) quando r/Di ≠ 0.06', () => {
+    // r/Di = 0.08 → usa fórmula geral
+    // L=950, r=76: K = (1/6)*(3 + √(950/76)) = (1/6)*(3 + √12.5) = (1/6)*(3+3.536) = 1.089
+    const K = calcularFatorK_GBT150(950, 950, 76);
+    const esperado = (1 / 6) * (3 + Math.sqrt(950 / 76));
+    expect(K).toBeCloseTo(esperado, 10);
+    expect(K).not.toBe(0.93);
+  });
+
+  test('Fallback K=0.93 para entradas inválidas (r=0 ou Di=0)', () => {
+    expect(calcularFatorK_GBT150(0, 950, 57)).toBe(0.93);
+    expect(calcularFatorK_GBT150(950, 950, 0)).toBe(0.93);
+  });
+});
+
+describe('GB/T 150-2011 — Costado Cilíndrico (Cláusula 5.2)', () => {
+
+  test('Fórmula: P = (2*S*E*t) / (Di + t)', () => {
+    const params: ParametrosPMTA = { S: 170, E: 1.0, t: 11.6, R: 475, D: 950 };
+    const resultado = calcularPMTACilindroGBT150(params);
+    const esperado = (2 * 170 * 1.0 * 11.6) / (950 + 11.6);
+    expect(resultado).toBeCloseTo(esperado, 10);
+  });
+
+  test('Validação Q345R: Di=950mm, t=11.6mm, S=170MPa, E=1.0 → ~4.102 MPa', () => {
+    // P = (2*170*1.0*11.6)/(950+11.6) = 3944/961.6 = 4.102 MPa
+    const params: ParametrosPMTA = { S: 170, E: 1.0, t: 11.6, R: 475, D: 950 };
+    const resultado = calcularPMTACilindroGBT150(params);
+    expect(resultado).toBeCloseTo(4.102, 2);
+    // Em kgf/cm² ≈ 41.83
+    expect(resultado * 10.197).toBeCloseTo(41.83, 1);
+  });
+
+  test('GB/T 150 cilindro usa denominador (Di+t), ASME usa (R+0.6*t)', () => {
+    // Verifica que GB/T usa Di no denominador (não R), confirmando a fórmula correta
+    // GB/T: P = 2*S*E*t / (Di+t)  → denominador = 950 + 11.6 = 961.6
+    // ASME: P = S*E*t / (R+0.6*t) → denominador = 475 + 6.96 = 481.96
+    const params: ParametrosPMTA = { S: 170, E: 1.0, t: 11.6, R: 475, D: 950 };
+    const gbt = calcularPMTACilindroGBT150(params);
+    // Verifica numericamente que a fórmula GB/T foi aplicada (não ASME)
+    const esperadoGBT = (2 * 170 * 1.0 * 11.6) / (950 + 11.6);
+    const esperadoASME = (170 * 1.0 * 11.6) / (475 + 0.6 * 11.6);
+    expect(gbt).toBeCloseTo(esperadoGBT, 6);
+    expect(gbt).not.toBeCloseTo(esperadoASME, 4); // diferença na 4ª casa decimal
+  });
+
+  test('Valores zero retornam zero (segurança)', () => {
+    const paramsZero: ParametrosPMTA = { S: 0, E: 0, t: 0, R: 0, D: 0 };
+    expect(calcularPMTACilindroGBT150(paramsZero)).toBe(0);
+  });
+});
+
+describe('GB/T 150-2011 — Tampo Torisférico (Cláusula 5.3.1)', () => {
+
+  /**
+   * Caso de referência validado:
+   * Material: Q345R, S = 170 MPa (≈ 1733 kgf/cm²)
+   * Di = 950 mm, t = 11.6 mm, E (φ) = 1.0
+   * r = 57 mm, L = 950 mm → r/Di = 0.06 → K = 0.93
+   *
+   * P = (2*170*1.0*11.6) / (0.93*950 + 0.5*11.6)
+   *   = 3944 / (883.5 + 5.8)
+   *   = 3944 / 889.3
+   *   = 4.435 MPa
+   *   ≈ 45.22 kgf/cm²
+   */
+  const PARAMS_TORI_GBT_VALIDACAO: ParametrosPMTA = {
+    S: 170, E: 1.0, t: 11.6, R: 475, D: 950, L: 950, r: 57,
+  };
+
+  test('Caso de referência validado: P ≈ 4.435 MPa (45.22 kgf/cm²)', () => {
+    const resultado = calcularPMTATampoToriesfericoGBT150(PARAMS_TORI_GBT_VALIDACAO);
+    expect(resultado).toBeCloseTo(4.435, 2);
+    expect(resultado * 10.197).toBeCloseTo(45.22, 1);
+  });
+
+  test('K = 0.93 é aplicado corretamente no denominador', () => {
+    const params = PARAMS_TORI_GBT_VALIDACAO;
+    const resultado = calcularPMTATampoToriesfericoGBT150(params);
+    // Verificação manual: numerador = 2*170*1.0*11.6 = 3944
+    // denominador = 0.93*950 + 0.5*11.6 = 883.5 + 5.8 = 889.3
+    expect(resultado).toBeCloseTo(3944 / 889.3, 6);
+  });
+
+  test('Fórmula GB/T diferente da fórmula ASME para mesmo tampo', () => {
+    const params = PARAMS_TORI_GBT_VALIDACAO;
+    const gbt = calcularPMTATampoToriesfericoGBT150(params);
+    const asme = calcularPMTATampoToriesferico(params); // ASME usa L*M+0.2*t
+    // As fórmulas produzem valores diferentes
+    expect(Math.abs(gbt - asme)).toBeGreaterThan(0.1);
+  });
+
+  test('Default L=Di e r=0.06*Di quando não informados', () => {
+    // Sem L e r → r/Di = 0.06 → K = 0.93
+    const paramsSimples: ParametrosPMTA = {
+      S: 170, E: 1.0, t: 11.6, R: 475, D: 950,
+    };
+    const resultado = calcularPMTATampoToriesfericoGBT150(paramsSimples);
+    // r = 0.06*950 = 57 → K = 0.93
+    expect(resultado).toBeCloseTo(4.435, 2);
+  });
+});
+
+describe('GB/T 150-2011 — PMTA Limitante (costado vs tampo)', () => {
+
+  /**
+   * Caso completo de referência:
+   * Q345R: S=170 MPa, Di=950mm, t=11.6mm, E=1.0, r=57, L=950
+   *
+   * Costado: P = (2*170*1.0*11.6)/(950+11.6) = 4.102 MPa = 41.83 kgf/cm²
+   * Tampo:   P = (2*170*1.0*11.6)/(0.93*950+0.5*11.6) = 4.435 MPa = 45.22 kgf/cm²
+   * Limitante: Costado (4.102 MPa)
+   */
+  const PARAMS_GBT_COMPLETO: ParametrosPMTA = {
+    S: 170, E: 1.0, t: 11.6, R: 475, D: 950, L: 950, r: 57,
+  };
+
+  test('Costado é o componente limitante para o caso de referência', () => {
+    const pmtaCostado = calcularPMTACostadoPorNorma('GBT150', 'cilindrico', PARAMS_GBT_COMPLETO);
+    const pmtaTampo = calcularPMTATampoPorNorma('GBT150', 'toriesferico', PARAMS_GBT_COMPLETO);
+    expect(pmtaCostado).toBeLessThan(pmtaTampo);
+    expect(pmtaCostado).toBeCloseTo(4.102, 2);
+    expect(pmtaTampo).toBeCloseTo(4.435, 2);
+  });
+
+  test('calcularPMTAGlobal identifica costado como frágil', () => {
+    const pmtaCostado = calcularPMTACostadoPorNorma('GBT150', 'cilindrico', PARAMS_GBT_COMPLETO);
+    const pmtaTampo = calcularPMTATampoPorNorma('GBT150', 'toriesferico', PARAMS_GBT_COMPLETO);
+    const global = calcularPMTAGlobal(pmtaCostado, pmtaTampo);
+    expect(global.componenteFragil).toBe('Costado');
+    expect(global.pmtaLimitante).toBeCloseTo(4.102, 2);
+  });
+
+  test('Dispatcher ASME não altera fórmulas existentes (regressão)', () => {
+    const pmtaAsme = calcularPMTACostadoPorNorma('ASME', 'cilindrico', PARAMS_GBT_COMPLETO);
+    const pmtaDireto = calcularPMTACilindro(PARAMS_GBT_COMPLETO);
+    expect(pmtaAsme).toBe(pmtaDireto);
+  });
+});
+
+console.log('✅ Todos os testes de PMTA carregados! (ASME + GB/T 150-2011)');
