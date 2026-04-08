@@ -151,8 +151,12 @@ export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>) {
   let clienteId: string | null = clientes?.[0]?.id ?? null
 
   if (!clienteId) {
-    const tag = d.tag || 'Cliente'
-    console.log('[NR13-Server] Criando cliente com tag:', tag)
+    const { data: clientes } = await supabase.from('clientes').select('id').eq('usuario_id', user.id).limit(1)
+    clienteId = clientes?.[0]?.id ?? null
+
+    if (!clienteId) {
+      const tag = d.tag || 'Cliente'
+      console.log('[NR13-Server] Criando cliente com tag:', tag)
     const { data: novoCliente, error: cliErr } = await supabase
       .from('clientes')
       .insert({ usuario_id: user.id, razao_social: tag })

@@ -17,6 +17,7 @@ import {
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse, LIMITES_GRUPO } from '../../lib/domain/nr13/categorization';
 import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, uploadFotoManometro, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
 import { salvarInspecaoNR13, atualizarInspecaoNR13, type InspecaoNR13Data } from '../../lib/actions/nr13';
+import { buscarCliente } from '../../lib/actions/clientes';
 import { createClient } from '../../lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import UploadFotoNR13 from './UploadFotoNR13';
@@ -220,10 +221,24 @@ interface FormInspecaoNR13Props {
   initialData?: Record<string, any>;
   /** ID da inspeção existente — se presente, submit faz UPDATE ao invés de INSERT. */
   inspecaoId?: string;
+  /** ID do cliente para nova inspeção. */
+  clienteId?: string;
 }
 
-export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspecaoNR13Props = {}) {
+export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }: FormInspecaoNR13Props = {}) {
   const modoEdicao = !!inspecaoId;
+  const [clienteInfo, setClienteInfo] = useState<Record<string, any> | null>(null);
+
+  // Buscar informações do cliente quando clienteId está presente
+  useEffect(() => {
+    if (clienteId) {
+      buscarCliente(clienteId).then(({ data }) => {
+        if (data) {
+          setClienteInfo(data);
+        }
+      });
+    }
+  }, [clienteId]);
   const router = useRouter();
   const [alerta, setAlerta] = useState<string | null>(null);
   const [detalheCalculo, setDetalheCalculo] = useState<{
@@ -699,7 +714,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId }: FormInspec
         setTimeout(() => setSalvoComSucesso(false), 3000);
       } else {
         console.log('[NR13] Modo INSERT — chamando server action');
-        const response = await salvarInspecaoNR13(payload);
+        const response = await salvarInspecaoNR13(payload, clienteId);
         console.log('[NR13] Resultado INSERT:', JSON.stringify(response));
         if (!response.success) {
           const msgs = response.errors?.formErrors ?? ['Erro desconhecido'];

@@ -13,6 +13,8 @@ type InspecaoResumo = {
   status_final: string | null
   data_inspecao: string | null
   created_at: string
+  cliente_razao_social?: string
+  cliente_cnpj?: string
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -31,10 +33,39 @@ export default function ListaInspecoesNR13Page() {
     const supabase = createClient()
     const { data, error } = await supabase
       .from('inspecoes_nr13')
-      .select('id, tag, tipo_vaso, tipo_inspecao, status_final, data_inspecao, created_at')
+      .select(`
+        id,
+        tag,
+        tipo_vaso,
+        tipo_inspecao,
+        status_final,
+        data_inspecao,
+        created_at,
+        vasos_pressao (
+          cliente_id,
+          clientes (
+            razao_social,
+            cnpj
+          )
+        )
+      `)
       .order('created_at', { ascending: false })
 
-    if (data) setInspecoes(data)
+    if (data) {
+      // Transformar dados para incluir informações do cliente
+      const inspecoesComCliente = data.map((inspecao: any) => ({
+        id: inspecao.id,
+        tag: inspecao.tag,
+        tipo_vaso: inspecao.tipo_vaso,
+        tipo_inspecao: inspecao.tipo_inspecao,
+        status_final: inspecao.status_final,
+        data_inspecao: inspecao.data_inspecao,
+        created_at: inspecao.created_at,
+        cliente_razao_social: inspecao.vasos_pressao?.clientes?.razao_social,
+        cliente_cnpj: inspecao.vasos_pressao?.clientes?.cnpj
+      }))
+      setInspecoes(inspecoesComCliente)
+    }
     setCarregando(false)
   }, [])
 
@@ -82,7 +113,7 @@ export default function ListaInspecoesNR13Page() {
         <p className="text-sm font-medium text-gray-700">
           {inspecoes.length} inspeção(ões)
         </p>
-        <Link href="/laudos/nr13/novo" className="btn-primary">
+        <Link href="/laudos/nr13/novo-cliente" className="btn-primary">
           + Nova Inspeção NR-13
         </Link>
       </div>
@@ -115,6 +146,11 @@ export default function ListaInspecoesNR13Page() {
                 <p className="font-medium text-gray-900">
                   {insp.tipo_vaso ?? 'Vaso'} {insp.tipo_inspecao ? `— Inspeção ${insp.tipo_inspecao.toLowerCase()}` : ''}
                 </p>
+                {insp.cliente_razao_social && (
+                  <p className="text-sm text-gray-600">
+                    {insp.cliente_razao_social} {insp.cliente_cnpj ? `(${insp.cliente_cnpj})` : ''}
+                  </p>
+                )}
                 {insp.data_inspecao && (
                   <p className="text-sm text-gray-500">
                     {new Date(insp.data_inspecao + 'T00:00:00').toLocaleDateString('pt-BR')}

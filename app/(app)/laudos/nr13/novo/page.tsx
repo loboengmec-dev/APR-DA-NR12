@@ -3,9 +3,12 @@
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import FormInspecaoNR13 from '@/components/nr13/FormInspecaoNR13'
+import { useSearchParams } from 'next/navigation'
 
 export default function NovoLaudoNR13Page() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const clienteId = searchParams.get('cliente_id')
 
   return (
     <div>
@@ -24,10 +27,11 @@ export default function NovoLaudoNR13Page() {
         </h1>
         <p className="text-sm text-gray-500 mt-1">
           Preencha todos os campos para criar uma inspeção de vaso de pressão.
+          {clienteId && ' (Cliente selecionado)'}
         </p>
       </div>
 
-      <FormInspecaoNR13 />
+      <FormInspecaoNR13 clienteId={clienteId} />
     </div>
   )
 }
