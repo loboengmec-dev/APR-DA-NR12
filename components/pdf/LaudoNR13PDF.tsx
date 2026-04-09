@@ -325,13 +325,6 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
               </View>
             ) : null}
 
-            {/* Foto do manômetro */}
-            {fotosUrl['manometro'] ? (
-              <View style={{ marginBottom: 16, backgroundColor: THEME.cardBg, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
-                <PDFImage src={fotosUrl['manometro']} style={{ width: '100%', height: 160, objectFit: 'contain' }} />
-                <Text style={{ fontSize: 8, color: THEME.textSecondary, padding: 6, textAlign: 'center' }}>Manômetro — {d.tag}</Text>
-              </View>
-            ) : null}
           </View>
 
           {/* Dados da placa */}
@@ -522,6 +515,19 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
               })}
             </View>
           )}
+
+          {/* Foto do Manômetro — §13.5.1.2(d): indicador de pressão junto aos dispositivos */}
+          {fotosUrl['manometro'] ? (
+            <View style={{ marginBottom: 16 }} wrap={false}>
+              <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: THEME.textSecondary, textTransform: 'uppercase', marginBottom: 6 }}>
+                Indicador de Pressão — Manômetro §13.5.1.2(d)
+              </Text>
+              <View style={{ width: '50%', backgroundColor: THEME.cardBg, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: THEME.borderLight }}>
+                <PDFImage src={fotosUrl['manometro']} style={{ width: '100%', height: 160, objectFit: 'contain' }} />
+                <Text style={{ fontSize: 8, color: THEME.textSecondary, padding: 6, textAlign: 'center' }}>Manômetro — {d.tag}</Text>
+              </View>
+            </View>
+          ) : null}
 
           {/* Exame Externo e Interno — wrap=false mantém título + conteúdo juntos */}
           <View wrap={false}>

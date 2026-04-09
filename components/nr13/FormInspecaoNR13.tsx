@@ -960,26 +960,6 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
           />
         </div>
 
-        {/* 1.1.6 Foto do Manômetro */}
-        <p className={`${subTitle} mt-4`}>1.1.6 Foto do Manômetro</p>
-        <div className="mb-4">
-          <UploadFotoNR13
-            label="Foto do manômetro / indicador de pressão"
-            corBorda="green"
-            onUpload={async (file) => await uploadFotoManometro(file, v.tag || 'temp')}
-            onPhotoUploaded={(path, dims) => {
-              setValue('fotoManometroPath', path, { shouldValidate: true });
-              if (dims) setFotoDimensoes((prev) => ({ ...prev, ['manometro']: dims }));
-              gerarUrlAssinadaNR13(path).then((url) => url && setUrlFotoManometro(url));
-            }}
-            onPhotoDelete={async () => {
-              if (v.fotoManometroPath) await removerFotoNR13(v.fotoManometroPath);
-              setValue('fotoManometroPath', '', { shouldValidate: true });
-              setUrlFotoManometro(null);
-            }}
-          />
-        </div>
-
         {/* 1.2 Datas e Tipo de Inspeção */}
         <p className={`${subTitle} mt-4`}>1.2 Inspeção</p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
@@ -1290,6 +1270,30 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>
           Adicionar Dispositivo
         </button>
+
+        {/* Foto do Manômetro — §13.5.1.2(d): indicador de pressão junto aos dispositivos */}
+        <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+          <p className={`${subTitle} mb-2`}>Foto do Manômetro / Indicador de Pressão — §13.5.1.2(d)</p>
+          <p className="text-xs text-emerald-700 mb-3">
+            Registre o manômetro instalado no vaso. Confirme leitura visível e selo de calibração.
+          </p>
+          <UploadFotoNR13
+            label="Foto do manômetro / indicador de pressão"
+            corBorda="green"
+            fotoPreviewUrl={urlFotoManometro}
+            onUpload={async (file) => await uploadFotoManometro(file, v.tag || 'temp')}
+            onPhotoUploaded={(path, dims) => {
+              setValue('fotoManometroPath', path, { shouldValidate: true });
+              if (dims) setFotoDimensoes((prev) => ({ ...prev, ['manometro']: dims }));
+              gerarUrlAssinadaNR13(path).then((url) => url && setUrlFotoManometro(url));
+            }}
+            onPhotoDelete={async () => {
+              if (v.fotoManometroPath) await removerFotoNR13(v.fotoManometroPath);
+              setValue('fotoManometroPath', '', { shouldValidate: true });
+              setUrlFotoManometro(null);
+            }}
+          />
+        </div>
 
         {/* Indicador de pressão §13.5.1.2(d) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
