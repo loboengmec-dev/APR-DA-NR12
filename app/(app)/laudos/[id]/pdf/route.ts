@@ -59,11 +59,30 @@ export async function GET(
   }
 
   // Buscar perfil do usuário
-  const { data: perfil } = await supabase
+  const { data: perfilRaw } = await supabase
     .from('usuarios')
     .select('nome, crea, email, logo_url')
     .eq('id', user.id)
     .single()
+
+  // Converter logo para base64 data URI — mesmo padrão da NR-13
+  const perfil = { ...(perfilRaw ?? {}) }
+  if (perfil?.logo_url) {
+    try {
+      const { data: signedData } = await supabase.storage
+        .from('logos-usuario')
+        .createSignedUrl(perfil.logo_url, 60)
+
+      if (signedData?.signedUrl) {
+        const logoBase64 = await urlParaBase64(signedData.signedUrl)
+        if (logoBase64) {
+          perfil._logoPublicUrl = logoBase64
+        }
+      }
+    } catch (logoErr) {
+      console.warn('[PDF] Erro ao carregar logo para PDF:', logoErr)
+    }
+  }
 
   // Ordenar equipamentos e NCs
   if (laudo.equipamentos) {
