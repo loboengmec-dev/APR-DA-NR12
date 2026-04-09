@@ -66,7 +66,7 @@ export async function GET(
     .single()
 
   // Converter logo para base64 data URI — mesmo padrão da NR-13
-  const perfil = { ...(perfilRaw ?? {}) }
+  const perfil: Record<string, any> = { ...(perfilRaw ?? {}) }
   if (perfil?.logo_url) {
     try {
       const { data: signedData } = await supabase.storage
