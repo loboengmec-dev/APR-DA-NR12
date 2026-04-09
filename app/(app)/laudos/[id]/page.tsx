@@ -320,6 +320,7 @@ export default function EditarLaudoPage() {
                         ncId={nc.id}
                         laudoId={laudoId}
                         ordem={(nc.fotos_nc ?? []).length}
+                        fotoCount={(nc.fotos_nc ?? []).length}
                         onUploadConcluido={() => carregarLaudo()}
                       />
                     </div>

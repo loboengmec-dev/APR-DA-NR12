@@ -9,6 +9,8 @@ interface UploadFotoNR13Props {
   onPhotoUploaded: (path: string, dims?: { width: number; height: number }) => void
   onPhotoDelete?: () => void
   fotoPreviewUrl?: string | null
+  /** true quando fotoPath existe no banco mas a URL assinada ainda não carregou */
+  temFotoSalva?: boolean
   disabled?: boolean
   corBorda?: 'blue' | 'green' | 'purple' | 'slate' | 'amber'
   /** Modo compacto: ícone 40×40px usado em tabelas (ex: dispositivos) */
@@ -37,6 +39,7 @@ export default function UploadFotoNR13({
   onPhotoUploaded,
   onPhotoDelete,
   fotoPreviewUrl = null,
+  temFotoSalva = false,
   disabled = false,
   corBorda = 'blue',
   compacto = false,
@@ -96,6 +99,7 @@ export default function UploadFotoNR13({
 
   // ── MODO COMPACTO (ícone em tabela) ──────────────────────────────────────
   if (compacto) {
+    // Foto carregada com preview
     if (fotoPreviewUrl && !enviando) {
       return (
         <div className="relative w-10 h-10 rounded overflow-hidden border-2 border-green-400 flex-shrink-0 group">
@@ -116,6 +120,33 @@ export default function UploadFotoNR13({
       )
     }
 
+    // Foto salva no banco mas URL ainda carregando — exibe badge verde de confirmação
+    if (temFotoSalva && !enviando) {
+      return (
+        <div className="flex flex-col items-center gap-1">
+          <div className="relative w-10 h-10 flex-shrink-0 group">
+            <div className="w-10 h-10 rounded border-2 border-green-400 bg-green-50 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-green-600">
+                <path fillRule="evenodd" d="M16.403 12.652a3 3 0 000-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-2.546-4.46a.75.75 0 00-1.214-.883l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+              </svg>
+            </div>
+            {onPhotoDelete && (
+              <button
+                type="button"
+                onClick={onPhotoDelete}
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow"
+                title="Remover foto"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5">
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="flex flex-col items-center gap-1">
         <input ref={inputRef} type="file" accept="image/*" capture="environment"
@@ -129,6 +160,41 @@ export default function UploadFotoNR13({
           }
         </label>
         {erro && <p className="text-red-500 text-xs text-center" title={erro}>!</p>}
+      </div>
+    )
+  }
+
+  // ── MODO COMPLETO: foto salva no banco mas URL ainda carregando ──────────
+  if (temFotoSalva && !fotoPreviewUrl && !enviando) {
+    return (
+      <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+        <div className="w-16 h-12 rounded-lg border border-green-300 bg-green-100 flex items-center justify-center flex-shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-green-500">
+            <path fillRule="evenodd" d="M16.403 12.652a3 3 0 000-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-2.546-4.46a.75.75 0 00-1.214-.883l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-green-800 truncate">✓ Foto registrada</p>
+          <p className="text-xs text-green-600 truncate">{label}</p>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <label htmlFor={`up-${uid}`} className="p-1.5 rounded-lg hover:bg-green-200 text-green-600 hover:text-green-800 transition-colors cursor-pointer" title="Substituir foto">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
+            </svg>
+          </label>
+          <input ref={inputRef} type="file" accept="image/*" capture="environment"
+            onChange={handleChange} disabled={enviando || disabled} className="hidden" id={`up-${uid}`} />
+          {onPhotoDelete && (
+            <button type="button" onClick={onPhotoDelete}
+              className="p-1.5 rounded-lg hover:bg-red-100 text-red-400 hover:text-red-600 transition-colors"
+              title="Remover foto">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
     )
   }

@@ -377,7 +377,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
       for (let i = 0; i < medicoesArr.length; i++) {
         if (medicoesArr[i]?.fotoPath) {
           const url = await gerarUrlAssinadaNR13(medicoesArr[i].fotoPath);
-          if (url) medUrlMap[`med_${i}`] = url;
+          if (url) medUrlMap[String(i)] = url;
         }
       }
       if (Object.keys(medUrlMap).length > 0) setUrlsMedicao(medUrlMap);
@@ -387,7 +387,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
       for (let i = 0; i < dispArr.length; i++) {
         if (dispArr[i]?.fotoPath) {
           const url = await gerarUrlAssinadaNR13(dispArr[i].fotoPath);
-          if (url) dispUrlMap[`disp_${i}`] = url;
+          if (url) dispUrlMap[String(i)] = url;
         }
       }
       if (Object.keys(dispUrlMap).length > 0) setUrlsDispositivo(dispUrlMap);
@@ -397,7 +397,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
       for (let i = 0; i < ncsArr.length; i++) {
         if (ncsArr[i]?.fotoPath) {
           const url = await gerarUrlAssinadaNR13(ncsArr[i].fotoPath);
-          if (url) ncUrlMap[`nc_${i}`] = url;
+          if (url) ncUrlMap[String(i)] = url;
         }
       }
       if (Object.keys(ncUrlMap).length > 0) setUrlsNc(ncUrlMap);
@@ -954,6 +954,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
             label="Foto da placa de identificação do vaso"
             corBorda="slate"
             fotoPreviewUrl={urlFotoPlaca}
+            temFotoSalva={!!v.fotoPlacaPath}
             onUpload={async (file) => await uploadFotoPlaca(file, v.tag || 'temp')}
             onPhotoUploaded={(path, dims) => {
               setValue('fotoPlacaPath', path, { shouldValidate: true });
@@ -1243,11 +1244,12 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
                 <UploadFotoNR13
                   compacto
                   corBorda="green"
-                  fotoPreviewUrl={urlsDispositivo[String(field.id)] ?? null}
+                  fotoPreviewUrl={urlsDispositivo[String(index)] ?? null}
+                  temFotoSalva={!!watch(`dispositivosSeguranca.${index}.fotoPath`)}
                   label="Foto dispositivo"
                   onUpload={async (f) => {
                     const blobUrl = URL.createObjectURL(f);
-                    setUrlsDispositivo((prev) => ({ ...prev, [String(field.id)]: blobUrl }));
+                    setUrlsDispositivo((prev) => ({ ...prev, [String(index)]: blobUrl }));
                     return await uploadFotoNCNr13(f, `disp-${field.id}`, 0);
                   }}
                   onPhotoUploaded={(path, dims) => {
@@ -1255,7 +1257,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
                     if (dims) setFotoDimensoes((prev) => ({ ...prev, [`dispositivo_${index}`]: dims }));
                   }}
                   onPhotoDelete={() => {
-                    const key = String(field.id);
+                    const key = String(index);
                     if (urlsDispositivo[key]) URL.revokeObjectURL(urlsDispositivo[key]);
                     setUrlsDispositivo((prev) => { const n = { ...prev }; delete n[key]; return n; });
                     setValue(`dispositivosSeguranca.${index}.fotoPath`, '', { shouldValidate: true });
@@ -1289,6 +1291,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
             label="Foto do manômetro / indicador de pressão"
             corBorda="green"
             fotoPreviewUrl={urlFotoManometro}
+            temFotoSalva={!!v.fotoManometroPath}
             onUpload={async (file) => await uploadFotoManometro(file, v.tag || 'temp')}
             onPhotoUploaded={(path, dims) => {
               setValue('fotoManometroPath', path, { shouldValidate: true });
@@ -1414,11 +1417,12 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
                   <UploadFotoNR13
                     compacto
                     corBorda="blue"
-                    fotoPreviewUrl={urlsMedicao[String(field.id)] ?? null}
+                    fotoPreviewUrl={urlsMedicao[String(index)] ?? null}
+                    temFotoSalva={!!watch(`medicoesEspessura.${index}.fotoPath`)}
                     label="Foto ultrassom"
                     onUpload={async (f) => {
                       const blobUrl = URL.createObjectURL(f);
-                      setUrlsMedicao((prev) => ({ ...prev, [String(field.id)]: blobUrl }));
+                      setUrlsMedicao((prev) => ({ ...prev, [String(index)]: blobUrl }));
                       return await uploadFotoMedicao(f, 'temp', watch(`medicoesEspessura.${index}.ponto`));
                     }}
                     onPhotoUploaded={(path, dims) => {
@@ -1426,7 +1430,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
                       if (dims) setFotoDimensoes((prev) => ({ ...prev, [`medicao_${index}`]: dims }));
                     }}
                     onPhotoDelete={() => {
-                      const key = String(field.id);
+                      const key = String(index);
                       if (urlsMedicao[key]) URL.revokeObjectURL(urlsMedicao[key]);
                       setUrlsMedicao((prev) => { const n = { ...prev }; delete n[key]; return n; });
                       setValue(`medicoesEspessura.${index}.fotoPath`, '', { shouldValidate: true });
@@ -1876,6 +1880,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
                     label={`Foto da NC ${String(index + 1).padStart(2, '0')}`}
                     corBorda="purple"
                     fotoPreviewUrl={urlsNc[String(index)] ?? null}
+                    temFotoSalva={!!watch(`naoConformidades.${index}.fotoPath`)}
                     onUpload={async (f) => await uploadFotoNCNr13(f, `nc-${index}`, 0)}
                     onPhotoUploaded={(path, dims) => {
                       setValue(`naoConformidades.${index}.fotoPath`, path, { shouldValidate: true });
