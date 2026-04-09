@@ -235,6 +235,7 @@ export interface InspecoesNR13 {
   foto_placa_path: string | null
   foto_manometro_path: string | null
   fotos_exame: any | null
+  norma_calculo: string | null
   created_at: string
 }
 

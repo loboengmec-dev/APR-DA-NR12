@@ -236,6 +236,8 @@ interface FormInspecaoNR13Props {
 
 export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }: FormInspecaoNR13Props = {}) {
   const modoEdicao = !!inspecaoId;
+  // Em modo edição, pula o primeiro disparo do auto-suggest de status (valor já vem do DB)
+  const autoSuggestStatusRef = useRef(!modoEdicao);
   const [clienteInfo, setClienteInfo] = useState<Record<string, any> | null>(null);
 
   // Buscar informações do cliente quando clienteId está presente
@@ -654,9 +656,15 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
     }
   }, [v.normaCalculo]);
 
-  // Auto-sugere status final com base no resultado ASME + exames físicos
+  // Auto-sugere status final com base no resultado ASME + exames físicos.
+  // Em modo edição, ignora o primeiro disparo (valor salvo no DB prevalece);
+  // após isso, qualquer mudança nos exames/PMTA atualiza normalmente.
   useEffect(() => {
     if (!detalheCalculo) return;
+    if (!autoSuggestStatusRef.current) {
+      autoSuggestStatusRef.current = true; // libera para próximas alterações
+      return;
+    }
     let sugestao: FormData['statusFinalVaso'] = 'Aprovado';
     if (detalheCalculo.condena) sugestao = 'Reprovado — Downgrade Necessário';
     else if (v.exameExterno === 'Não Conforme' || v.exameInterno === 'Não Conforme') sugestao = 'Aprovado com Restrições';

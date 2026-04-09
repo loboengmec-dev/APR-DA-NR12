@@ -39,6 +39,7 @@ function dbToForm(row: InspecoesNR13, ncs: NcNR13[]) {
     exameInterno: row.exame_interno ?? 'Conforme',
     medicoesEspessura: parseJsonArray(row.medicoes_espessura, [{ ponto: 'PE-01', espOriginal: null, espMedida: 0, espMinAdm: null, situacao: 'OK', fotoPath: '' }]),
     dispositivosSeguranca: parseJsonArray(row.dispositivos_seguranca, [{ tag: '', tipo: 'VS', pressaoAjusteKpa: 0, ultimoTeste: '', situacao: 'OK', fotoPath: '' }]),
+    normaCalculo: row.norma_calculo ?? 'ASME',
     materialS: row.material_s ?? 1406.1,
     eficienciaE: row.eficiencia_e ?? 0.85,
     diametroD: row.diametro_d ?? 1000,
