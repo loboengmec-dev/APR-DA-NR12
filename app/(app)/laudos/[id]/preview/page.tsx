@@ -51,11 +51,27 @@ export default async function PreviewLaudoPage({ params }: { params: { id: strin
   }
 
   // Buscar perfil do usuário
-  const { data: perfil } = await supabase
+  const { data: perfilRaw } = await supabase
     .from('usuarios')
     .select('nome, crea, email, logo_url')
     .eq('id', user.id)
     .single()
+
+  // Converter logo para base64 (react-pdf não aceita URLs externas diretamente)
+  const perfil: Record<string, any> = { ...(perfilRaw ?? {}) }
+  if (perfilRaw?.logo_url) {
+    try {
+      const { data: signedData } = await supabase.storage
+        .from('logos-usuario')
+        .createSignedUrl(perfilRaw.logo_url, 3600)
+      if (signedData?.signedUrl) {
+        const logoBase64 = await urlParaBase64(signedData.signedUrl)
+        if (logoBase64) perfil._logoPublicUrl = logoBase64
+      }
+    } catch (logoErr) {
+      console.warn('[Preview NR12] Falha ao carregar logo:', logoErr)
+    }
+  }
 
   // Ordenar equipamentos e NCs
   if (laudo.equipamentos) {

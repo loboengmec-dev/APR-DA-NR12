@@ -272,11 +272,18 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
     ? new Date(laudo.data_inspecao + 'T00:00:00').toLocaleDateString('pt-BR')
     : '—'
 
+  const logoUrl: string | null = perfil?._logoPublicUrl ?? null
+
   const Header = () => (
     <View style={styles.header} fixed>
-      <View>
-        <Text style={styles.headerTitle}>APR NR-12 — APRECIAÇÃO DE RISCO</Text>
-        <Text style={styles.headerSub}>{cliente.razao_social}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {logoUrl ? (
+          <PDFImage src={logoUrl} style={{ height: 22, maxWidth: 70, objectFit: 'contain' }} />
+        ) : null}
+        <View>
+          <Text style={styles.headerTitle}>APR NR-12 — APRECIAÇÃO DE RISCO</Text>
+          <Text style={styles.headerSub}>{cliente.razao_social}</Text>
+        </View>
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={styles.headerSub}>Doc: {laudo.numero_documento ?? '—'} | Rev: {laudo.revisao ?? '0'}</Text>
@@ -299,6 +306,12 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
       {/* ===== PÁGINA 1: Capa Minimalista ===== */}
       <Page size="A4" style={styles.page}>
         <View style={styles.coverRoot}>
+          {/* Logo da empresa — exibida no topo da capa quando disponível */}
+          {logoUrl ? (
+            <View style={{ marginBottom: 20, alignItems: 'center' }}>
+              <PDFImage src={logoUrl} style={{ maxHeight: 60, maxWidth: 200, objectFit: 'contain' }} />
+            </View>
+          ) : null}
           <Text style={styles.coverTitle}>Laudo Técnico NR-12</Text>
           <Text style={styles.coverSubtitle}>
             Documento de análise técnica de segurança em máquinas e equipamentos, em conformidade com as exigências da Norma Regulamentadora NR-12 e NBR 14153.
