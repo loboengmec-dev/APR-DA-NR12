@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { listarLaudos, excluirLaudo } from '@/lib/actions/laudos'
-import { atualizarCliente } from '@/lib/actions/clientes'
 import Link from 'next/link'
-import type { Laudo, FormCliente } from '@/types'
+import type { Laudo } from '@/types'
 import FormEditarCliente from '@/components/laudo/FormEditarCliente'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -14,9 +13,15 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  rascunho: 'bg-yellow-100 text-yellow-800',
-  em_revisao: 'bg-blue-100 text-blue-800',
-  finalizado: 'bg-green-100 text-green-800',
+  rascunho: 'bg-amber-100 text-amber-700 border border-amber-200',
+  em_revisao: 'bg-blue-100 text-blue-700 border border-blue-200',
+  finalizado: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+}
+
+const STATUS_DOT: Record<string, string> = {
+  rascunho: 'bg-amber-400',
+  em_revisao: 'bg-blue-500',
+  finalizado: 'bg-emerald-500',
 }
 
 function formatarData(data: string | null) {
@@ -59,7 +64,6 @@ export default function NR12Page() {
   if (carregando) {
     return (
       <div className="space-y-6">
-        {/* Header skeleton */}
         <div className="space-y-2">
           <div className="h-4 w-16 skeleton rounded" />
           <div className="flex items-center gap-3">
@@ -70,22 +74,20 @@ export default function NR12Page() {
             </div>
           </div>
         </div>
-        {/* Action bar skeleton */}
         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
           <div className="h-4 w-28 skeleton rounded" />
           <div className="h-9 w-36 skeleton rounded-lg" />
         </div>
-        {/* List skeleton */}
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="card p-4 flex items-center justify-between">
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className="h-5 w-20 skeleton rounded" />
+                  <div className="h-5 w-20 skeleton rounded-full" />
                   <div className="h-4 w-24 skeleton rounded" />
                 </div>
-                <div className="h-4 w-48 skeleton rounded" />
-                <div className="h-3.5 w-36 skeleton rounded" />
+                <div className="h-4 w-56 skeleton rounded" />
+                <div className="h-3.5 w-40 skeleton rounded" />
               </div>
               <div className="flex items-center gap-1 ml-4">
                 <div className="w-8 h-8 skeleton rounded-md" />
@@ -99,146 +101,191 @@ export default function NR12Page() {
   }
 
   return (
-    <div>
-      {/* HEADER DO AMBIENTE NR-12 */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-1">
-          <Link href="/dashboard" className="text-sm text-gray-400 hover:text-blue-600 transition-colors">
-            ← Painel
-          </Link>
-        </div>
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center shadow">
+    <div className="space-y-6">
+
+      {/* ── HEADER ── */}
+      <div>
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-blue-600 transition-colors mb-3"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+          </svg>
+          Painel
+        </Link>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-md flex-shrink-0">
             <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.049.58.025 1.194-.14 1.743" />
             </svg>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">NR-12 — Máquinas e Equipamentos</h1>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">NR-12 — Máquinas e Equipamentos</h1>
             <p className="text-sm text-gray-500">Apreciação de Risco e Categorização de Segurança</p>
           </div>
         </div>
       </div>
 
-      {/* BARRA DE AÇÕES */}
-      <div className="flex items-center justify-between mb-6 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-        <div>
-          <p className="text-sm font-medium text-gray-700">
-            {laudos.length} laudo{laudos.length !== 1 ? 's' : ''} encontrado{laudos.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-        <Link href="/laudos/novo" className="btn-primary">
+      {/* ── BARRA DE AÇÕES ── */}
+      <div className="flex items-center justify-between bg-white rounded-xl border border-gray-200 px-4 py-3 shadow-sm">
+        <p className="text-sm text-gray-500">
+          <span className="font-semibold text-gray-800 tabular-nums">{laudos.length}</span>
+          {' '}laudo{laudos.length !== 1 ? 's' : ''} encontrado{laudos.length !== 1 ? 's' : ''}
+        </p>
+        <Link href="/laudos/novo" className="btn-primary text-sm">
           + Novo Laudo NR-12
         </Link>
       </div>
 
-      {/* LISTA DE LAUDOS */}
+      {/* ── ERRO ── */}
+      {erro && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          {erro}
+        </div>
+      )}
+
+      {/* ── LISTA / EMPTY STATE ── */}
       {!laudos.length ? (
-        <div className="card p-12 text-center">
-          <div className="text-4xl mb-4">📋</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum laudo NR-12 ainda</h3>
-          <p className="text-gray-500 text-sm mb-6">
-            Crie seu primeiro laudo de Apreciação de Risco.
+        <div className="card flex flex-col items-center justify-center py-16 px-8 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+          </div>
+          <h3 className="text-base font-semibold text-gray-900 mb-1">Nenhum laudo NR-12 ainda</h3>
+          <p className="text-sm text-gray-500 mb-6 max-w-xs">
+            Crie seu primeiro laudo de Apreciação de Risco para uma máquina ou equipamento.
           </p>
-          <Link href="/laudos/novo" className="btn-primary inline-block">
+          <Link href="/laudos/novo" className="btn-primary text-sm">
             Criar primeiro laudo
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {laudos.map((laudo) => {
             const cliente = laudo.clientes
             const isEditando = editandoClienteId === laudo.id
 
             return (
               <div key={laudo.id}>
-                <div className="card p-4 flex items-center justify-between hover:border-blue-300 transition-colors">
-                  <Link
-                    href={`/laudos/${laudo.id}`}
-                    className="flex-1 min-w-0"
-                  >
-                    <div className="flex items-center gap-3 mb-1">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLOR[laudo.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                        {STATUS_LABEL[laudo.status] ?? laudo.status}
-                      </span>
-                      {laudo.numero_documento && (
-                        <span className="text-xs text-gray-500">{laudo.numero_documento}</span>
-                      )}
-                    </div>
-                    <p className="font-medium text-gray-900 truncate">
-                      {cliente?.razao_social ?? 'Cliente não informado'}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {cliente?.cidade && cliente?.estado
-                        ? `${cliente.cidade} — ${cliente.estado}`
-                        : 'Local não informado'
-                      }
-                      {laudo.data_inspecao && ` · ${formatarData(laudo.data_inspecao)}`}
-                    </p>
-                  </Link>
+                <div className={`bg-white rounded-xl border transition-all duration-150 ${
+                  isEditando
+                    ? 'border-blue-300 shadow-md'
+                    : 'border-gray-200 shadow-sm hover:border-blue-200 hover:shadow-md'
+                }`}>
+                  <div className="flex items-center gap-4 p-4">
 
-                  <div className="flex items-center gap-1 ml-4">
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setEditandoClienteId(isEditando ? null : laudo.id)
-                      }}
-                      className={`p-2 rounded-md transition-colors ${
-                        isEditando
-                          ? 'text-blue-600 bg-blue-50'
-                          : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
-                      }`}
-                      title="Editar dados do cliente"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                        <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
-                      </svg>
-                    </button>
-
-                    <button
-                      onClick={async (e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        const clienteNome = cliente?.razao_social ?? 'este laudo'
-                        if (!confirm(`Deseja realmente excluir o laudo de "${clienteNome}"? Esta ação não pode ser desfeita.`)) return
-                        setExcluindo(laudo.id)
-                        const { error: erroExcluir } = await excluirLaudo(laudo.id)
-                        if (erroExcluir) {
-                          setErro('Erro ao excluir: ' + erroExcluir)
-                        } else {
-                          setLaudos(prev => prev.filter(l => l.id !== laudo.id))
-                        }
-                        setExcluindo(null)
-                      }}
-                      disabled={excluindo === laudo.id}
-                      className={`p-2 rounded-md transition-colors ${
-                        excluindo === laudo.id
-                          ? 'text-gray-300 cursor-not-allowed'
-                          : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
-                      }`}
-                      title="Excluir laudo"
-                    >
-                      {excluindo === laudo.id ? (
-                        <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                        </svg>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                          <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </button>
-
-                    <Link href={`/laudos/${laudo.id}`} className="text-gray-400 hover:text-gray-600 p-2">
-                      →
+                    {/* Clicável — vai para o laudo */}
+                    <Link href={`/laudos/${laudo.id}`} className="flex-1 min-w-0 group">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLOR[laudo.status] ?? 'bg-gray-100 text-gray-700 border border-gray-200'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[laudo.status] ?? 'bg-gray-400'}`} />
+                          {STATUS_LABEL[laudo.status] ?? laudo.status}
+                        </span>
+                        {laudo.numero_documento && (
+                          <span className="text-xs font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                            {laudo.numero_documento}
+                          </span>
+                        )}
+                      </div>
+                      <p className="font-semibold text-gray-900 truncate group-hover:text-blue-700 transition-colors">
+                        {cliente?.razao_social ?? 'Cliente não informado'}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5 text-sm text-gray-400">
+                        {(cliente?.cidade || cliente?.estado) && (
+                          <span className="flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                            </svg>
+                            {[cliente.cidade, cliente.estado].filter(Boolean).join(' — ')}
+                          </span>
+                        )}
+                        {laudo.data_inspecao && (
+                          <>
+                            {(cliente?.cidade || cliente?.estado) && <span>·</span>}
+                            <span className="flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                              </svg>
+                              {formatarData(laudo.data_inspecao)}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </Link>
+
+                    {/* AÇÕES */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setEditandoClienteId(isEditando ? null : laudo.id)
+                        }}
+                        className={`p-2 rounded-lg transition-colors ${
+                          isEditando
+                            ? 'text-blue-600 bg-blue-100'
+                            : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                        }`}
+                        title="Editar dados do cliente"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                          <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
+                        </svg>
+                      </button>
+
+                      <button
+                        onClick={async (e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          const clienteNome = cliente?.razao_social ?? 'este laudo'
+                          if (!confirm(`Deseja realmente excluir o laudo de "${clienteNome}"? Esta ação não pode ser desfeita.`)) return
+                          setExcluindo(laudo.id)
+                          const { error: erroExcluir } = await excluirLaudo(laudo.id)
+                          if (erroExcluir) {
+                            setErro('Erro ao excluir: ' + erroExcluir)
+                          } else {
+                            setLaudos(prev => prev.filter(l => l.id !== laudo.id))
+                          }
+                          setExcluindo(null)
+                        }}
+                        disabled={excluindo === laudo.id}
+                        className={`p-2 rounded-lg transition-colors ${
+                          excluindo === laudo.id
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                        }`}
+                        title="Excluir laudo"
+                      >
+                        {excluindo === laudo.id ? (
+                          <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                            <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+
+                      <Link
+                        href={`/laudos/${laudo.id}`}
+                        className="p-2 text-gray-300 hover:text-blue-500 transition-colors"
+                        title="Abrir laudo"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                        </svg>
+                      </Link>
+                    </div>
                   </div>
                 </div>
 
                 {isEditando && (
-                  <div className="mt-1">
+                  <div className="mt-1.5">
                     <FormEditarCliente
                       cliente={cliente ?? undefined}
                       laudoId={laudo.id}
