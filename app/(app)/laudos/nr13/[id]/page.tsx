@@ -135,14 +135,11 @@ export default function EditarInspecaoNR13Page() {
       if (url) urlMap['manometro'] = url
     }
 
-    // Fotos do exame externo/interno
+    // Fotos de registro da inspeção (até 6, chave: exame_0..exame_5)
     for (let i = 0; i < fotosExameArr.length; i++) {
       if (fotosExameArr[i]?.storagePath) {
         const url = await gerarUrlAssinadaNR13(fotosExameArr[i].storagePath)
-        if (url) {
-          const chave = i === 0 ? 'exame_externo' : 'exame_interno'
-          urlMap[chave] = url
-        }
+        if (url) urlMap[`exame_${i}`] = url
       }
     }
 

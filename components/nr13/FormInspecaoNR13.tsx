@@ -113,9 +113,9 @@ const FormSchema = z.object({
     fotoPath: z.string().optional(),
   })).min(1, 'Registre ao menos um ponto de medição'),
 
-  // Fotos do exame externo/interno
+  // Fotos de registro da inspeção (até 6)
   fotosExame: z.array(z.object({
-    tipoExame: z.enum(['externo', 'interno']),
+    tipoExame: z.string(),
     storagePath: z.string().min(1),
     legenda: z.string().optional(),
     tamanhoBytes: z.number().optional(),
@@ -1325,31 +1325,27 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
           </div>
         </div>
 
-        {/* Fotos do Exame Externo/Interno */}
+        {/* Fotos de Registro da Inspeção */}
         <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className={`${subTitle} mb-0`}>Fotos do Exame</p>
-              <p className="text-xs text-slate-400 mt-0.5">Insira até 2 fotos (exame externo e/ou interno)</p>
+              <p className={`${subTitle} mb-0`}>Fotos — Registro da Inspeção</p>
+              <p className="text-xs text-slate-400 mt-0.5">Insira até 6 registros fotográficos do exame (externo, interno, detalhes, etc.)</p>
             </div>
-            <span className="text-xs text-slate-400">{fotosExameFields.length}/2</span>
+            <span className="text-xs text-slate-400">{fotosExameFields.length}/6</span>
           </div>
-          {fotosExameFields.length < 2 ? (
+          {fotosExameFields.length < 6 ? (
             <UploadFotoNR13
-              label={fotosExameFields.length === 0 ? 'Adicionar foto — Exame Externo' : 'Adicionar foto — Exame Interno'}
+              label={`Adicionar foto — Registro ${fotosExameFields.length + 1}`}
               corBorda="blue"
               onUpload={async (file) => {
-                // Primeira foto = externo, segunda = interno
-                const tipoExame = fotosExameFields.length === 0 ? 'externo' : 'interno';
-                return await uploadFotoExame(file, 'temp', tipoExame, fotosExameFields.length);
+                return await uploadFotoExame(file, 'temp', 'registro', fotosExameFields.length);
               }}
               onPhotoUploaded={(path, dims) => {
-                const tipoExame = fotosExameFields.length === 0 ? 'externo' : 'interno';
-                fotosExameAppend({ tipoExame, storagePath: path, ordem: fotosExameFields.length, tamanhoBytes: 0 });
-                // Salvar dimensões para o PDF usar altura proporcional
+                const ordem = fotosExameFields.length;
+                fotosExameAppend({ tipoExame: 'registro', storagePath: path, ordem, tamanhoBytes: 0 });
                 if (dims) {
-                  const dimKey = `exame_${tipoExame}`;
-                  setFotoDimensoes((prev) => ({ ...prev, [dimKey]: dims }));
+                  setFotoDimensoes((prev) => ({ ...prev, [`exame_${ordem}`]: dims }));
                 }
                 gerarUrlAssinadaNR13(path).then((url) => {
                   if (url) setUrlsExame((prev) => [...prev, url]);
@@ -1358,7 +1354,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
             />
           ) : (
             <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-md border border-amber-200">
-              Limite de 2 fotos atingido. Remova uma foto para adicionar outra.
+              Limite de 6 registros fotográficos atingido. Remova uma foto para adicionar outra.
             </p>
           )}
           {urlsExame.length > 0 && (
@@ -1367,7 +1363,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
                 <FotoExameCard
                   key={i}
                   src={url}
-                  legenda={i === 0 ? 'Exame Externo' : 'Exame Interno'}
+                  legenda={`Registro ${i + 1}`}
                   onRemove={() => {
                     const novoUrls = [...urlsExame];
                     novoUrls.splice(i, 1);

@@ -552,49 +552,32 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
                 </View>
               </View>
 
-              {/* Fotos do exame externo e interno — renderiza todas que existirem */}
-              {(fotosUrl['exame_externo'] || fotosUrl['exame_interno'] || fotosUrl['exame_externo_0'] || fotosUrl['exame_interno_0']) && (
-                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' }} wrap={false}>
-                  {fotosUrl['exame_externo'] ? (
-                    <>
-                      <View style={{ flex: 1, minWidth: '45%' }}>
-                        {fotosUrl['exame_interno'] ? (
-                          <>
-                            <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_0'] || fotoDimensoes['exame_externo'], 225, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
-                            <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo</Text>
-                          </>
-                        ) : (
-                          <>
-                            <PDFImage src={fotosUrl['exame_externo']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_0'] || fotoDimensoes['exame_externo'], 400, 450), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
-                            <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo</Text>
-                          </>
-                        )}
+              {/* Registros fotográficos da inspeção — exame_0..exame_5 */}
+              {Array.from({ length: 6 }).some((_, i) => fotosUrl[`exame_${i}`]) && (
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                  {Array.from({ length: 6 }).map((_, i) => {
+                    const url = fotosUrl[`exame_${i}`];
+                    if (!url) return null;
+                    const totalFotos = Array.from({ length: 6 }).filter((__, j) => fotosUrl[`exame_${j}`]).length;
+                    const alturaMax = totalFotos === 1 ? 420 : 220;
+                    return (
+                      <View key={`exame-reg-${i}`} style={{ flex: 1, minWidth: '45%' }} wrap={false}>
+                        <PDFImage
+                          src={url}
+                          style={{
+                            width: '100%',
+                            height: calcImageHeight(fotoDimensoes[`exame_${i}`], alturaMax - 40, alturaMax),
+                            objectFit: 'contain',
+                            borderRadius: 6,
+                            backgroundColor: '#fafafa',
+                          }}
+                        />
+                        <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>
+                          Registro {i + 1}
+                        </Text>
                       </View>
-                      {fotosUrl['exame_interno'] && (
-                        <View style={{ flex: 1, minWidth: '45%' }}>
-                          <PDFImage src={fotosUrl['exame_interno']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_1'] || fotoDimensoes['exame_interno'], 225, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
-                          <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno</Text>
-                        </View>
-                      )}
-                    </>
-                  ) : fotosUrl['exame_interno'] ? (
-                    <View style={{ flex: 1, minWidth: '45%' }} wrap={false}>
-                      <PDFImage src={fotosUrl['exame_interno']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_1'] || fotoDimensoes['exame_interno'], 400, 450), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
-                      <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno</Text>
-                    </View>
-                  ) : null}
-                  {fotosUrl['exame_externo_0'] && (
-                    <View style={{ flex: 1, minWidth: '45%' }} wrap={false}>
-                      <PDFImage src={fotosUrl['exame_externo_0']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_externo_0'], 200, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
-                      <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Externo #2</Text>
-                    </View>
-                  )}
-                  {fotosUrl['exame_interno_0'] && (
-                    <View style={{ flex: 1, minWidth: '45%' }} wrap={false}>
-                      <PDFImage src={fotosUrl['exame_interno_0']} style={{ width: '100%', height: calcImageHeight(fotoDimensoes['exame_interno_0'], 200, 350), objectFit: 'contain', borderRadius: 6, backgroundColor: '#fafafa' }} />
-                      <Text style={{ fontSize: 7, color: THEME.textSecondary, padding: 3, textAlign: 'center' }}>Exame Interno #2</Text>
-                    </View>
-                  )}
+                    );
+                  })}
                 </View>
               )}
             </View>

@@ -27,10 +27,11 @@ export async function uploadFotoPlaca(
 export async function uploadFotoExame(
   file: File,
   inspecaoId: string,
-  tipoExame: 'externo' | 'interno',
+  /** Identificador genérico do registro (ex: 'registro', índice ou qualquer string) */
+  tipoExame: string,
   ordem: number
 ): Promise<{ path: string; error: string | null }> {
-  return uploadFile(file, bucketPath(`exame/${inspecaoId}/${tipoExame}/${ordem}_${Date.now()}`))
+  return uploadFile(file, bucketPath(`exame/${inspecaoId}/registro/${ordem}_${Date.now()}`))
 }
 
 export async function uploadFotoMedicao(
