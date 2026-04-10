@@ -1976,17 +1976,13 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
                 if (url) fotosUrlMap['manometro'] = url;
               }
 
-              // Fotos do exame — primeira = exame_externo, segunda = exame_interno
+              // Fotos de registro da inspeção — chaves exame_0..exame_5
               const fotosExameArr = (v.fotosExame as any[]) ?? [];
               for (let i = 0; i < fotosExameArr.length; i++) {
                 const fe = fotosExameArr[i];
                 if (fe?.storagePath) {
                   const url = await gerarUrlAssinadaNR13(fe.storagePath);
-                  if (url) {
-                    // Usa exame_externo para primeira foto, exame_interno para segunda
-                    const chave = i === 0 ? 'exame_externo' : 'exame_interno';
-                    fotosUrlMap[chave] = url;
-                  }
+                  if (url) fotosUrlMap[`exame_${i}`] = url;
                 }
               }
               console.log('[NR13-PDF] fotosExame:', fotosExameArr.length, 'fotosUrlMap keys:', Object.keys(fotosUrlMap));
