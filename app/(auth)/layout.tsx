@@ -10,7 +10,9 @@ export default function AuthLayout({
           <h1 className="text-4xl font-black text-white tracking-tight leading-none">
             ENG<span className="text-blue-300"> HUB</span>
           </h1>
-          <p className="text-blue-200 mt-2 text-sm">Plataforma de laudos técnicos NR-12 e NR-13</p>
+          <p className="text-blue-100 mt-3 text-lg font-semibold tracking-tight">
+            Mais laudos. Menos horas. Mais contratos.
+          </p>
         </div>
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {children}
