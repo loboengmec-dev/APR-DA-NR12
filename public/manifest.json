@@ -1,7 +1,7 @@
 {
-  "name": "APR NR-12 — Laudos Técnicos",
-  "short_name": "APR NR-12",
-  "description": "Sistema de Apreciação de Risco conforme NR-12. Gere laudos completos com fotos direto do celular.",
+  "name": "ENG HUB — Laudos Técnicos",
+  "short_name": "ENG HUB",
+  "description": "Plataforma de engenharia para laudos técnicos NR-12 e NR-13. Gere laudos completos com fotos direto do celular.",
   "start_url": "/dashboard",
   "display": "standalone",
   "orientation": "portrait",

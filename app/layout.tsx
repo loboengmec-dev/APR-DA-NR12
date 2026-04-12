@@ -5,13 +5,13 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'APR NR-12 — Laudos Técnicos',
-  description: 'Sistema de Apreciação de Risco conforme NR-12',
+  title: 'ENG HUB — Laudos Técnicos',
+  description: 'Plataforma de engenharia para laudos técnicos NR-12 e NR-13',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'APR NR-12',
+    title: 'ENG HUB',
   },
 }
 

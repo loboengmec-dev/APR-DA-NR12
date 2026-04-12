@@ -281,7 +281,7 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
           <PDFImage src={logoUrl} style={{ height: 22, maxWidth: 70, objectFit: 'contain' }} />
         ) : null}
         <View>
-          <Text style={styles.headerTitle}>APR NR-12 — APRECIAÇÃO DE RISCO</Text>
+          <Text style={styles.headerTitle}>ENG HUB — APRECIAÇÃO DE RISCO NR-12</Text>
           <Text style={styles.headerSub}>{cliente.razao_social}</Text>
         </View>
       </View>
@@ -302,7 +302,7 @@ export default function LaudoPDF({ laudo, perfil, fotosUrl }: any) {
   )
 
   return (
-    <Document title={`APR NR-12 — ${cliente.razao_social}`} author={perfil?.nome}>
+    <Document title={`ENG HUB — ${cliente.razao_social}`} author={perfil?.nome}>
       {/* ===== PÁGINA 1: Capa Minimalista ===== */}
       <Page size="A4" style={styles.page}>
         <View style={styles.coverRoot}>

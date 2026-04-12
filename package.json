@@ -1,5 +1,5 @@
 {
-  "name": "apr-nr12",
+  "name": "eng-hub",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -20,6 +20,8 @@
     "browser-image-compression": "^2.0.2",
     "lucide-react": "^1.7.0",
     "next": "14.2.21",
+    "node-fetch": "^3.3.2",
+    "pdf-parse": "^2.4.5",
     "react": "^18",
     "react-dom": "^18",
     "react-hook-form": "^7.72.1",
