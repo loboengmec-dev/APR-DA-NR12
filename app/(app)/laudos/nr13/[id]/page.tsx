@@ -87,16 +87,17 @@ export default function EditarInspecaoNR13Page() {
   const [erro, setErro] = useState<string | null>(null)
   const [initialData, setInitialData] = useState<Record<string, any> | null>(null)
   const [fotosUrl, setFotosUrl] = useState<Record<string, string>>({})
+  const [clienteId, setClienteId] = useState<string | null>(null)
 
   const carregarInspecao = useCallback(async () => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setErro('Não autenticado'); setCarregando(false); return }
 
-    // Busca inspeção
+    // Busca inspeção com vaso (para recuperar cliente_id)
     const { data: inspecao, error: inspErr } = await supabase
       .from('inspecoes_nr13')
-      .select('*')
+      .select('*, vasos_pressao(cliente_id)')
       .eq('id', id)
       .single()
 
@@ -116,6 +117,10 @@ export default function EditarInspecaoNR13Page() {
     // Converte para formato do form
     const formData = dbToForm(inspecao as InspecoesNR13, (ncs ?? []) as NcNR13[])
     setInitialData(formData)
+
+    // Recupera cliente_id pelo vaso vinculado à inspeção
+    const cid = (inspecao as any)?.vasos_pressao?.cliente_id ?? null
+    setClienteId(cid)
 
     // Carrega URLs de fotos (placa, manometro, exame, medições, dispositivos, NCs)
     const urlMap: Record<string, string> = {}
@@ -218,7 +223,7 @@ export default function EditarInspecaoNR13Page() {
         </p>
       </div>
 
-      <FormInspecaoNR13 initialData={initialData} inspecaoId={id} />
+      <FormInspecaoNR13 initialData={initialData} inspecaoId={id} clienteId={clienteId} />
     </div>
   )
 }
