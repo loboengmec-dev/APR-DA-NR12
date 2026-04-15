@@ -232,24 +232,30 @@ interface FormInspecaoNR13Props {
   inspecaoId?: string;
   /** ID do cliente para nova inspeção. */
   clienteId?: string | null;
+  /** Dados do cliente já carregados pela página pai (modo edição). Evita fetch assíncrono. */
+  clienteDados?: Record<string, any> | null;
 }
 
-export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }: FormInspecaoNR13Props = {}) {
+export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, clienteDados }: FormInspecaoNR13Props = {}) {
   const modoEdicao = !!inspecaoId;
   // Em modo edição, pula o primeiro disparo do auto-suggest de status (valor já vem do DB)
   const autoSuggestStatusRef = useRef(!modoEdicao);
-  const [clienteInfo, setClienteInfo] = useState<Record<string, any> | null>(null);
+  // clienteInfo: dados do cliente para exibição e injeção no PDF
+  // Prioridade: clienteDados (pré-carregado pela página pai) > busca assíncrona por clienteId
+  const [clienteInfo, setClienteInfo] = useState<Record<string, any> | null>(clienteDados ?? null);
 
-  // Buscar informações do cliente quando clienteId está presente
+  // Buscar informações do cliente quando clienteId está presente e clienteDados não foi fornecido
   useEffect(() => {
+    if (clienteDados) {
+      setClienteInfo(clienteDados);
+      return;
+    }
     if (clienteId) {
       buscarCliente(clienteId).then(({ data }) => {
-        if (data) {
-          setClienteInfo(data);
-        }
+        if (data) setClienteInfo(data);
       });
     }
-  }, [clienteId]);
+  }, [clienteId, clienteDados]);
   const router = useRouter();
   const [alerta, setAlerta] = useState<string | null>(null);
   const [detalheCalculo, setDetalheCalculo] = useState<{

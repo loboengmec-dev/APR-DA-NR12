@@ -88,16 +88,17 @@ export default function EditarInspecaoNR13Page() {
   const [initialData, setInitialData] = useState<Record<string, any> | null>(null)
   const [fotosUrl, setFotosUrl] = useState<Record<string, string>>({})
   const [clienteId, setClienteId] = useState<string | null>(null)
+  const [clienteDados, setClienteDados] = useState<Record<string, any> | null>(null)
 
   const carregarInspecao = useCallback(async () => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setErro('Não autenticado'); setCarregando(false); return }
 
-    // Busca inspeção com vaso (para recuperar cliente_id)
+    // Busca inspeção com vaso e dados completos do cliente
     const { data: inspecao, error: inspErr } = await supabase
       .from('inspecoes_nr13')
-      .select('*, vasos_pressao(cliente_id)')
+      .select('*, vasos_pressao(cliente_id, clientes(id, razao_social, cidade, estado))')
       .eq('id', id)
       .single()
 
@@ -118,9 +119,22 @@ export default function EditarInspecaoNR13Page() {
     const formData = dbToForm(inspecao as InspecoesNR13, (ncs ?? []) as NcNR13[])
     setInitialData(formData)
 
-    // Recupera cliente_id pelo vaso vinculado à inspeção
-    const cid = (inspecao as any)?.vasos_pressao?.cliente_id ?? null
+    // Recupera cliente_id via join com vasos_pressao
+    const vaso = (inspecao as any)?.vasos_pressao
+    const cid: string | null = vaso?.cliente_id ?? null
     setClienteId(cid)
+
+    // Busca dados completos do cliente — tenta via join, faz query separada como fallback
+    let clienteData = vaso?.clientes ?? null
+    if (!clienteData && cid) {
+      const { data: cli } = await supabase
+        .from('clientes')
+        .select('id, razao_social, cidade, estado')
+        .eq('id', cid)
+        .single()
+      clienteData = cli ?? null
+    }
+    if (clienteData) setClienteDados(clienteData)
 
     // Carrega URLs de fotos (placa, manometro, exame, medições, dispositivos, NCs)
     const urlMap: Record<string, string> = {}
@@ -223,7 +237,12 @@ export default function EditarInspecaoNR13Page() {
         </p>
       </div>
 
-      <FormInspecaoNR13 initialData={initialData} inspecaoId={id} clienteId={clienteId} />
+      <FormInspecaoNR13
+        initialData={initialData}
+        inspecaoId={id}
+        clienteId={clienteId}
+        clienteDados={clienteDados}
+      />
     </div>
   )
 }
