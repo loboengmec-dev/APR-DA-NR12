@@ -275,11 +275,13 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
               </View>
               <View style={S.rowMeta}>
                 <Text style={S.lbl}>Empresa Inspecionada</Text>
-                <Text style={S.valor}>{perfil?.empresa ?? '—'}</Text>
+                <Text style={S.valor}>{d.empresaInspecionada ?? '—'}</Text>
               </View>
               <View style={S.rowMeta}>
                 <Text style={S.lbl}>Localidade</Text>
-                <Text style={S.valor}>{perfil?.cidade ?? '—'} / {perfil?.estado ?? '—'}</Text>
+                <Text style={S.valor}>
+                  {d.cidadeInspecionada ?? '—'} / {d.estadoInspecionado ?? '—'}
+                </Text>
               </View>
               <View style={S.rowMeta}>
                 <Text style={S.lbl}>Data da Inspeção</Text>

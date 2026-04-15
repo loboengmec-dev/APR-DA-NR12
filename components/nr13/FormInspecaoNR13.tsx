@@ -2022,6 +2022,10 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId }:
                 body: JSON.stringify({
                   dados: {
                     ...v,
+                    // Dados do cliente inspecionado — injetados para o PDF
+                    empresaInspecionada: clienteInfo?.razao_social ?? null,
+                    cidadeInspecionada: clienteInfo?.cidade ?? null,
+                    estadoInspecionado: clienteInfo?.estado ?? null,
                     medicoesEspessura: v.medicoesEspessura?.map((m: any) => ({
                       ponto: m.ponto, espOriginal: m.espOriginal,
                       espMedida: m.espMedida, espMinAdm: m.espMinAdm, situacao: m.situacao,
