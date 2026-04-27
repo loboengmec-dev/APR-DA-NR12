@@ -6,6 +6,48 @@ import { NextRequest, NextResponse } from 'next/server'
 import { pdf } from '@react-pdf/renderer'
 import LaudoCaldeiraPDF from '@/components/pdf/LaudoCaldeiraPDF'
 
+// ---------------------------------------------------------------------------
+// Detecção de dimensões de imagem a partir do buffer binário
+// Suporta JPEG e PNG — sem dependências externas.
+// ---------------------------------------------------------------------------
+function getImageDimensions(
+  buf: Buffer,
+  contentType: string
+): { width: number; height: number } {
+  try {
+    if (contentType.includes('png') && buf.length >= 24) {
+      // PNG: IHDR chunk começa no offset 16 (largura 4 bytes, altura 4 bytes)
+      return {
+        width:  buf.readUInt32BE(16),
+        height: buf.readUInt32BE(20),
+      }
+    }
+    if (
+      (contentType.includes('jpeg') || contentType.includes('jpg')) &&
+      buf.length > 10
+    ) {
+      // JPEG: varre em busca dos marcadores SOF0 (FF C0), SOF1 (FF C1), SOF2 (FF C2)
+      for (let i = 0; i < buf.length - 8; i++) {
+        if (
+          buf[i] === 0xff &&
+          (buf[i + 1] === 0xc0 || buf[i + 1] === 0xc1 || buf[i + 1] === 0xc2)
+        ) {
+          return {
+            height: buf.readUInt16BE(i + 5),
+            width:  buf.readUInt16BE(i + 7),
+          }
+        }
+      }
+    }
+  } catch {
+    // silencioso — usa fallback abaixo
+  }
+  return { width: 800, height: 600 }
+}
+
+// ---------------------------------------------------------------------------
+// Handler principal
+// ---------------------------------------------------------------------------
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -43,8 +85,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Converte fotos das URLs assinadas para Data URL (base64) — necessário para @react-pdf
+    // Converte fotos para Data URL (base64) e detecta dimensões reais
+    // Dimensões são necessárias para renderização adaptativa no PDF
     const fotosBase64: Record<string, string> = {}
+    const fotoDimensoes: Record<string, { width: number; height: number }> = {}
+
     if (fotosUrl && typeof fotosUrl === 'object') {
       await Promise.all(
         Object.entries(fotosUrl).map(async ([chave, url]) => {
@@ -52,10 +97,11 @@ export async function POST(req: NextRequest) {
           try {
             const res = await fetch(url)
             if (res.ok) {
-              const buf = await res.arrayBuffer()
-              const b64 = Buffer.from(buf).toString('base64')
+              const arrayBuf = await res.arrayBuffer()
+              const buf = Buffer.from(arrayBuf)
               const ct = res.headers.get('content-type') || 'image/jpeg'
-              fotosBase64[chave] = `data:${ct};base64,${b64}`
+              fotosBase64[chave] = `data:${ct};base64,${buf.toString('base64')}`
+              fotoDimensoes[chave] = getImageDimensions(buf, ct)
             }
           } catch {
             // Foto individual falhou — prosseguir sem ela
@@ -69,6 +115,7 @@ export async function POST(req: NextRequest) {
         dados={dados}
         perfil={perfilComLogo}
         fotosUrl={fotosBase64}
+        fotoDimensoes={fotoDimensoes}
       />
     )
 

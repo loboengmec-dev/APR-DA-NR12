@@ -145,9 +145,32 @@ const S = StyleSheet.create({
   signSub:  { fontSize: 8.5, color: C.muted, marginTop: 2 },
 
   // Fotos
-  fotoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
-  fotoImg:  { width: 160, height: 120, borderRadius: 4 },
+  fotoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  fotoBox:  { width: '48%', borderRadius: 4, overflow: 'hidden', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0' },
+  fotoCaption: { fontSize: 7, color: '#64748b', textAlign: 'center', padding: 3 },
 })
+
+// ---------------------------------------------------------------------------
+// Helpers de dimensão de imagem
+// ---------------------------------------------------------------------------
+
+/**
+ * Calcula a altura ideal de uma imagem preservando aspect ratio dentro
+ * de um container de largura conhecida.
+ * @param dims - Dimensões reais da imagem {width, height}
+ * @param containerWidth - Largura disponível em pontos PDF
+ * @param maxHeight - Altura máxima permitida (evita fotos muito altas)
+ */
+function calcImageHeight(
+  dims: { width: number; height: number } | undefined,
+  containerWidth: number,
+  maxHeight: number = 300
+): number {
+  if (!dims || dims.width === 0) return maxHeight
+  const ratio = dims.height / dims.width
+  const natural = containerWidth * ratio
+  return Math.min(natural, maxHeight)
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -156,6 +179,8 @@ interface LaudoCaldeiraPDFProps {
   dados: Record<string, any>
   perfil?: Record<string, any>
   fotosUrl?: Record<string, string>
+  /** Dimensões reais (px) de cada imagem — chave idêntica à de fotosUrl */
+  fotoDimensoes?: Record<string, { width: number; height: number }>
 }
 
 // ---------------------------------------------------------------------------
@@ -211,7 +236,7 @@ function Campo3({ label, value }: { label: string; value: string | number | unde
 // ---------------------------------------------------------------------------
 // Componente principal
 // ---------------------------------------------------------------------------
-export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {} }: LaudoCaldeiraPDFProps) {
+export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDimensoes = {} }: LaudoCaldeiraPDFProps) {
   const d = dados
   const statusColors = badgeStatus(d.statusFinal)
   const ncs: any[] = d.naoConformidades ?? []
@@ -220,7 +245,7 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {} }: Laudo
   // Fotos do exame interno
   const fotosInterno = Object.entries(fotosUrl)
     .filter(([k]) => k.startsWith('interno_'))
-    .map(([, url]) => url)
+    .map(([k, url]) => ({ key: k, url }))
 
   return (
     <Document>
@@ -341,8 +366,8 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {} }: Laudo
           <Text style={[S.sectionTitle, { marginTop: 16 }]}>5. RESULTADO — PMTA CALCULADA</Text>
 
           <View style={S.grid2}>
-            <Campo label="PMTA Costado Cilíndrico (PG-27.2.2)" value={d.pmtaCostado !== undefined ? `${Number(d.pmtaCostado).toFixed(4)} MPa` : '—'} />
-            <Campo label="PMTA Espelho Plano (PG-31)" value={d.pmtaEspelho !== undefined ? `${Number(d.pmtaEspelho).toFixed(4)} MPa` : '—'} />
+            <Campo label="PMTA Costado Cilíndrico (PG-27.2.2)" value={d.pmtaCostado !== undefined ? `${(Number(d.pmtaCostado) * 10.197).toFixed(2)} kgf/cm²` : '—'} />
+            <Campo label="PMTA Espelho Plano (PG-31)" value={d.pmtaEspelho !== undefined ? `${(Number(d.pmtaEspelho) * 10.197).toFixed(2)} kgf/cm²` : '—'} />
           </View>
 
           <View style={S.pmtaCard}>
@@ -353,7 +378,7 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {} }: Laudo
               </Text>
             </View>
             <Text style={S.pmtaValue}>
-              {d.pmtaLimitante !== undefined ? `${(Number(d.pmtaLimitante) * 1000).toFixed(0)} kPa` : '—'}
+              {d.pmtaLimitante !== undefined ? `${(Number(d.pmtaLimitante) * 10.197).toFixed(2)} kgf/cm²` : '—'}
             </Text>
           </View>
 
@@ -361,7 +386,9 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {} }: Laudo
           <View style={{ marginTop: 8, padding: 8, backgroundColor: C.cardBg, borderRadius: 4, borderWidth: 1, borderColor: C.border }}>
             <Text style={[S.label, { marginBottom: 2 }]}>PMTA Fixada pelo PLH (Profissional Legalmente Habilitado)</Text>
             <Text style={{ fontSize: 13, fontFamily: 'Helvetica-Bold', color: C.primary }}>
-              {d.pmtaPlh ? `${d.pmtaPlh} kPa` : `${d.pmtaLimitante !== undefined ? (Number(d.pmtaLimitante) * 1000).toFixed(0) : '—'} kPa`}
+              {d.pmtaPlh
+                ? `${(Number(d.pmtaPlh) / 98.0665).toFixed(2)} kgf/cm²`
+                : `${d.pmtaLimitante !== undefined ? (Number(d.pmtaLimitante) * 10.197).toFixed(2) : '—'} kgf/cm²`}
             </Text>
           </View>
 
@@ -425,24 +452,92 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {} }: Laudo
             })
           )}
 
-          {/* Fotos exame interno */}
+          {/* Fotos exame interno — dimensão adaptativa */}
           {fotosInterno.length > 0 && (
             <>
               <Text style={[S.sectionTitle, { marginTop: 16 }]}>8. EVIDÊNCIAS FOTOGRÁFICAS — EXAME INTERNO</Text>
               <View style={S.fotoGrid}>
-                {fotosInterno.slice(0, 4).map((url, i) => (
-                  <PDFImage key={i} src={url} style={S.fotoImg} />
-                ))}
+                {fotosInterno.slice(0, 6).map(({ key, url }, i) => {
+                  const dims = fotoDimensoes[key]
+                  // 2 fotos por linha: container ~240pt (A4 515pt − 40 margem − 8 gap ÷ 2)
+                  const containerW = fotosInterno.length === 1 ? 475 : 235
+                  const h = calcImageHeight(dims, containerW, 320)
+                  const w = fotosInterno.length === 1 ? '100%' : '48%'
+                  return (
+                    <View key={i} style={[S.fotoBox, { width: w }]} wrap={false}>
+                      <PDFImage src={url} style={{ width: '100%', height: h, objectFit: 'contain' }} />
+                      <Text style={S.fotoCaption}>Exame Interno — Foto {i + 1}</Text>
+                    </View>
+                  )
+                })}
               </View>
             </>
           )}
 
+          {/* Fotos dos demais grupos de checklist */}
+          {(() => {
+            const gruposChecklist = [
+              { prefixo: 'valvulas_',         label: 'Válvulas de Segurança' },
+              { prefixo: 'nivel_',            label: 'Controle de Nível' },
+              { prefixo: 'distanciaInstalacao_', label: 'Distanciamento' },
+              { prefixo: 'iluminacao_',       label: 'Iluminação de Emergência' },
+              { prefixo: 'qualidadeAgua_',    label: 'Qualidade da Água' },
+              { prefixo: 'certificacaoOperador_', label: 'Certificação do Operador' },
+            ]
+            const fotosPorGrupo = gruposChecklist
+              .map(g => ({
+                label: g.label,
+                fotos: Object.entries(fotosUrl)
+                  .filter(([k]) => k.startsWith(g.prefixo))
+                  .map(([k, url]) => ({ key: k, url })),
+              }))
+              .filter(g => g.fotos.length > 0)
+
+            if (fotosPorGrupo.length === 0) return null
+            const sectionNum = fotosInterno.length > 0 ? '9' : '8'
+            return (
+              <>
+                <Text style={[S.sectionTitle, { marginTop: 16 }]}>{sectionNum}. EVIDÊNCIAS FOTOGRÁFICAS — CHECKLIST NR-13</Text>
+                {fotosPorGrupo.map((grupo, gi) => (
+                  <View key={gi} style={{ marginBottom: 10 }}>
+                    <Text style={[S.label, { marginBottom: 4, color: C.primary }]}>{grupo.label}</Text>
+                    <View style={S.fotoGrid}>
+                      {grupo.fotos.slice(0, 4).map(({ key, url }, i) => {
+                        const dims = fotoDimensoes[key]
+                        const containerW = grupo.fotos.length === 1 ? 475 : 235
+                        const h = calcImageHeight(dims, containerW, 200)
+                        const w = grupo.fotos.length === 1 ? '100%' : '48%'
+                        return (
+                          <View key={i} style={[S.fotoBox, { width: w }]} wrap={false}>
+                            <PDFImage src={url} style={{ width: '100%', height: h, objectFit: 'contain' }} />
+                            <Text style={S.fotoCaption}>{grupo.label} — Foto {i + 1}</Text>
+                          </View>
+                        )
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </>
+            )
+          })()}
+
           {/* Parecer */}
-          <Text style={[S.sectionTitle, { marginTop: 16 }]}>{fotosInterno.length > 0 ? '9' : '8'}. PARECER TÉCNICO CONCLUSIVO</Text>
+          <Text style={[S.sectionTitle, { marginTop: 16 }]}>{
+            (() => {
+              let n = 8
+              if (fotosInterno.length > 0) n++
+              const hasChecklist = Object.keys(fotosUrl).some(k =>
+                ['valvulas_','nivel_','distanciaInstalacao_','iluminacao_','qualidadeAgua_','certificacaoOperador_']
+                  .some(p => k.startsWith(p))
+              )
+              if (hasChecklist) n++
+              return n
+            })()
+          }. PARECER TÉCNICO CONCLUSIVO</Text>
           <View style={S.parecerBox}>
             <Text style={S.parecerText}>
               {d.parecerTecnico ||
-                `A Caldeira identificada pela TAG "${d.tag ?? '—'}", categoria NR-13 ${d.categoria ?? '—'}, foi submetida a inspeção ${d.tipoInspecao?.toLowerCase() ?? 'periódica'} em ${formatDate(d.dataInspecao)}, resultando no status de INTEGRIDADE: ${d.statusFinal ?? 'Aprovado'}. A PMTA calculada pelo método ASME Sec. I é de ${d.pmtaLimitante !== undefined ? (Number(d.pmtaLimitante) * 1000).toFixed(0) : '—'} kPa, limitada pelo componente ${d.componenteFragil ?? 'costado'}.`
+                `A Caldeira identificada pela TAG "${d.tag ?? '—'}", categoria NR-13 ${d.categoria ?? '—'}, foi submetida a inspeção ${d.tipoInspecao?.toLowerCase() ?? 'periódica'} em ${formatDate(d.dataInspecao)}, resultando no status de INTEGRIDADE: ${d.statusFinal ?? 'Aprovado'}. A PMTA calculada pelo método ASME Sec. I é de ${d.pmtaLimitante !== undefined ? (Number(d.pmtaLimitante) * 10.197).toFixed(2) : '—'} kgf/cm², limitada pelo componente ${d.componenteFragil ?? 'costado'}.`
               }
             </Text>
           </View>

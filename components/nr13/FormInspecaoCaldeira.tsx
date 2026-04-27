@@ -42,6 +42,8 @@ interface NC {
   grauRisco: 'Crítico' | 'Moderado' | 'Baixo'
   prazo: number
   responsavel: string
+  /** Marcador interno — NC gerada automaticamente a partir do checklist (não persiste no banco) */
+  _auto?: boolean
 }
 
 interface FormInspecaoCaldeiraProps {
@@ -227,6 +229,102 @@ export default function FormInspecaoCaldeira({
     setDataProximaInspInterna(somarAnos(intervalos.interno))
     setDataProximoTesteDisp(somarAnos(1))
   }, [categoria])
+
+  // ---------------------------------------------------------------------------
+  // Auto-geração de NCs a partir dos resultados do checklist (Seções 3 e 5)
+  // Quando um item passa a "Não Conforme"/"Inexistente", uma NC pré-preenchida
+  // é inserida automaticamente. Quando volta a "Conforme", é removida.
+  // NCs manuais (sem _auto) nunca são tocadas por este efeito.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const autoNcs: NC[] = []
+
+    if (valvulaSeguranca === 'Não Conforme') {
+      autoNcs.push({
+        descricao: 'Válvulas de Segurança e Alívio (PSV/VSA) não conformes',
+        refNR13: '§13.4.1.1',
+        acaoCorretiva: 'Recalibrar ou substituir as válvulas de segurança e alívio conforme ASME Sec. I e NR-13',
+        grauRisco: 'Crítico', prazo: 7, responsavel: '', _auto: true,
+      })
+    }
+
+    if (controleNivel === 'Não Conforme') {
+      autoNcs.push({
+        descricao: 'Controle de Nível Automático e Intertravamento não conforme',
+        refNR13: '§13.4.1.2',
+        acaoCorretiva: 'Reparar/calibrar o sistema de intertravamento de baixo nível de água',
+        grauRisco: 'Crítico', prazo: 3, responsavel: '', _auto: true,
+      })
+    }
+
+    if (controleNivel === 'Inexistente') {
+      autoNcs.push({
+        descricao: 'Controle de Nível Automático e Intertravamento INEXISTENTE — Risco Grave e Iminente',
+        refNR13: '§13.4.1.2',
+        acaoCorretiva: 'Interdição imediata. Instalar sistema de intertravamento antes de retornar à operação',
+        grauRisco: 'Crítico', prazo: 0, responsavel: '', _auto: true,
+      })
+    }
+
+    if (distanciaInstalacao === 'Não Conforme') {
+      autoNcs.push({
+        descricao: 'Distanciamento frontal da Casa de Caldeiras inferior ao mínimo de 3 m',
+        refNR13: '§13.4.2.1',
+        acaoCorretiva: 'Adequar o espaço frontal para mínimo 3 metros livres e saídas desobstruídas',
+        grauRisco: 'Moderado', prazo: 30, responsavel: '', _auto: true,
+      })
+    }
+
+    if (iluminacaoEmergencia === 'Não Conforme') {
+      autoNcs.push({
+        descricao: 'Iluminação de Emergência ausente ou inadequada na Casa de Caldeiras',
+        refNR13: '§13.4.2.2',
+        acaoCorretiva: 'Instalar/revisar sistema de iluminação de emergência que garanta fuga segura e leitura de instrumentos',
+        grauRisco: 'Moderado', prazo: 15, responsavel: '', _auto: true,
+      })
+    }
+
+    if (qualidadeAgua === 'Não Conforme') {
+      autoNcs.push({
+        descricao: 'Gestão de Qualidade da Água de Alimentação não conforme',
+        refNR13: '§13.4.3',
+        acaoCorretiva: 'Implantar controle químico contínuo: pH, condutividade, dureza, O₂ dissolvido e sílica',
+        grauRisco: 'Moderado', prazo: 30, responsavel: '', _auto: true,
+      })
+    }
+
+    if (certificacaoOperador === 'Não Conforme') {
+      autoNcs.push({
+        descricao: 'Operador de Caldeira sem certificação/habilitação exigida',
+        refNR13: '§13.4.4',
+        acaoCorretiva: 'Providenciar treinamento e habilitação do operador conforme norma pertinente antes da próxima operação',
+        grauRisco: 'Moderado', prazo: 60, responsavel: '', _auto: true,
+      })
+    }
+
+    if (exameExterno === 'Não Conforme') {
+      autoNcs.push({
+        descricao: 'Exame Externo revelou não conformidades na integridade da caldeira',
+        refNR13: '§13.5.4.11',
+        acaoCorretiva: 'Sanar não conformidades externas identificadas: pintura, isolamento, suportes e acessórios',
+        grauRisco: 'Moderado', prazo: 30, responsavel: '', _auto: true,
+      })
+    }
+
+    if (exameInterno === 'Não Conforme') {
+      autoNcs.push({
+        descricao: 'Exame Interno revelou não conformidades estruturais na caldeira',
+        refNR13: '§13.5.4.11',
+        acaoCorretiva: 'Executar reparos nos pontos identificados no exame interno conforme ASME Sec. I e reinspeção obrigatória',
+        grauRisco: 'Crítico', prazo: 30, responsavel: '', _auto: true,
+      })
+    }
+
+    setNcs(prev => {
+      const manuais = prev.filter(nc => !nc._auto)
+      return [...manuais, ...autoNcs]
+    })
+  }, [valvulaSeguranca, controleNivel, distanciaInstalacao, iluminacaoEmergencia, qualidadeAgua, certificacaoOperador, exameExterno, exameInterno])
 
   // ---------------------------------------------------------------------------
   // Carregamentos iniciais
@@ -751,6 +849,7 @@ export default function FormInspecaoCaldeira({
         <div className="space-y-4">
 
           <ChecklistItemWithUpload
+            uid="valvulas"
             titulo="Válvulas de Segurança e Alívio (PSV/VSA)"
             descricao="Pressão de abertura ajustada ≤ PMTA; integridade física das molas e selo. §13.4.1.1"
             valor={valvulaSeguranca}
@@ -766,6 +865,7 @@ export default function FormInspecaoCaldeira({
           />
 
           <ChecklistItemWithUpload
+            uid="nivel"
             titulo="Controle de Nível Automático e Intertravamento"
             descricao="Sistema de intertravamento para baixo nível de água. Exigência mandatória §13.4.1.2."
             valor={controleNivel}
@@ -782,6 +882,7 @@ export default function FormInspecaoCaldeira({
           />
 
           <ChecklistItemWithUpload
+            uid="distancia"
             titulo="Distanciamento da Casa de Caldeiras (≥ 3 m)"
             descricao="Área frontal com no mínimo 3 metros livres e saídas desobstruídas. §13.4.2.1"
             valor={distanciaInstalacao}
@@ -796,6 +897,7 @@ export default function FormInspecaoCaldeira({
           />
 
           <ChecklistItemWithUpload
+            uid="iluminacao"
             titulo="Iluminação de Emergência"
             descricao="Garante fuga segura e leitura de instrumentos em blackout. §13.4.2.2"
             valor={iluminacaoEmergencia}
@@ -809,6 +911,7 @@ export default function FormInspecaoCaldeira({
           />
 
           <ChecklistItemWithUpload
+            uid="qualidade-agua"
             titulo="Gestão de Qualidade da Água de Alimentação"
             descricao="Controle químico para prevenir incrustações e corrosão focal. §13.4.3"
             valor={qualidadeAgua}
@@ -822,6 +925,7 @@ export default function FormInspecaoCaldeira({
           />
 
           <ChecklistItemWithUpload
+            uid="certificacao"
             titulo="Certificação do Operador de Caldeira"
             descricao="Operadores habilitados e documentados conforme norma pertinente. §13.4.4"
             valor={certificacaoOperador}
@@ -904,7 +1008,7 @@ export default function FormInspecaoCaldeira({
                 onChange={e => setPsvCalibracao(Number(e.target.value))}
               />
               <p className="text-xs text-gray-400 mt-1">
-                PMTA calculada: {(pmtaCalc.pmtaLimitante * 1000).toFixed(0)} kPa — PSV deve ser ≤ PMTA
+                PMTA calculada: {(pmtaCalc.pmtaLimitante * 10.197).toFixed(2)} kgf/cm² ({(pmtaCalc.pmtaLimitante * 1000).toFixed(0)} kPa) — PSV deve ser ≤ PMTA
               </p>
             </div>
           </div>
@@ -942,28 +1046,22 @@ export default function FormInspecaoCaldeira({
               </div>
             </div>
 
-            {/* Taxa de corrosão */}
-            <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 flex items-center justify-between">
-              <span className="text-xs text-orange-700 font-bold uppercase">Taxa de Corrosão Média</span>
-              <span className="text-2xl font-black text-orange-700">{taxaCorrosao.toFixed(3)} <span className="text-xs font-normal">mm/ano</span></span>
-            </div>
-
-            {/* Resultados PMTA */}
+            {/* Resultados PMTA (unidade: kgf/cm²) */}
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-500">PMTA Costado (PG-27.2.2):</span>
-                <span className="font-mono font-semibold">{pmtaCostadoMPa.toFixed(3)} MPa</span>
+                <span className="font-mono font-semibold">{(pmtaCostadoMPa * 10.197).toFixed(2)} kgf/cm²</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">PMTA Espelho Plano (PG-31):</span>
-                <span className="font-mono font-semibold">{pmtaEspelhoMPa.toFixed(3)} MPa</span>
+                <span className="font-mono font-semibold">{(pmtaEspelhoMPa * 10.197).toFixed(2)} kgf/cm²</span>
               </div>
               <div className={`mt-2 p-3 rounded-lg border flex items-center justify-between ${pmtaCalc.condena ? 'bg-red-100 border-red-300 text-red-800' : 'bg-emerald-100 border-emerald-300 text-emerald-800'}`}>
                 <div>
                   <p className="font-bold text-sm">PMTA Efetiva (limitada pelo {pmtaCalc.componenteFragil})</p>
                   {pmtaCalc.condena && <p className="text-xs font-bold mt-1">PMTA &lt; Pressão de Operação — Downgrade obrigatório!</p>}
                 </div>
-                <span className="font-mono font-black text-xl">{pmtaCalc.pmtaLimitante.toFixed(3)} MPa</span>
+                <span className="font-mono font-black text-xl">{(pmtaCalc.pmtaLimitante * 10.197).toFixed(2)} kgf/cm²</span>
               </div>
             </div>
           </div>
@@ -1039,24 +1137,29 @@ export default function FormInspecaoCaldeira({
         ) : (
           <div className="space-y-3">
             {ncs.map((nc, i) => (
-              <div key={i} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <div key={i} className={`flex items-start justify-between p-3 rounded-lg border ${nc._auto ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-100'}`}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`px-2 py-0.5 rounded text-xs font-bold text-white ${nc.grauRisco === 'Crítico' ? 'bg-red-600' : nc.grauRisco === 'Moderado' ? 'bg-amber-500' : 'bg-blue-500'}`}>
                       {nc.grauRisco}
                     </span>
                     <span className="text-xs text-gray-500 font-mono">{nc.refNR13}</span>
+                    {nc._auto && (
+                      <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-200 text-amber-800">Auto</span>
+                    )}
                   </div>
                   <p className="text-sm font-medium text-gray-800 truncate">{nc.descricao}</p>
                   <p className="text-xs text-gray-500">Prazo: {nc.prazo} dias — Resp.: {nc.responsavel || '—'}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setNcs(prev => prev.filter((_, idx) => idx !== i))}
-                  className="ml-3 text-gray-400 hover:text-red-600 p-1"
-                >
-                  ×
-                </button>
+                {!nc._auto && (
+                  <button
+                    type="button"
+                    onClick={() => setNcs(prev => prev.filter((_, idx) => idx !== i))}
+                    className="ml-3 text-gray-400 hover:text-red-600 p-1"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             ))}
           </div>

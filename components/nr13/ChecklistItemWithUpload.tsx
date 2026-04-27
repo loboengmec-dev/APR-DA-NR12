@@ -3,6 +3,9 @@ import UploadFotoNR13 from './UploadFotoNR13'
 import GaleriaFotosNR13 from './GaleriaFotosNR13'
 
 interface ChecklistItemWithUploadProps {
+  /** Identificador único do item — usado para gerar id único no input de upload,
+   *  evitando que todos os botões "Add" apontem para o mesmo <input> */
+  uid: string
   titulo: string
   descricao: string
   valor: string
@@ -16,6 +19,7 @@ interface ChecklistItemWithUploadProps {
 }
 
 export default function ChecklistItemWithUpload({
+  uid,
   titulo,
   descricao,
   valor,
@@ -69,7 +73,7 @@ export default function ChecklistItemWithUpload({
           {fotos.length < maxFotos && (
             <div className="w-20 flex-shrink-0">
                <UploadFotoNR13
-                 label="Add"
+                 label={uid}
                  onUpload={handleUpload}
                  onPhotoUploaded={() => {}}
                  corBorda="slate"
