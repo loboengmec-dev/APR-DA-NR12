@@ -13,13 +13,31 @@ import { NormaCalculo } from './materiais';
 // TIPOS
 // ---------------------------------------------------------------------------
 
+/** Parâmetros para o costado cilíndrico (PG-27.2.2) */
 export interface ParametrosPMTACaldeira {
   S: number;       // Tensão Admissível do Material (MPa)
   E: number;       // Eficiência de Junta (ex: 1.0, 0.85)
-  t: number;       // Espessura disponível medida (mm) — já descontada corrosão futura
-  D: number;       // Diâmetro Interno (mm)
+  t: number;       // Espessura disponível medida (mm)
+  D: number;       // Diâmetro Interno da carcaça (mm)
   y?: number;      // Coeficiente de temperatura (default 0.4 para T < 482°C)
-  C?: number;      // Fator estrutural do espelho plano (default 0.33)
+}
+
+/**
+ * Parâmetros para espelhos planos suportados (PG-31).
+ *
+ * ATENÇÃO: `d` ≠ Diâmetro total da caldeira.
+ * Conforme ASME Section I PG-31, `d` é a MAIOR DISTÂNCIA NÃO SUPORTADA
+ * entre os centros dos tubos de fogo, estroncas ou suportes adjacentes.
+ * Usar o diâmetro da carcaça resulta em PMTA muito inferior à real.
+ */
+export interface ParametrosPMTAEspelhoPlano {
+  S: number;   // Tensão Admissível do Material (MPa)
+  E: number;   // Eficiência de Junta
+  t: number;   // Espessura do espelho (mm)
+  /** Maior distância não suportada entre centros de tubos/suportes (mm) — ASME PG-31 */
+  d: number;
+  /** Fator estrutural — 0.33 para espelhos soldados (fixo por norma, não editável) */
+  C?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -47,26 +65,37 @@ export function calcularPMTACostadoCaldeira({ S, E, t, D, y = 0.4 }: ParametrosP
 }
 
 // ---------------------------------------------------------------------------
-// ESPELHOS PLANOS (Flat Unstayed Heads) - ASME Sec. I (PG-31)
+// ESPELHOS PLANOS SUPORTADOS (Flat Stayed Heads) - ASME Sec. I (PG-31)
 // ---------------------------------------------------------------------------
 
 /**
- * PMTA para Espelhos Planos NÂO estaiados (Flat Unstayed Heads - ASME Section I - PG-31)
+ * PMTA para Espelhos Planos Suportados por Tubos de Fogo/Estroncas
+ * Referência: ASME Section I — PG-31
  *
- * Aplicável para espelhos retos/planos comuns.
- * Fórmula da espessura min: t = d * sqrt(C * P / (S * E))
- * Onde "d" = Diâmetro Interno = D
- * 
+ * Fórmula canônica:
+ *   t = d · √(C · P / (S · E))
+ *
  * Isolando P:
- * t² = D² * (C * P) / (S * E)
- * P = t² * S * E / (D² * C)
+ *   P = (t² · S · E) / (d² · C)
  *
- * @param C - Fator construtivo (default 0.33 para espelhos soldados tipicamente)
+ * VARIÁVEL CRÍTICA — `d`:
+ *   Não é o diâmetro interno da caldeira (D).
+ *   É a MAIOR DISTÂNCIA NÃO SUPORTADA entre os centros dos tubos de fogo,
+ *   estroncas ou suportes adjacentes no espelho. Em caldeiras fire-tube
+ *   típicas, `d` varia entre 100 mm e 350 mm (passo dos tubos).
+ *   Usar D em vez de d produz PMTA artificial e incorretamente baixa.
+ *
+ * CONSTANTE C:
+ *   0,33 — espelhos planos soldados com suporte por tubos (fixo por norma).
+ *   Não deve ser editável pelo usuário.
+ *
+ * @param d  Maior distância não suportada entre centros de tubos/suportes (mm)
+ * @param C  Fator estrutural (default 0.33 — não alterar sem base normativa)
  */
-export function calcularPMTAEspelhoPlano({ S, E, t, D, C = 0.33 }: ParametrosPMTACaldeira): number {
-  if (t <= 0 || D <= 0 || C <= 0) return 0;
-  
-  return (Math.pow(t, 2) * S * E) / (Math.pow(D, 2) * C);
+export function calcularPMTAEspelhoPlano({ S, E, t, d, C = 0.33 }: ParametrosPMTAEspelhoPlano): number {
+  if (t <= 0 || d <= 0 || C <= 0) return 0;
+
+  return (Math.pow(t, 2) * S * E) / (Math.pow(d, 2) * C);
 }
 
 // ---------------------------------------------------------------------------

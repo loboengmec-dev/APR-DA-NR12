@@ -137,6 +137,12 @@ export default function FormInspecaoCaldeira({
   const [espessuraCostadoAnterior, setEspessuraCostadoAnterior] = useState<number>(initialData?.espessura_costado_anterior ?? 10)
   const [mesesEntreInspecoes, setMesesEntreInspecoes] = useState<number>(initialData?.meses_entre_inspecoes ?? 12)
   const [espessuraEspelho, setEspessuraEspelho] = useState<number>(initialData?.espessura_espelho ?? 12)
+  /**
+   * d — Maior distância não suportada entre centros de tubos de fogo ou estroncas (mm).
+   * ASME Section I PG-31. NÃO é o diâmetro interno da caldeira.
+   * Default conservador: 200 mm (passo típico entre tubos de fogo).
+   */
+  const [dEspelho, setDEspelho] = useState<number>(initialData?.d_espelho_mm ?? 200)
   const [psvCalibracao, setPsvCalibracao] = useState<number>(
     initialData?.psv_calibracao_kpa ? +(initialData.psv_calibracao_kpa * 0.010197).toFixed(4) : 0
   )
@@ -191,19 +197,22 @@ export default function FormInspecaoCaldeira({
 
   const pmtaCalc = useMemo(() => {
     const pmtaCostado = calcularPMTACostadoCaldeira({ S, E, t: espessuraCostado, D })
-    const pmtaEspelho = calcularPMTAEspelhoPlano({ S, E, t: espessuraEspelho, D })
+    // espelho usa `d` (vão entre suportes), não D (diâmetro da carcaça) — ASME PG-31
+    const pmtaEspelho = calcularPMTAEspelhoPlano({ S, E, t: espessuraEspelho, d: dEspelho })
     // pressaoOperacao está em kgf/cm² — calcularPMTACaldeiraGlobal espera MPa
     return calcularPMTACaldeiraGlobal(pmtaCostado, pmtaEspelho, pressaoOperacao / 10.197)
-  }, [S, E, espessuraCostado, espessuraEspelho, D, pressaoOperacao])
+  }, [S, E, espessuraCostado, espessuraEspelho, D, dEspelho, pressaoOperacao])
 
   const pmtaCostadoMPa = useMemo(
     () => calcularPMTACostadoCaldeira({ S, E, t: espessuraCostado, D }),
     [S, E, espessuraCostado, D]
   )
 
+  // `dEspelho` = maior vão livre entre tubos de fogo/estroncas (ASME PG-31)
+  // NÃO usa D (diâmetro da carcaça) — erro clássico que subtima a PMTA real
   const pmtaEspelhoMPa = useMemo(
-    () => calcularPMTAEspelhoPlano({ S, E, t: espessuraEspelho, D }),
-    [S, E, espessuraEspelho, D]
+    () => calcularPMTAEspelhoPlano({ S, E, t: espessuraEspelho, d: dEspelho }),
+    [S, E, espessuraEspelho, dEspelho]
   )
 
   const taxaCorrosao = useMemo(
@@ -506,6 +515,7 @@ export default function FormInspecaoCaldeira({
             espessura_costado_anterior: espessuraCostadoAnterior,
             meses_entre_inspecoes: mesesEntreInspecoes,
             espessura_espelho: espessuraEspelho,
+            d_espelho_mm: dEspelho,
             psv_calibracao_kpa: +(psvCalibracao * 98.0665).toFixed(2),    // kgf/cm² → kPa
             pmta_asme_kpa: +(pmtaCalc.pmtaLimitante * 1000).toFixed(2),
             pmta_plh_kpa: pmtaPlh
@@ -591,6 +601,7 @@ export default function FormInspecaoCaldeira({
         espessura_costado_anterior: espessuraCostadoAnterior,
         meses_entre_inspecoes: mesesEntreInspecoes,
         espessura_espelho: espessuraEspelho,
+        d_espelho_mm: dEspelho,
         psv_calibracao_kpa: +(psvCalibracao * 98.0665).toFixed(2),
         pmta_asme_kpa: +(pmtaCalc.pmtaLimitante * 1000).toFixed(2),
         pmta_plh_kpa: pmtaPlh
@@ -684,7 +695,7 @@ export default function FormInspecaoCaldeira({
             pressaoOperacao, capacidadeProducao,
             valvulaSeguranca, controleNivel, distanciaInstalacao, iluminacaoEmergencia,
             qualidadeAgua, certificacaoOperador, manualOperacao,
-            normaCalc, S, E, D, espessuraCostado, espessuraCostadoAnterior,
+            normaCalc, S, E, D, dEspelho, espessuraCostado, espessuraCostadoAnterior,
             mesesEntreInspecoes, espessuraEspelho,
             // pressaoOperacao, pmtaFabricante, psvCalibracao já estão acima em kgf/cm²
             // PMTA calculados: converter MPa → kgf/cm² para o PDF exibir diretamente
@@ -1060,6 +1071,34 @@ export default function FormInspecaoCaldeira({
                 <input type="number" step="1" min="1"
                   className="w-full border border-slate-300 rounded px-2 py-1"
                   value={mesesEntreInspecoes} onChange={e => setMesesEntreInspecoes(Number(e.target.value))} />
+              </div>
+
+              {/* Campo crítico: d do PG-31 — ocupa linha inteira para destaque */}
+              <div className="col-span-2">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <label className="text-xs font-semibold text-orange-700">
+                    Maior Distância entre Suportes — <em>d</em> (mm) <span className="text-red-500">*</span>
+                  </label>
+                  {/* Tooltip inline */}
+                  <div className="group relative">
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-orange-100 text-orange-600 text-xs font-bold cursor-help select-none">?</span>
+                    <div className="pointer-events-none absolute left-6 top-0 z-10 w-72 rounded-lg bg-slate-800 text-white text-xs p-3 opacity-0 group-hover:opacity-100 transition-opacity shadow-xl">
+                      <p className="font-bold mb-1">ASME Section I — PG-31</p>
+                      <p>Insira o <strong>maior vão livre entre centros de tubos de fogo, estroncas ou suportes</strong> adjacentes no espelho.</p>
+                      <p className="mt-1.5 text-orange-300 font-semibold">⚠️ Não use o diâmetro total da caldeira — isso resultaria em PMTA artificialmente baixa e incorreta.</p>
+                      <p className="mt-1.5 text-slate-300">Valor típico em caldeiras fire-tube: 100–350 mm (passo dos tubos).</p>
+                    </div>
+                  </div>
+                </div>
+                <input
+                  type="number" step="1" min="10"
+                  className="w-full border-2 border-orange-300 rounded px-2 py-1.5 bg-orange-50 focus:ring-orange-400 focus:outline-none font-semibold text-orange-900"
+                  value={dEspelho}
+                  onChange={e => setDEspelho(Number(e.target.value))}
+                />
+                <p className="text-xs text-orange-600 mt-0.5">
+                  C = 0,33 fixo (espelhos soldados — ASME PG-31)
+                </p>
               </div>
             </div>
 

@@ -344,11 +344,23 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
             <Campo label="Material / Norma" value={d.normaCalc} />
             <Campo label="Tensão Admissível [S]" value={`${d.S} MPa`} />
             <Campo label="Eficiência de Junta [E]" value={`${d.E}`} />
-            <Campo label="Diâmetro Interno [D]" value={`${d.D} mm`} />
+            <Campo label="Diâmetro Interno da Carcaça [D]" value={`${d.D} mm`} />
             <Campo label="Espessura Costado Medida" value={`${d.espessuraCostado} mm`} />
             <Campo label="Espessura Costado Anterior" value={`${d.espessuraCostadoAnterior} mm`} />
             <Campo label="Espessura Espelho Plano" value={`${d.espessuraEspelho} mm`} />
             <Campo label="Intervalo entre Inspeções" value={`${d.mesesEntreInspecoes} meses`} />
+          </View>
+          {/* Destaque especial para `d` — variável mais comum de ser confundida com D */}
+          <View style={{ backgroundColor: C.warnBg, borderRadius: 4, padding: 8, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: C.warn }}>
+            <Text style={[S.label, { color: C.warn, marginBottom: 2 }]}>
+              MAIOR DISTÂNCIA ENTRE SUPORTES — d (ASME PG-31)
+            </Text>
+            <Text style={{ fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: C.warn }}>
+              {d.dEspelho ?? d.d_espelho_mm ?? '—'} mm
+            </Text>
+            <Text style={{ fontSize: 7.5, color: C.warn, marginTop: 2 }}>
+              Maior vão livre entre centros de tubos de fogo ou estroncas · C = 0,33 (fixo — espelho soldado)
+            </Text>
           </View>
 
           {/* Taxa de corrosão */}
