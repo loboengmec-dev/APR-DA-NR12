@@ -7,6 +7,7 @@ import { calcularPMTACostadoCaldeira, calcularPMTAEspelhoPlano, calcularPMTACald
 import { MATERIAIS_ASME, MATERIAIS_GBT150 } from '@/lib/domain/nr13/materiais'
 import UploadFotoNR13 from './UploadFotoNR13'
 import GaleriaFotosNR13 from './GaleriaFotosNR13'
+import ChecklistItemWithUpload from './ChecklistItemWithUpload'
 import { uploadFotoExame } from '@/lib/nr13/storage'
 
 interface FormInspecaoCaldeiraProps {
@@ -42,7 +43,21 @@ export default function FormInspecaoCaldeira({
   const [certificacaoOperador, setCertificacaoOperador] = useState(initialData?.certificacao_operador ?? 'Conforme')
   
   // Measurements
-  const [fotosExameInterno, setFotosExameInterno] = useState<any[]>(initialData?.fotos_exame ?? [])
+  const getInitialFotos = (key: string) => {
+    if (Array.isArray(initialData?.fotos_exame)) {
+       if (key === 'interno') return initialData.fotos_exame.map((url: string) => ({ url }))
+       return []
+    }
+    return initialData?.fotos_exame?.[key]?.map((url: string) => ({ url })) ?? []
+  }
+
+  const [fotosExameInterno, setFotosExameInterno] = useState<any[]>(getInitialFotos('interno'))
+  const [fotosValvulas, setFotosValvulas] = useState<any[]>(getInitialFotos('valvulas'))
+  const [fotosNivel, setFotosNivel] = useState<any[]>(getInitialFotos('nivel'))
+  const [fotosDistancia, setFotosDistancia] = useState<any[]>(getInitialFotos('distanciamento'))
+  const [fotosIluminacao, setFotosIluminacao] = useState<any[]>(getInitialFotos('iluminacao'))
+  const [fotosQualidade, setFotosQualidade] = useState<any[]>(getInitialFotos('qualidade'))
+  const [fotosCertificacao, setFotosCertificacao] = useState<any[]>(getInitialFotos('certificacao'))
   
   // ASME Calculations
   const [normaCalc, setNormaCalc] = useState(initialData?.norma_calculo ?? 'ASME')
@@ -152,7 +167,15 @@ export default function FormInspecaoCaldeira({
       certificacao_operador: certificacaoOperador,
       
       // Fotos
-      fotos_exame: fotosExameInterno.map(f => f.url), // store urls or paths
+      fotos_exame: {
+        interno: fotosExameInterno.map(f => f.url),
+        valvulas: fotosValvulas.map(f => f.url),
+        nivel: fotosNivel.map(f => f.url),
+        distanciamento: fotosDistancia.map(f => f.url),
+        iluminacao: fotosIluminacao.map(f => f.url),
+        qualidade: fotosQualidade.map(f => f.url),
+        certificacao: fotosCertificacao.map(f => f.url)
+      },
       norma_calculo: normaCalc,
       material_s: S,
       eficiencia_e: E,
@@ -230,77 +253,88 @@ export default function FormInspecaoCaldeira({
         <h2 className="text-lg font-bold text-gray-900 mb-6 border-b border-gray-100 pb-2">Auditoria Normativa e Instalação</h2>
         
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-lg">
-            <div>
-              <p className="font-semibold text-gray-900 text-sm">Válvulas de Segurança (PSV)</p>
-              <p className="text-xs text-gray-500">Pressão de abertura ajustada ≤ PMTA e integridade física das molas.</p>
-            </div>
-            <select className="input-field border border-gray-300 rounded px-3 py-2 text-sm w-48" value={valvulaAjustada} onChange={e => setValvulaAjustada(e.target.value)}>
-              <option value="Conforme">Conforme</option>
-              <option value="Não Conforme">Não Conforme (Risco Grave)</option>
-            </select>
-          </div>
+          <ChecklistItemWithUpload
+            titulo="Válvulas de Segurança (PSV)"
+            descricao="Pressão de abertura ajustada ≤ PMTA e integridade física das molas."
+            valor={valvulaAjustada}
+            onChangeValor={setValvulaAjustada}
+            opcoes={[
+              { value: 'Conforme', label: 'Conforme' },
+              { value: 'Não Conforme', label: 'Não Conforme (Risco Grave)' }
+            ]}
+            fotos={fotosValvulas}
+            onChangeFotos={setFotosValvulas}
+            alertGrave={valvulaAjustada === 'Não Conforme'}
+            alertMensagem="⚠️ Risco Comprovado: Válvula reprovada"
+          />
 
-          <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-lg">
-            <div>
-              <p className="font-semibold text-gray-900 text-sm">Controle de Nível Automático / Intertravamento</p>
-              <p className="text-xs text-gray-500">Exigência mandatória para evitar superaquecimento (§13.4.1.2).</p>
-            </div>
-            <select className="input-field border border-gray-300 rounded px-3 py-2 text-sm w-48" value={controleNivel} onChange={e => setControleNivel(e.target.value)}>
-              <option value="Conforme">Conforme</option>
-              <option value="Não Conforme">Não Conforme</option>
-              <option value="Inexistente">Inexistente (Risco Grave)</option>
-            </select>
-          </div>
-          {rgiAtivo && (
-            <div className="text-xs font-bold text-white bg-red-600 px-4 py-2 rounded">
-              ⚠️ Gatilho de Risco Grave e Iminente acionado! Interdição operacional mandatória requerida.
-            </div>
-          )}
+          <ChecklistItemWithUpload
+            titulo="Controle de Nível Automático / Intertravamento"
+            descricao="Exigência mandatória para evitar superaquecimento (§13.4.1.2)."
+            valor={controleNivel}
+            onChangeValor={setControleNivel}
+            opcoes={[
+              { value: 'Conforme', label: 'Conforme' },
+              { value: 'Não Conforme', label: 'Não Conforme' },
+              { value: 'Inexistente', label: 'Inexistente (Risco Grave)' }
+            ]}
+            fotos={fotosNivel}
+            onChangeFotos={setFotosNivel}
+            alertGrave={controleNivel === 'Inexistente'}
+            alertMensagem="⚠️ Gatilho de Risco Grave e Iminente acionado! Interdição operacional mandatória requerida."
+          />
 
-          <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-lg">
-            <div>
-              <p className="font-semibold text-gray-900 text-sm">Casa de Caldeiras: Distanciamento (3m)</p>
-              <p className="text-xs text-gray-500">Instalação dispõe de 3 metros de área frontal e saídas desobstruídas.</p>
-            </div>
-            <select className="input-field border border-gray-300 rounded px-3 py-2 text-sm w-48" value={distanciaInstalacao} onChange={e => setDistanciaInstalacao(e.target.value)}>
-              <option value="Conforme">Conforme</option>
-              <option value="Não Conforme">Não Conforme</option>
-            </select>
-          </div>
+          <ChecklistItemWithUpload
+            titulo="Casa de Caldeiras: Distanciamento (3m)"
+            descricao="Instalação dispõe de 3 metros de área frontal e saídas desobstruídas."
+            valor={distanciaInstalacao}
+            onChangeValor={setDistanciaInstalacao}
+            opcoes={[
+              { value: 'Conforme', label: 'Conforme' },
+              { value: 'Não Conforme', label: 'Não Conforme' }
+            ]}
+            fotos={fotosDistancia}
+            onChangeFotos={setFotosDistancia}
+          />
 
-          <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-lg">
-            <div>
-              <p className="font-semibold text-gray-900 text-sm">Iluminação de Emergência</p>
-              <p className="text-xs text-gray-500">Garante fuga segura e leitura de instrumentos em blackouts.</p>
-            </div>
-            <select className="input-field border border-gray-300 rounded px-3 py-2 text-sm w-48" value={iluminacaoEmergencia} onChange={e => setIluminacaoEmergencia(e.target.value)}>
-              <option value="Conforme">Conforme</option>
-              <option value="Não Conforme">Não Conforme</option>
-            </select>
-          </div>
+          <ChecklistItemWithUpload
+            titulo="Iluminação de Emergência"
+            descricao="Garante fuga segura e leitura de instrumentos em blackouts."
+            valor={iluminacaoEmergencia}
+            onChangeValor={setIluminacaoEmergencia}
+            opcoes={[
+              { value: 'Conforme', label: 'Conforme' },
+              { value: 'Não Conforme', label: 'Não Conforme' }
+            ]}
+            fotos={fotosIluminacao}
+            onChangeFotos={setFotosIluminacao}
+          />
 
-          <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-lg">
-            <div>
-              <p className="font-semibold text-gray-900 text-sm">Gestão de Qualidade da Água</p>
-              <p className="text-xs text-gray-500">Há controle quimico para prevenir depósitos e corrosões focais.</p>
-            </div>
-            <select className="input-field border border-gray-300 rounded px-3 py-2 text-sm w-48" value={qualidadeAgua} onChange={e => setQualidadeAgua(e.target.value)}>
-              <option value="Conforme">Conforme</option>
-              <option value="Não Conforme">Não Conforme</option>
-            </select>
-          </div>
+          <ChecklistItemWithUpload
+            titulo="Gestão de Qualidade da Água"
+            descricao="Há controle quimico para prevenir depósitos e corrosões focais."
+            valor={qualidadeAgua}
+            onChangeValor={setQualidadeAgua}
+            opcoes={[
+              { value: 'Conforme', label: 'Conforme' },
+              { value: 'Não Conforme', label: 'Não Conforme' }
+            ]}
+            fotos={fotosQualidade}
+            onChangeFotos={setFotosQualidade}
+          />
 
-          <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-lg">
-            <div>
-              <p className="font-semibold text-gray-900 text-sm">Certificação do Operador</p>
-              <p className="text-xs text-gray-500">Operadores de caldeira documentados e treinados na norma pertinente.</p>
-            </div>
-            <select className="input-field border border-gray-300 rounded px-3 py-2 text-sm w-48" value={certificacaoOperador} onChange={e => setCertificacaoOperador(e.target.value)}>
-              <option value="Conforme">Conforme</option>
-              <option value="Não Conforme">Não Conforme</option>
-            </select>
-          </div>
+          <ChecklistItemWithUpload
+            titulo="Certificação do Operador"
+            descricao="Operadores de caldeira documentados e treinados na norma pertinente."
+            valor={certificacaoOperador}
+            onChangeValor={setCertificacaoOperador}
+            opcoes={[
+              { value: 'Conforme', label: 'Conforme' },
+              { value: 'Não Conforme', label: 'Não Conforme' }
+            ]}
+            fotos={fotosCertificacao}
+            onChangeFotos={setFotosCertificacao}
+          />
 
         </div>
       </section>
