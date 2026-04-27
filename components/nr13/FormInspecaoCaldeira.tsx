@@ -204,8 +204,8 @@ export default function FormInspecaoCaldeira({
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Categoria NR-13</label>
             <select className="w-full input-field border border-gray-300 rounded px-3 py-2" value={categoria} onChange={e => setCategoria(e.target.value)}>
-              <option value="A">Categoria A (Pressão de Op. >= 1960 kPa)</option>
-              <option value="B">Categoria B (Pressão de Op. <= 588 kPa)</option>
+              <option value="A">Categoria A (Pressão de Op. &gt;= 1960 kPa)</option>
+              <option value="B">Categoria B (Pressão de Op. &lt;= 588 kPa)</option>
               <option value="C">Categoria C (Intermediária)</option>
             </select>
           </div>
