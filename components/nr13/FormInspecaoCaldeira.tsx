@@ -104,14 +104,19 @@ export default function FormInspecaoCaldeira({
   const [anoFabricacao, setAnoFabricacao] = useState<number>(initialData?.ano_fabricacao ?? new Date().getFullYear())
   const [categoria, setCategoria] = useState<string>(initialData?.categoria_caldeira ?? 'B')
   const [codigoProjeto, setCodigoProjeto] = useState(initialData?.codigo_projeto ?? 'ASME Sec. I')
-  const [pmtaFabricante, setPmtaFabricante] = useState<number>(initialData?.pmta_fabricante_kpa ?? 0)
+  // Pressões armazenadas em kgf/cm² (unidade de exibição); convertidas para MPa/kPa apenas no save
+  const [pmtaFabricante, setPmtaFabricante] = useState<number>(
+    initialData?.pmta_fabricante_kpa ? +(initialData.pmta_fabricante_kpa * 0.010197).toFixed(4) : 0
+  )
 
   // --- Dados da inspeção ---
   const [dataInspecao, setDataInspecao] = useState(initialData?.data_inspecao ?? '')
   const [dataEmissaoLaudo, setDataEmissaoLaudo] = useState(initialData?.data_emissao_laudo ?? '')
   const [tipoInspecao, setTipoInspecao] = useState(initialData?.tipo_inspecao ?? 'Periódica')
   const [ambiente, setAmbiente] = useState(initialData?.ambiente ?? 'Aberto')
-  const [pressaoOperacao, setPressaoOperacao] = useState<number>(initialData?.pressao_operacao_mpa ?? 0)
+  const [pressaoOperacao, setPressaoOperacao] = useState<number>(
+    initialData?.pressao_operacao_mpa ? +(initialData.pressao_operacao_mpa * 10.197).toFixed(4) : 0
+  )
   const [capacidadeProducao, setCapacidadeProducao] = useState<number>(initialData?.capacidade_producao_vapor ?? 0)
 
   // --- Checklist NR-13 ---
@@ -132,13 +137,17 @@ export default function FormInspecaoCaldeira({
   const [espessuraCostadoAnterior, setEspessuraCostadoAnterior] = useState<number>(initialData?.espessura_costado_anterior ?? 10)
   const [mesesEntreInspecoes, setMesesEntreInspecoes] = useState<number>(initialData?.meses_entre_inspecoes ?? 12)
   const [espessuraEspelho, setEspessuraEspelho] = useState<number>(initialData?.espessura_espelho ?? 12)
-  const [psvCalibracao, setPsvCalibracao] = useState<number>(initialData?.psv_calibracao_kpa ?? 0)
+  const [psvCalibracao, setPsvCalibracao] = useState<number>(
+    initialData?.psv_calibracao_kpa ? +(initialData.psv_calibracao_kpa * 0.010197).toFixed(4) : 0
+  )
 
   // --- Exame e parecer ---
   const [exameExterno, setExameExterno] = useState(initialData?.exame_externo ?? 'Conforme')
   const [exameInterno, setExameInterno] = useState(initialData?.exame_interno ?? 'Conforme')
   const [parecerTecnico, setParecerTecnico] = useState(initialData?.parecer_tecnico ?? '')
-  const [pmtaPlh, setPmtaPlh] = useState<number>(initialData?.pmta_plh_kpa ?? 0)
+  const [pmtaPlh, setPmtaPlh] = useState<number>(
+    initialData?.pmta_plh_kpa ? +(initialData.pmta_plh_kpa * 0.010197).toFixed(4) : 0
+  )
 
   // --- RTH ---
   const [rthNome, setRthNome] = useState(initialData?.rth_nome ?? '')
@@ -183,7 +192,8 @@ export default function FormInspecaoCaldeira({
   const pmtaCalc = useMemo(() => {
     const pmtaCostado = calcularPMTACostadoCaldeira({ S, E, t: espessuraCostado, D })
     const pmtaEspelho = calcularPMTAEspelhoPlano({ S, E, t: espessuraEspelho, D })
-    return calcularPMTACaldeiraGlobal(pmtaCostado, pmtaEspelho, pressaoOperacao)
+    // pressaoOperacao está em kgf/cm² — calcularPMTACaldeiraGlobal espera MPa
+    return calcularPMTACaldeiraGlobal(pmtaCostado, pmtaEspelho, pressaoOperacao / 10.197)
   }, [S, E, espessuraCostado, espessuraEspelho, D, pressaoOperacao])
 
   const pmtaCostadoMPa = useMemo(
@@ -201,9 +211,9 @@ export default function FormInspecaoCaldeira({
     [espessuraCostadoAnterior, espessuraCostado, mesesEntreInspecoes]
   )
 
-  // PSV double-check: PSV nunca deve ser > PMTA
-  const psvEmMPa = psvCalibracao / 1000 // kPa → MPa
-  const psvViolaPMTA = psvCalibracao > 0 && psvEmMPa > pmtaCalc.pmtaLimitante
+  // PSV double-check: psvCalibracao em kgf/cm², pmtaLimitante em MPa → converter para comparar
+  const pmtaLimitanteKgf = pmtaCalc.pmtaLimitante * 10.197
+  const psvViolaPMTA = psvCalibracao > 0 && psvCalibracao > pmtaLimitanteKgf
 
   // Status dinâmico automático
   const statusFinal = useMemo(() => {
@@ -428,7 +438,7 @@ export default function FormInspecaoCaldeira({
       return
     }
     if (psvViolaPMTA) {
-      setErro(`⚠️ BLOQUEIO DE SEGURANÇA: PSV de calibração (${psvCalibracao} kPa = ${psvEmMPa.toFixed(3)} MPa) é SUPERIOR à PMTA calculada (${pmtaCalc.pmtaLimitante.toFixed(3)} MPa). Corrija antes de salvar.`)
+      setErro(`⚠️ BLOQUEIO DE SEGURANÇA: PSV de calibração (${psvCalibracao.toFixed(2)} kgf/cm²) é SUPERIOR à PMTA calculada (${pmtaLimitanteKgf.toFixed(2)} kgf/cm²). Corrija antes de salvar.`)
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
@@ -454,7 +464,7 @@ export default function FormInspecaoCaldeira({
             ano_fabricacao: anoFabricacao,
             categoria_caldeira: categoria,
             codigo_projeto: codigoProjeto,
-            pmta_fabricante_kpa: pmtaFabricante,
+            pmta_fabricante_kpa: +(pmtaFabricante * 98.0665).toFixed(2),  // kgf/cm² → kPa
           })
           .select('id')
           .single()
@@ -472,12 +482,12 @@ export default function FormInspecaoCaldeira({
             ano_fabricacao: anoFabricacao,
             categoria_caldeira: categoria,
             codigo_projeto: codigoProjeto,
-            pmta_fabricante_kpa: pmtaFabricante,
+            pmta_fabricante_kpa: +(pmtaFabricante * 98.0665).toFixed(2),  // kgf/cm² → kPa
             data_inspecao: dataInspecao || null,
             data_emissao_laudo: dataEmissaoLaudo || null,
             tipo_inspecao: tipoInspecao,
             ambiente,
-            pressao_operacao_mpa: pressaoOperacao,
+            pressao_operacao_mpa: +(pressaoOperacao / 10.197).toFixed(6), // kgf/cm² → MPa
             capacidade_producao_vapor: capacidadeProducao,
             controle_nivel_intertravamento: controleNivel,
             distancia_instalacao: distanciaInstalacao,
@@ -496,9 +506,11 @@ export default function FormInspecaoCaldeira({
             espessura_costado_anterior: espessuraCostadoAnterior,
             meses_entre_inspecoes: mesesEntreInspecoes,
             espessura_espelho: espessuraEspelho,
-            psv_calibracao_kpa: psvCalibracao,
-            pmta_asme_kpa: pmtaCalc.pmtaLimitante * 1000,
-            pmta_plh_kpa: pmtaPlh || (pmtaCalc.pmtaLimitante * 1000),
+            psv_calibracao_kpa: +(psvCalibracao * 98.0665).toFixed(2),    // kgf/cm² → kPa
+            pmta_asme_kpa: +(pmtaCalc.pmtaLimitante * 1000).toFixed(2),
+            pmta_plh_kpa: pmtaPlh
+              ? +(pmtaPlh * 98.0665).toFixed(2)                           // kgf/cm² → kPa
+              : +(pmtaCalc.pmtaLimitante * 1000).toFixed(2),
             status_final: statusFinal,
             status_seguranca: rgiAtivo ? 'Risco_Grave_Iminente' : 'Conforme',
             proxima_inspecao_externa: dataProximaInspExterna || null,
@@ -546,6 +558,7 @@ export default function FormInspecaoCaldeira({
       }
 
       // 4. Atualizar inspeção com fotos e demais dados (criação + edição)
+      // Converte pressões de kgf/cm² (estado UI) para as unidades das colunas do banco
       const payloadUpdate = {
         tag,
         fabricante,
@@ -553,12 +566,12 @@ export default function FormInspecaoCaldeira({
         ano_fabricacao: anoFabricacao,
         categoria_caldeira: categoria,
         codigo_projeto: codigoProjeto,
-        pmta_fabricante_kpa: pmtaFabricante,
+        pmta_fabricante_kpa: +(pmtaFabricante * 98.0665).toFixed(2),
         data_inspecao: dataInspecao || null,
         data_emissao_laudo: dataEmissaoLaudo || null,
         tipo_inspecao: tipoInspecao,
         ambiente,
-        pressao_operacao_mpa: pressaoOperacao,
+        pressao_operacao_mpa: +(pressaoOperacao / 10.197).toFixed(6),
         capacidade_producao_vapor: capacidadeProducao,
         controle_nivel_intertravamento: controleNivel,
         distancia_instalacao: distanciaInstalacao,
@@ -578,9 +591,11 @@ export default function FormInspecaoCaldeira({
         espessura_costado_anterior: espessuraCostadoAnterior,
         meses_entre_inspecoes: mesesEntreInspecoes,
         espessura_espelho: espessuraEspelho,
-        psv_calibracao_kpa: psvCalibracao,
-        pmta_asme_kpa: pmtaCalc.pmtaLimitante * 1000,
-        pmta_plh_kpa: pmtaPlh || (pmtaCalc.pmtaLimitante * 1000),
+        psv_calibracao_kpa: +(psvCalibracao * 98.0665).toFixed(2),
+        pmta_asme_kpa: +(pmtaCalc.pmtaLimitante * 1000).toFixed(2),
+        pmta_plh_kpa: pmtaPlh
+          ? +(pmtaPlh * 98.0665).toFixed(2)
+          : +(pmtaCalc.pmtaLimitante * 1000).toFixed(2),
         status_final: statusFinal,
         status_seguranca: rgiAtivo ? 'Risco_Grave_Iminente' : 'Conforme',
         proxima_inspecao_externa: dataProximaInspExterna || null,
@@ -670,10 +685,12 @@ export default function FormInspecaoCaldeira({
             valvulaSeguranca, controleNivel, distanciaInstalacao, iluminacaoEmergencia,
             qualidadeAgua, certificacaoOperador, manualOperacao,
             normaCalc, S, E, D, espessuraCostado, espessuraCostadoAnterior,
-            mesesEntreInspecoes, espessuraEspelho, psvCalibracao,
-            pmtaCostado: pmtaCostadoMPa,
-            pmtaEspelho: pmtaEspelhoMPa,
-            pmtaLimitante: pmtaCalc.pmtaLimitante,
+            mesesEntreInspecoes, espessuraEspelho,
+            // pressaoOperacao, pmtaFabricante, psvCalibracao já estão acima em kgf/cm²
+            // PMTA calculados: converter MPa → kgf/cm² para o PDF exibir diretamente
+            pmtaCostado: +(pmtaCostadoMPa * 10.197).toFixed(2),
+            pmtaEspelho: +(pmtaEspelhoMPa * 10.197).toFixed(2),
+            pmtaLimitante: +pmtaLimitanteKgf.toFixed(2),
             componenteFragil: pmtaCalc.componenteFragil,
             taxaCorrosao,
             exameExterno, exameInterno,
@@ -723,7 +740,7 @@ export default function FormInspecaoCaldeira({
       {/* PSV warning */}
       {psvViolaPMTA && (
         <div className="bg-red-100 border-2 border-red-500 text-red-800 p-4 rounded-xl font-bold">
-          ⚠️ ALERTA NR-13: PSV ({psvCalibracao} kPa) &gt; PMTA calculada ({(pmtaCalc.pmtaLimitante * 1000).toFixed(0)} kPa). Salvar bloqueado!
+          ⚠️ ALERTA NR-13: PSV ({psvCalibracao.toFixed(2)} kgf/cm²) &gt; PMTA calculada ({pmtaLimitanteKgf.toFixed(2)} kgf/cm²). Salvar bloqueado!
         </div>
       )}
 
@@ -791,8 +808,8 @@ export default function FormInspecaoCaldeira({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">PMTA Fabricante (kPa)</label>
-            <input type="number" step="0.1" className="w-full border border-gray-300 rounded-lg px-3 py-2" value={pmtaFabricante} onChange={e => setPmtaFabricante(Number(e.target.value))} />
+            <label className="block text-sm font-semibold text-gray-700 mb-1">PMTA Fabricante (kgf/cm²)</label>
+            <input type="number" step="0.01" className="w-full border border-gray-300 rounded-lg px-3 py-2" value={pmtaFabricante} onChange={e => setPmtaFabricante(Number(e.target.value))} />
           </div>
         </div>
       </section>
@@ -829,7 +846,7 @@ export default function FormInspecaoCaldeira({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Pressão de Operação (MPa)</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Pressão de Operação (kgf/cm²)</label>
             <input type="number" step="0.01" className="w-full border border-gray-300 rounded-lg px-3 py-2" value={pressaoOperacao} onChange={e => setPressaoOperacao(Number(e.target.value))} />
           </div>
           <div>
@@ -998,7 +1015,7 @@ export default function FormInspecaoCaldeira({
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
-                PSV — Pressão de Calibração (kPa)
+                PSV — Pressão de Calibração (kgf/cm²)
                 {psvViolaPMTA && <span className="text-red-600 ml-2 font-bold">⚠️ &gt; PMTA!</span>}
               </label>
               <input
@@ -1008,7 +1025,7 @@ export default function FormInspecaoCaldeira({
                 onChange={e => setPsvCalibracao(Number(e.target.value))}
               />
               <p className="text-xs text-gray-400 mt-1">
-                PMTA calculada: {(pmtaCalc.pmtaLimitante * 10.197).toFixed(2)} kgf/cm² ({(pmtaCalc.pmtaLimitante * 1000).toFixed(0)} kPa) — PSV deve ser ≤ PMTA
+                PMTA calculada: {pmtaLimitanteKgf.toFixed(2)} kgf/cm² — PSV deve ser ≤ PMTA
               </p>
             </div>
           </div>
@@ -1242,9 +1259,9 @@ export default function FormInspecaoCaldeira({
               value={parecerTecnico} onChange={e => setParecerTecnico(e.target.value)} />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">PMTA Fixada pelo PLH (kPa)</label>
-            <input type="number" step="1" className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder={`Sugestão: ${(pmtaCalc.pmtaLimitante * 1000).toFixed(0)} kPa`}
+            <label className="block text-sm font-semibold text-gray-700 mb-1">PMTA Fixada pelo PLH (kgf/cm²)</label>
+            <input type="number" step="0.01" className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              placeholder={`Sugestão: ${pmtaLimitanteKgf.toFixed(2)} kgf/cm²`}
               value={pmtaPlh || ''} onChange={e => setPmtaPlh(Number(e.target.value))} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

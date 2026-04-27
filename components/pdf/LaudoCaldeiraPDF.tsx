@@ -284,7 +284,7 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
             <Campo label="Ano de Fabricação" value={d.anoFabricacao} />
             <Campo label="Categoria NR-13" value={`Categoria ${d.categoria}`} />
             <Campo label="Código de Projeto" value={d.codigoProjeto} />
-            <Campo label="PMTA de Fábrica (kPa)" value={d.pmtaFabricante ? `${d.pmtaFabricante} kPa` : '—'} />
+            <Campo label="PMTA de Fábrica (kgf/cm²)" value={d.pmtaFabricante ? `${Number(d.pmtaFabricante).toFixed(2)} kgf/cm²` : '—'} />
             <Campo label="Capacidade de Produção" value={d.capacidadeProducao ? `${d.capacidadeProducao} kg/h` : '—'} />
           </View>
 
@@ -295,8 +295,8 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
             <Campo label="Data de Emissão" value={formatDate(d.dataEmissaoLaudo)} />
             <Campo label="Tipo de Inspeção" value={d.tipoInspecao} />
             <Campo label="Ambiente" value={d.ambiente} />
-            <Campo label="Pressão de Operação" value={d.pressaoOperacao ? `${d.pressaoOperacao} MPa` : '—'} />
-            <Campo label="PSV — Pressão de Calibração" value={d.psvCalibracao ? `${d.psvCalibracao} kPa` : '—'} />
+            <Campo label="Pressão de Operação (kgf/cm²)" value={d.pressaoOperacao ? `${Number(d.pressaoOperacao).toFixed(2)} kgf/cm²` : '—'} />
+            <Campo label="PSV — Pressão de Calibração (kgf/cm²)" value={d.psvCalibracao ? `${Number(d.psvCalibracao).toFixed(2)} kgf/cm²` : '—'} />
           </View>
 
           {/* Seção 3: Checklist NR-13 */}
@@ -365,20 +365,21 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
           {/* Resultados PMTA */}
           <Text style={[S.sectionTitle, { marginTop: 16 }]}>5. RESULTADO — PMTA CALCULADA</Text>
 
+          {/* Todos os valores chegam em kgf/cm² — exibir diretamente */}
           <View style={S.grid2}>
-            <Campo label="PMTA Costado Cilíndrico (PG-27.2.2)" value={d.pmtaCostado !== undefined ? `${(Number(d.pmtaCostado) * 10.197).toFixed(2)} kgf/cm²` : '—'} />
-            <Campo label="PMTA Espelho Plano (PG-31)" value={d.pmtaEspelho !== undefined ? `${(Number(d.pmtaEspelho) * 10.197).toFixed(2)} kgf/cm²` : '—'} />
+            <Campo label="PMTA Costado Cilíndrico (PG-27.2.2)" value={d.pmtaCostado !== undefined ? `${Number(d.pmtaCostado).toFixed(2)} kgf/cm²` : '—'} />
+            <Campo label="PMTA Espelho Plano (PG-31)" value={d.pmtaEspelho !== undefined ? `${Number(d.pmtaEspelho).toFixed(2)} kgf/cm²` : '—'} />
           </View>
 
           <View style={S.pmtaCard}>
             <View>
               <Text style={S.pmtaLabel}>PMTA EFETIVA — COMPONENTE LIMITANTE: {d.componenteFragil?.toUpperCase() ?? 'COSTADO'}</Text>
               <Text style={{ fontSize: 8, color: C.white, marginTop: 2 }}>
-                PSV Calibração: {d.psvCalibracao ? `${d.psvCalibracao} kPa` : '—'}  ·  PMTA de Fábrica: {d.pmtaFabricante ? `${d.pmtaFabricante} kPa` : '—'}
+                PSV Calibração: {d.psvCalibracao ? `${Number(d.psvCalibracao).toFixed(2)} kgf/cm²` : '—'}  ·  PMTA de Fábrica: {d.pmtaFabricante ? `${Number(d.pmtaFabricante).toFixed(2)} kgf/cm²` : '—'}
               </Text>
             </View>
             <Text style={S.pmtaValue}>
-              {d.pmtaLimitante !== undefined ? `${(Number(d.pmtaLimitante) * 10.197).toFixed(2)} kgf/cm²` : '—'}
+              {d.pmtaLimitante !== undefined ? `${Number(d.pmtaLimitante).toFixed(2)} kgf/cm²` : '—'}
             </Text>
           </View>
 
@@ -387,8 +388,8 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
             <Text style={[S.label, { marginBottom: 2 }]}>PMTA Fixada pelo PLH (Profissional Legalmente Habilitado)</Text>
             <Text style={{ fontSize: 13, fontFamily: 'Helvetica-Bold', color: C.primary }}>
               {d.pmtaPlh
-                ? `${(Number(d.pmtaPlh) / 98.0665).toFixed(2)} kgf/cm²`
-                : `${d.pmtaLimitante !== undefined ? (Number(d.pmtaLimitante) * 10.197).toFixed(2) : '—'} kgf/cm²`}
+                ? `${Number(d.pmtaPlh).toFixed(2)} kgf/cm²`
+                : `${d.pmtaLimitante !== undefined ? Number(d.pmtaLimitante).toFixed(2) : '—'} kgf/cm²`}
             </Text>
           </View>
 
@@ -537,7 +538,7 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
           <View style={S.parecerBox}>
             <Text style={S.parecerText}>
               {d.parecerTecnico ||
-                `A Caldeira identificada pela TAG "${d.tag ?? '—'}", categoria NR-13 ${d.categoria ?? '—'}, foi submetida a inspeção ${d.tipoInspecao?.toLowerCase() ?? 'periódica'} em ${formatDate(d.dataInspecao)}, resultando no status de INTEGRIDADE: ${d.statusFinal ?? 'Aprovado'}. A PMTA calculada pelo método ASME Sec. I é de ${d.pmtaLimitante !== undefined ? (Number(d.pmtaLimitante) * 10.197).toFixed(2) : '—'} kgf/cm², limitada pelo componente ${d.componenteFragil ?? 'costado'}.`
+                `A Caldeira identificada pela TAG "${d.tag ?? '—'}", categoria NR-13 ${d.categoria ?? '—'}, foi submetida a inspeção ${d.tipoInspecao?.toLowerCase() ?? 'periódica'} em ${formatDate(d.dataInspecao)}, resultando no status de INTEGRIDADE: ${d.statusFinal ?? 'Aprovado'}. A PMTA calculada pelo método ASME Sec. I é de ${d.pmtaLimitante !== undefined ? Number(d.pmtaLimitante).toFixed(2) : '—'} kgf/cm², limitada pelo componente ${d.componenteFragil ?? 'costado'}.`
               }
             </Text>
           </View>
