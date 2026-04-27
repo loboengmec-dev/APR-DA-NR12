@@ -95,6 +95,19 @@ export async function gerarUrlAssinadaNR13(
   return data.signedUrl
 }
 
+/**
+ * Upload de foto para checklist de caldeiras (válvulas, nível, etc.)
+ * Path: nr13/caldeiras/{inspecaoId}/{tipo}/{ordem}
+ */
+export async function uploadFotoChecklistCaldeira(
+  file: File,
+  inspecaoId: string,
+  tipo: string,
+  ordem: number
+): Promise<{ path: string; error: string | null }> {
+  return uploadFile(file, bucketPath(`caldeiras/${inspecaoId}/${tipo}/${ordem}_${Date.now()}`))
+}
+
 // Remove uma foto do storage NR-13
 export async function removerFotoNR13(storagePath: string): Promise<boolean> {
   const supabase = createClient()

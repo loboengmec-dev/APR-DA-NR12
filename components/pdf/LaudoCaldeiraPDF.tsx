@@ -1,3 +1,8 @@
+/**
+ * Template PDF — Laudo de Inspeção de Caldeiras (NR-13 / ASME Sec. I)
+ * - Usa Helvetica embutida (sem dependência de rede)
+ * - Interface alinhada com FormInspecaoCaldeira e /api/caldeira-pdf
+ */
 import React from 'react'
 import {
   Document,
@@ -5,266 +10,457 @@ import {
   Text,
   View,
   StyleSheet,
-  Font,
-  Image,
+  Image as PDFImage,
 } from '@react-pdf/renderer'
 
-// ============================================================================
-// CONFIGURAÇÃO DE FONTES
-// ============================================================================
-Font.register({
-  family: 'Inter',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyeMZhrib2Bg-4.ttf', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fMZhrib2Bg-4.ttf', fontWeight: 600 },
-    { src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuGKYMZhrib2Bg-4.ttf', fontWeight: 700 },
-  ],
-})
-
-const styles = StyleSheet.create({
-  page: {
-    padding: 40,
-    fontFamily: 'Inter',
-    backgroundColor: '#ffffff',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderBottomWidth: 2,
-    borderBottomColor: '#ea580c',
-    paddingBottom: 10,
-    marginBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#1a2e4a',
-  },
-  headerSubtitle: {
-    fontSize: 10,
-    color: '#64748b',
-    marginTop: 4,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: '#ea580c',
-    marginTop: 20,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  cell: {
-    width: '48%',
-    marginBottom: 8,
-  },
-  label: {
-    fontSize: 9,
-    color: '#64748b',
-    fontWeight: 600,
-  },
-  value: {
-    fontSize: 11,
-    color: '#0f172a',
-    marginTop: 2,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    paddingTop: 10,
-  },
-  footerText: {
-    fontSize: 9,
-    color: '#64748b',
-  },
-  parecerBox: {
-    backgroundColor: '#f8fafc',
-    padding: 12,
-    borderRadius: 6,
-    borderLeftWidth: 4,
-    borderLeftColor: '#ea580c',
-    marginTop: 20,
-  },
-  parecerText: {
-    fontSize: 11,
-    lineHeight: 1.5,
-    color: '#1e293b',
-  },
-  signatureBox: {
-    marginTop: 60,
-    flexDirection: 'column',
-    alignItems: 'center',
-    width: '100%',
-  },
-  signatureLine: {
-    borderTopWidth: 1,
-    borderTopColor: '#475569',
-    width: 250,
-    marginBottom: 5,
-  },
-  signatureName: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: '#0f172a',
-  },
-  signatureCREA: {
-    fontSize: 10,
-    color: '#475569',
-    marginTop: 2,
-  },
-})
-
-interface LaudoCaldeiraPDFProps {
-  inspecao: any
-  cliente: any
-  usuario: any
+// ---------------------------------------------------------------------------
+// Tema visual — consistente com LaudoNR13PDF
+// ---------------------------------------------------------------------------
+const C = {
+  primary:    '#ea580c',   // Laranja — identidade caldeiras
+  dark:       '#c2410c',
+  text:       '#1e293b',
+  muted:      '#64748b',
+  border:     '#e2e8f0',
+  bg:         '#fafafa',
+  white:      '#ffffff',
+  success:    '#166534',
+  successBg:  '#dcfce7',
+  danger:     '#be123c',
+  dangerBg:   '#ffe4e6',
+  warn:       '#b45309',
+  warnBg:     '#fef3c7',
+  cardBg:     '#f8fafc',
 }
 
-export default function LaudoCaldeiraPDF({ inspecao, cliente, usuario }: LaudoCaldeiraPDFProps) {
+// ---------------------------------------------------------------------------
+// Stylesheet
+// ---------------------------------------------------------------------------
+const S = StyleSheet.create({
+  page: {
+    fontFamily: 'Helvetica',
+    fontSize: 10,
+    backgroundColor: C.white,
+    color: C.text,
+    paddingTop: 60,
+    paddingBottom: 50,
+    paddingHorizontal: 0,
+  },
+  pg: { marginHorizontal: 40 },
+
+  // Header fixo
+  header: {
+    position: 'absolute', top: 18, left: 40, right: 40,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    borderBottomWidth: 2, borderBottomColor: C.primary, paddingBottom: 8,
+  },
+  headerLeft: { flex: 1 },
+  headerTitle: { fontSize: 15, fontFamily: 'Helvetica-Bold', color: C.text },
+  headerSub:   { fontSize: 7.5, color: C.muted, marginTop: 2 },
+
+  // Footer fixo
+  footer: {
+    position: 'absolute', bottom: 18, left: 40, right: 40,
+    flexDirection: 'row', justifyContent: 'space-between',
+    borderTopWidth: 1, borderTopColor: C.border, paddingTop: 6,
+  },
+  footerText: { fontSize: 7, color: C.muted },
+
+  // Títulos de seção
+  sectionTitle: {
+    fontSize: 10, fontFamily: 'Helvetica-Bold', color: C.white,
+    backgroundColor: C.primary, paddingHorizontal: 10, paddingVertical: 4,
+    marginBottom: 8, marginTop: 14,
+  },
+
+  // Grid de campos
+  grid2: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
+  cell2: { width: '48%', marginBottom: 6 },
+  cell3: { width: '31%', marginBottom: 6 },
+  label: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: C.muted, marginBottom: 2, textTransform: 'uppercase' },
+  value: { fontSize: 9.5, color: C.text },
+
+  // Caixa de alerta
+  alertBox: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 4, marginBottom: 8,
+  },
+  alertText: { fontSize: 10, fontFamily: 'Helvetica-Bold' },
+
+  // Checklist
+  checkRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 5, paddingHorizontal: 8,
+    borderBottomWidth: 1, borderBottomColor: C.border,
+  },
+  checkLabel: { fontSize: 9, color: C.text, flex: 1 },
+  checkBadge: {
+    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10,
+    fontSize: 8, fontFamily: 'Helvetica-Bold',
+  },
+
+  // PMTA destaque
+  pmtaCard: {
+    backgroundColor: C.primary,
+    borderRadius: 6, padding: 10, marginTop: 8,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  },
+  pmtaLabel: { fontSize: 9, color: C.white, fontFamily: 'Helvetica-Bold' },
+  pmtaValue: { fontSize: 20, fontFamily: 'Helvetica-Bold', color: C.white },
+
+  // Corrosão
+  corrCard: {
+    backgroundColor: C.warnBg, borderRadius: 6, padding: 8, marginTop: 6,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  },
+
+  // Parecer
+  parecerBox: {
+    backgroundColor: C.cardBg, borderRadius: 6, padding: 12,
+    borderLeftWidth: 4, borderLeftColor: C.primary, marginTop: 4,
+  },
+  parecerText: { fontSize: 9.5, color: C.text, lineHeight: 1.6, textAlign: 'justify' },
+
+  // NC
+  ncRow: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    padding: 6, borderRadius: 4, marginBottom: 4,
+    borderWidth: 1, borderColor: C.border,
+  },
+  ncGrauBadge: {
+    width: 56, paddingVertical: 2, borderRadius: 3, marginRight: 8,
+    fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.white, textAlign: 'center',
+  },
+  ncText: { fontSize: 8.5, color: C.text, flex: 1 },
+
+  // Assinatura
+  signBox: {
+    marginTop: 40, alignItems: 'center',
+  },
+  signLine: {
+    width: 240, borderTopWidth: 1, borderTopColor: C.text, marginBottom: 5,
+  },
+  signName: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: C.text },
+  signSub:  { fontSize: 8.5, color: C.muted, marginTop: 2 },
+
+  // Fotos
+  fotoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  fotoImg:  { width: 160, height: 120, borderRadius: 4 },
+})
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
+interface LaudoCaldeiraPDFProps {
+  dados: Record<string, any>
+  perfil?: Record<string, any>
+  fotosUrl?: Record<string, string>
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function badgeStatus(status: string) {
+  if (status === 'Aprovado') return { bg: C.successBg, color: C.success }
+  if (status?.includes('Restrições')) return { bg: C.warnBg, color: C.warn }
+  return { bg: C.dangerBg, color: C.danger }
+}
+
+function badgeCheck(valor: string) {
+  if (valor === 'Conforme' || valor === 'Disponível') return { bg: C.successBg, color: C.success }
+  if (valor === 'Inexistente' || valor === 'Não Conforme') return { bg: C.dangerBg, color: C.danger }
+  return { bg: C.warnBg, color: C.warn }
+}
+
+function formatDate(d?: string) {
+  if (!d) return '—'
+  try { return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') }
+  catch { return d }
+}
+
+function CheckRow({ label, valor }: { label: string; valor: string }) {
+  const { bg, color } = badgeCheck(valor)
+  return (
+    <View style={S.checkRow}>
+      <Text style={S.checkLabel}>{label}</Text>
+      <Text style={[S.checkBadge, { backgroundColor: bg, color }]}>{valor || '—'}</Text>
+    </View>
+  )
+}
+
+function Campo({ label, value }: { label: string; value: string | number | undefined }) {
+  return (
+    <View style={S.cell2}>
+      <Text style={S.label}>{label}</Text>
+      <Text style={S.value}>{value ?? '—'}</Text>
+    </View>
+  )
+}
+
+function Campo3({ label, value }: { label: string; value: string | number | undefined }) {
+  return (
+    <View style={S.cell3}>
+      <Text style={S.label}>{label}</Text>
+      <Text style={S.value}>{value ?? '—'}</Text>
+    </View>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Componente principal
+// ---------------------------------------------------------------------------
+export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {} }: LaudoCaldeiraPDFProps) {
+  const d = dados
+  const statusColors = badgeStatus(d.statusFinal)
+  const ncs: any[] = d.naoConformidades ?? []
+  const logoUrl: string | null = perfil?._logoPublicUrl ?? null
+
+  // Fotos do exame interno
+  const fotosInterno = Object.entries(fotosUrl)
+    .filter(([k]) => k.startsWith('interno_'))
+    .map(([, url]) => url)
+
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        
-        {/* CABEÇALHO */}
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerTitle}>LAUDO DE INSPEÇÃO DE CALDEIRA</Text>
-            <Text style={styles.headerSubtitle}>Normas Requeridas: NR-13 e ASME Sec. I</Text>
+      {/* ================================================================
+          PÁGINA 1 — CAPA E IDENTIFICAÇÃO
+      ================================================================ */}
+      <Page size="A4" style={S.page}>
+
+        {/* Header fixo */}
+        <View style={S.header} fixed>
+          <View style={S.headerLeft}>
+            <Text style={S.headerTitle}>LAUDO DE INSPEÇÃO — CALDEIRA A VAPOR</Text>
+            <Text style={S.headerSub}>NR-13 (MTE/SIT) · ASME Section I · {d.codigoProjeto ?? ''}</Text>
           </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={styles.headerSubtitle}>TAG: {inspecao?.tag ?? 'N/A'}</Text>
-            <Text style={styles.headerSubtitle}>Data: {inspecao?.data_inspecao || 'N/A'}</Text>
-          </View>
+          {logoUrl && (
+            <PDFImage src={logoUrl} style={{ height: 24, maxWidth: 80, objectFit: 'contain' }} />
+          )}
         </View>
 
-        {/* IDENTIFICAÇÃO DO PROPRIETÁRIO */}
-        <Text style={styles.sectionTitle}>1. PROPRIETÁRIO</Text>
-        <View style={styles.grid}>
-          <View style={styles.cell}>
-            <Text style={styles.label}>NOME CORPORATIVO / RAZÃO SOCIAL</Text>
-            <Text style={styles.value}>{cliente?.razao_social ?? 'Não informado'}</Text>
+        <View style={S.pg}>
+
+          {/* Status */}
+          <View style={[S.alertBox, { backgroundColor: statusColors.bg, marginTop: 4 }]}>
+            <Text style={[S.alertText, { color: statusColors.color }]}>
+              STATUS: {d.statusFinal?.toUpperCase() ?? 'N/D'}
+              {d.rgiAtivo ? '  ⚠️ RISCO GRAVE E IMINENTE ATIVO' : ''}
+            </Text>
           </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>CNPJ</Text>
-            <Text style={styles.value}>{cliente?.cnpj ?? 'Não informado'}</Text>
+
+          {/* Seção 1: Identificação da Caldeira */}
+          <Text style={S.sectionTitle}>1. IDENTIFICAÇÃO DA CALDEIRA</Text>
+          <View style={S.grid2}>
+            <Campo label="TAG" value={d.tag} />
+            <Campo label="Fabricante" value={d.fabricante} />
+            <Campo label="Número de Série" value={d.numeroSerie} />
+            <Campo label="Ano de Fabricação" value={d.anoFabricacao} />
+            <Campo label="Categoria NR-13" value={`Categoria ${d.categoria}`} />
+            <Campo label="Código de Projeto" value={d.codigoProjeto} />
+            <Campo label="PMTA de Fábrica (kPa)" value={d.pmtaFabricante ? `${d.pmtaFabricante} kPa` : '—'} />
+            <Campo label="Capacidade de Produção" value={d.capacidadeProducao ? `${d.capacidadeProducao} kg/h` : '—'} />
           </View>
+
+          {/* Seção 2: Dados da Inspeção */}
+          <Text style={S.sectionTitle}>2. DADOS DA INSPEÇÃO</Text>
+          <View style={S.grid2}>
+            <Campo label="Data da Inspeção" value={formatDate(d.dataInspecao)} />
+            <Campo label="Data de Emissão" value={formatDate(d.dataEmissaoLaudo)} />
+            <Campo label="Tipo de Inspeção" value={d.tipoInspecao} />
+            <Campo label="Ambiente" value={d.ambiente} />
+            <Campo label="Pressão de Operação" value={d.pressaoOperacao ? `${d.pressaoOperacao} MPa` : '—'} />
+            <Campo label="PSV — Pressão de Calibração" value={d.psvCalibracao ? `${d.psvCalibracao} kPa` : '—'} />
+          </View>
+
+          {/* Seção 3: Checklist NR-13 */}
+          <Text style={S.sectionTitle}>3. AUDITORIA NORMATIVA (NR-13 §13.4)</Text>
+          <CheckRow label="Válvulas de Segurança e Alívio (PSV/VSA)" valor={d.valvulaSeguranca ?? d.teste_hidrostatico ?? '—'} />
+          <CheckRow label="Controle de Nível Automático e Intertravamento (§13.4.1.2)" valor={d.controleNivel ?? '—'} />
+          <CheckRow label="Distanciamento da Casa de Caldeiras ≥ 3 m (§13.4.2.1)" valor={d.distanciaInstalacao ?? '—'} />
+          <CheckRow label="Iluminação de Emergência (§13.4.2.2)" valor={d.iluminacaoEmergencia ?? '—'} />
+          <CheckRow label="Gestão de Qualidade da Água (§13.4.3)" valor={d.qualidadeAgua ?? '—'} />
+          <CheckRow label="Certificação do Operador de Caldeira (§13.4.4)" valor={d.certificacaoOperador ?? '—'} />
+          <CheckRow label="Manual de Operação em Português (§13.4.5)" valor={d.manualOperacao ?? '—'} />
+          <CheckRow label="Exame Externo" valor={d.exameExterno ?? '—'} />
+          <CheckRow label="Exame Interno" valor={d.exameInterno ?? '—'} />
+
         </View>
 
-        {/* IDENTIFICAÇÃO DA CALDEIRA */}
-        <Text style={styles.sectionTitle}>2. IDENTIFICAÇÃO DA CALDEIRA</Text>
-        <View style={styles.grid}>
-          <View style={styles.cell}>
-            <Text style={styles.label}>TAG / IDENTIFICAÇÃO</Text>
-            <Text style={styles.value}>{inspecao?.tag ?? 'N/A'}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>FABRICANTE</Text>
-            <Text style={styles.value}>{inspecao?.fabricante ?? 'N/A'}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>SÉRIE E ANO</Text>
-            <Text style={styles.value}>{inspecao?.numero_serie ?? 'N/A'} - {inspecao?.ano_fabricacao ?? 'N/A'}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>CÓDIGO DE PROJETO</Text>
-            <Text style={styles.value}>{inspecao?.codigo_projeto ?? 'N/A'}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>CATEGORIA (NR-13)</Text>
-            <Text style={styles.value}>{inspecao?.categoria_caldeira ?? 'B'}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>PRESSÃO DE OPERAÇÃO (MPa)</Text>
-            <Text style={styles.value}>{inspecao?.pressao_operacao_mpa ?? '0.00'}</Text>
-          </View>
-        </View>
-
-        {/* AUDITORIA NR-13 */}
-        <Text style={styles.sectionTitle}>3. AUDITORIA NR-13 E ITENS PRÓPRIOS DE CALDEIRAS</Text>
-        <View style={styles.grid}>
-          <View style={styles.cell}>
-            <Text style={styles.label}>CONTROLE DE NÍVEL DE ÁGUA</Text>
-            <Text style={styles.value}>{inspecao?.controle_nivel_intertravamento ?? 'N/A'}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>DISTANCIAMENTO (CASA DE CALDEIRAS)</Text>
-            <Text style={styles.value}>{inspecao?.distancia_instalacao ?? 'N/A'}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>ILUMINAÇÃO DE EMERGÊNCIA</Text>
-            <Text style={styles.value}>{inspecao?.iluminacao_emergencia ?? 'N/A'}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>QUALIDADE DE ÁGUA / PRONTUÁRIO</Text>
-            <Text style={styles.value}>{inspecao?.qualidade_agua ?? 'N/A'}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>CERTIFICAÇÃO DO OPERADOR (OPC)</Text>
-            <Text style={styles.value}>{inspecao?.certificacao_operador ?? 'N/A'}</Text>
-          </View>
-        </View>
-
-        {/* CÁLCULO PMTA ASME */}
-        <Text style={styles.sectionTitle}>4. MEMÓRIA DE CÁLCULO - ASME SECTION I</Text>
-        <View style={styles.grid}>
-          <View style={styles.cell}>
-            <Text style={styles.label}>TENSÃO ADMISSÍVEL [S]</Text>
-            <Text style={styles.value}>{inspecao?.material_s ?? 'N/A'} MPa</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>EFICIÊNCIA DE JUNTA [E]</Text>
-            <Text style={styles.value}>{inspecao?.eficiencia_e ?? 'N/A'}</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>ESPESSURA COSTADO MEDIDA</Text>
-            <Text style={styles.value}>{inspecao?.espessura_costado ?? 'N/A'} mm</Text>
-          </View>
-          <View style={styles.cell}>
-            <Text style={styles.label}>ESPESSURA ESPELHO MEDIDA</Text>
-            <Text style={styles.value}>{inspecao?.espessura_espelho ?? 'N/A'} mm</Text>
-          </View>
-        </View>
-        
-        <View style={{ marginTop: 10, padding: 8, backgroundColor: '#fff7ed', borderRadius: 4, width: '50%' }}>
-          <Text style={{ fontSize: 10, color: '#9a3412', fontWeight: 700 }}>RESULTADO COMPUTACIONAL ASME I:</Text>
-          <Text style={{ fontSize: 13, color: '#ea580c', fontWeight: 700, marginTop: 4 }}>
-            PMTA LIMITANTE DO CORPO: {inspecao?.pmta_asme_kpa ? (inspecao?.pmta_asme_kpa / 1000).toFixed(3) : 'N/A'} MPa
+        {/* Footer fixo */}
+        <View style={S.footer} fixed>
+          <Text style={S.footerText}>
+            Laudo de Integridade — Caldeira TAG: {d.tag} · NR-13 / ASME Sec. I
           </Text>
+          <Text style={S.footerText} render={({ pageNumber, totalPages }) => `Pág. ${pageNumber}/${totalPages}`} />
+        </View>
+      </Page>
+
+      {/* ================================================================
+          PÁGINA 2 — CÁLCULO ASME E PMTA
+      ================================================================ */}
+      <Page size="A4" style={S.page}>
+
+        <View style={S.header} fixed>
+          <View style={S.headerLeft}>
+            <Text style={S.headerTitle}>MEMÓRIA DE CÁLCULO — PMTA (ASME Section I)</Text>
+            <Text style={S.headerSub}>TAG: {d.tag}  ·  Data: {formatDate(d.dataInspecao)}</Text>
+          </View>
+          {logoUrl && (
+            <PDFImage src={logoUrl} style={{ height: 24, maxWidth: 80, objectFit: 'contain' }} />
+          )}
         </View>
 
-        {/* PARECER FINAL */}
-        <Text style={styles.sectionTitle}>5. CONCLUSÃO TÉCNICA (INTEGRIDADE)</Text>
-        <View style={styles.parecerBox}>
-          <Text style={styles.parecerText}>
-            Submeto a presente caldeira designada pelo tag "{inspecao?.tag ?? 'N/A'}", instalada no cliente supracitado, aos rigores normativos da NR-13 e do ASME Section I/IV. Foi constatado que seu estado de conservação atual atinge o status "{inspecao?.status_final ?? 'Aprovado'}" tendo em vista sua Pressão Máxima de Trabalho Admissível atual calculada, restando a integridade {inspecao?.status_final === 'Aprovado' ? 'assegurada' : 'com restrições'}.
-          </Text>
+        <View style={S.pg}>
+
+          <Text style={S.sectionTitle}>4. PARÂMETROS DE CÁLCULO — ASME SECTION I</Text>
+          <View style={S.grid2}>
+            <Campo label="Material / Norma" value={d.normaCalc} />
+            <Campo label="Tensão Admissível [S]" value={`${d.S} MPa`} />
+            <Campo label="Eficiência de Junta [E]" value={`${d.E}`} />
+            <Campo label="Diâmetro Interno [D]" value={`${d.D} mm`} />
+            <Campo label="Espessura Costado Medida" value={`${d.espessuraCostado} mm`} />
+            <Campo label="Espessura Costado Anterior" value={`${d.espessuraCostadoAnterior} mm`} />
+            <Campo label="Espessura Espelho Plano" value={`${d.espessuraEspelho} mm`} />
+            <Campo label="Intervalo entre Inspeções" value={`${d.mesesEntreInspecoes} meses`} />
+          </View>
+
+          {/* Taxa de corrosão */}
+          <View style={S.corrCard}>
+            <View>
+              <Text style={[S.label, { color: C.warn }]}>Taxa de Corrosão Média</Text>
+              <Text style={{ fontSize: 8.5, color: C.warn }}>Costado: {d.espessuraCostadoAnterior} → {d.espessuraCostado} mm em {d.mesesEntreInspecoes} meses</Text>
+            </View>
+            <Text style={{ fontSize: 20, fontFamily: 'Helvetica-Bold', color: C.warn }}>
+              {d.taxaCorrosao !== undefined ? Number(d.taxaCorrosao).toFixed(3) : '—'} mm/ano
+            </Text>
+          </View>
+
+          {/* Resultados PMTA */}
+          <Text style={[S.sectionTitle, { marginTop: 16 }]}>5. RESULTADO — PMTA CALCULADA</Text>
+
+          <View style={S.grid2}>
+            <Campo label="PMTA Costado Cilíndrico (PG-27.2.2)" value={d.pmtaCostado !== undefined ? `${Number(d.pmtaCostado).toFixed(4)} MPa` : '—'} />
+            <Campo label="PMTA Espelho Plano (PG-31)" value={d.pmtaEspelho !== undefined ? `${Number(d.pmtaEspelho).toFixed(4)} MPa` : '—'} />
+          </View>
+
+          <View style={S.pmtaCard}>
+            <View>
+              <Text style={S.pmtaLabel}>PMTA EFETIVA — COMPONENTE LIMITANTE: {d.componenteFragil?.toUpperCase() ?? 'COSTADO'}</Text>
+              <Text style={{ fontSize: 8, color: C.white, marginTop: 2 }}>
+                PSV Calibração: {d.psvCalibracao ? `${d.psvCalibracao} kPa` : '—'}  ·  PMTA de Fábrica: {d.pmtaFabricante ? `${d.pmtaFabricante} kPa` : '—'}
+              </Text>
+            </View>
+            <Text style={S.pmtaValue}>
+              {d.pmtaLimitante !== undefined ? `${(Number(d.pmtaLimitante) * 1000).toFixed(0)} kPa` : '—'}
+            </Text>
+          </View>
+
+          {/* PMTA PLH */}
+          <View style={{ marginTop: 8, padding: 8, backgroundColor: C.cardBg, borderRadius: 4, borderWidth: 1, borderColor: C.border }}>
+            <Text style={[S.label, { marginBottom: 2 }]}>PMTA Fixada pelo PLH (Profissional Legalmente Habilitado)</Text>
+            <Text style={{ fontSize: 13, fontFamily: 'Helvetica-Bold', color: C.primary }}>
+              {d.pmtaPlh ? `${d.pmtaPlh} kPa` : `${d.pmtaLimitante !== undefined ? (Number(d.pmtaLimitante) * 1000).toFixed(0) : '—'} kPa`}
+            </Text>
+          </View>
+
+          {/* Cronograma */}
+          <Text style={[S.sectionTitle, { marginTop: 16 }]}>6. CRONOGRAMA DE INSPEÇÕES PERIÓDICAS (NR-13 QUADRO XIII)</Text>
+          <View style={S.grid2}>
+            <Campo label="Próxima Inspeção Externa" value={formatDate(d.dataProximaInspExterna)} />
+            <Campo label="Próxima Inspeção Interna" value={formatDate(d.dataProximaInspInterna)} />
+            <Campo label="Próximo Teste de Dispositivos" value={formatDate(d.dataProximoTesteDisp)} />
+            <Campo label="Categoria (Intervalo Referência)" value={`Cat. ${d.categoria} — Ext. ${d.categoria === 'A' || d.categoria === 'C' ? '1' : '2'} ano(s) / Int. ${d.categoria === 'A' || d.categoria === 'C' ? '2' : '4'} anos`} />
+          </View>
+
         </View>
 
-        {/* ASSINATURA */}
-        <View style={styles.signatureBox}>
-          <View style={styles.signatureLine} />
-          <Text style={styles.signatureName}>{usuario?.nome ?? 'Profissional Legalmente Habilitado'}</Text>
-          <Text style={styles.signatureCREA}>Engenheiro(a) Responsável Técnico(a)</Text>
-          <Text style={styles.signatureCREA}>CREA: {usuario?.crea ?? 'Não informado'}</Text>
-          <Text style={styles.signatureCREA}>Profissional Legalmente Habilitado - NR-13</Text>
+        <View style={S.footer} fixed>
+          <Text style={S.footerText}>Laudo de Integridade — Caldeira TAG: {d.tag} · NR-13 / ASME Sec. I</Text>
+          <Text style={S.footerText} render={({ pageNumber, totalPages }) => `Pág. ${pageNumber}/${totalPages}`} />
+        </View>
+      </Page>
+
+      {/* ================================================================
+          PÁGINA 3 — NCs, PARECER E ASSINATURA
+      ================================================================ */}
+      <Page size="A4" style={S.page}>
+
+        <View style={S.header} fixed>
+          <View style={S.headerLeft}>
+            <Text style={S.headerTitle}>PARECER TÉCNICO E NÃO CONFORMIDADES</Text>
+            <Text style={S.headerSub}>TAG: {d.tag}  ·  Data: {formatDate(d.dataInspecao)}</Text>
+          </View>
+          {logoUrl && (
+            <PDFImage src={logoUrl} style={{ height: 24, maxWidth: 80, objectFit: 'contain' }} />
+          )}
         </View>
 
-        {/* RODAPÉ DINAMICO - NUMERAÇÃO DE PÁGINAS */}
-        <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Documento Eletrônico de Integridade - NR13</Text>
-          <Text style={styles.footerText} render={({ pageNumber, totalPages }) => (
-            `Página ${pageNumber} de ${totalPages}`
-          )} />
+        <View style={S.pg}>
+
+          {/* NCs */}
+          <Text style={S.sectionTitle}>7. NÃO CONFORMIDADES (NR-13 §13.5.4.11j)</Text>
+          {ncs.length === 0 ? (
+            <View style={[S.checkRow, { justifyContent: 'center', paddingVertical: 10 }]}>
+              <Text style={{ fontSize: 9, color: C.muted }}>Nenhuma não conformidade registrada.</Text>
+            </View>
+          ) : (
+            ncs.map((nc, i) => {
+              const ncBg = nc.grauRisco === 'Crítico' ? '#dc2626' : nc.grauRisco === 'Moderado' ? '#d97706' : '#2563eb'
+              return (
+                <View key={i} style={S.ncRow}>
+                  <Text style={[S.ncGrauBadge, { backgroundColor: ncBg }]}>{nc.grauRisco}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[S.ncText, { fontFamily: 'Helvetica-Bold', marginBottom: 2 }]}>
+                      {nc.descricao}  <Text style={{ fontFamily: 'Helvetica', color: C.muted }}>({nc.refNR13})</Text>
+                    </Text>
+                    <Text style={[S.ncText, { color: C.muted }]}>→ {nc.acaoCorretiva}</Text>
+                    <Text style={[S.ncText, { color: C.muted, marginTop: 2 }]}>
+                      Prazo: {nc.prazo} dias  ·  Resp.: {nc.responsavel || '—'}
+                    </Text>
+                  </View>
+                </View>
+              )
+            })
+          )}
+
+          {/* Fotos exame interno */}
+          {fotosInterno.length > 0 && (
+            <>
+              <Text style={[S.sectionTitle, { marginTop: 16 }]}>8. EVIDÊNCIAS FOTOGRÁFICAS — EXAME INTERNO</Text>
+              <View style={S.fotoGrid}>
+                {fotosInterno.slice(0, 4).map((url, i) => (
+                  <PDFImage key={i} src={url} style={S.fotoImg} />
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* Parecer */}
+          <Text style={[S.sectionTitle, { marginTop: 16 }]}>{fotosInterno.length > 0 ? '9' : '8'}. PARECER TÉCNICO CONCLUSIVO</Text>
+          <View style={S.parecerBox}>
+            <Text style={S.parecerText}>
+              {d.parecerTecnico ||
+                `A Caldeira identificada pela TAG "${d.tag ?? '—'}", categoria NR-13 ${d.categoria ?? '—'}, foi submetida a inspeção ${d.tipoInspecao?.toLowerCase() ?? 'periódica'} em ${formatDate(d.dataInspecao)}, resultando no status de INTEGRIDADE: ${d.statusFinal ?? 'Aprovado'}. A PMTA calculada pelo método ASME Sec. I é de ${d.pmtaLimitante !== undefined ? (Number(d.pmtaLimitante) * 1000).toFixed(0) : '—'} kPa, limitada pelo componente ${d.componenteFragil ?? 'costado'}.`
+              }
+            </Text>
+          </View>
+
+          {/* Assinatura */}
+          <View style={S.signBox}>
+            <View style={S.signLine} />
+            <Text style={S.signName}>{d.rthNome || perfil?.nome || 'Profissional Legalmente Habilitado'}</Text>
+            <Text style={S.signSub}>{d.rthProfissao || 'Engenheiro Mecânico'}</Text>
+            <Text style={S.signSub}>CREA/CRAM: {d.rthCrea || perfil?.crea || '—'}</Text>
+            <Text style={S.signSub}>Responsável Técnico — NR-13 / ASME Sec. I</Text>
+          </View>
+
+        </View>
+
+        <View style={S.footer} fixed>
+          <Text style={S.footerText}>Laudo de Integridade — Caldeira TAG: {d.tag} · NR-13 / ASME Sec. I</Text>
+          <Text style={S.footerText} render={({ pageNumber, totalPages }) => `Pág. ${pageNumber}/${totalPages}`} />
         </View>
       </Page>
     </Document>
