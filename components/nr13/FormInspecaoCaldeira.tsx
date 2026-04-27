@@ -6,7 +6,7 @@
  * Eficiência E dropdown, RTH, NCs, valores alinhados com banco.
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -89,6 +89,13 @@ export default function FormInspecaoCaldeira({
   const [salvando, setSalvando] = useState(false)
   const [exportandoPDF, setExportandoPDF] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [salvoComSucesso, setSalvoComSucesso] = useState(false)
+
+  /**
+   * Flag para ignorar o primeiro disparo do useEffect de cronograma.
+   * No modo edição, evita sobrescrever as datas salvas no banco ao montar o componente.
+   */
+  const isFirstRenderCategoria = useRef(true)
 
   // Perfil do usuário (para PDF)
   const [perfilUsuario, setPerfilUsuario] = useState<Record<string, any>>({})
@@ -241,13 +248,20 @@ export default function FormInspecaoCaldeira({
   const rgiAtivo = controleNivel === 'Inexistente' || valvulaSeguranca === 'Não Conforme'
 
   // Cronograma automático por categoria
+  // No modo edição, o primeiro disparo (montagem) é ignorado para preservar
+  // as datas já salvas no banco. Disparos subsequentes (mudança de categoria
+  // pelo usuário) atualizam normalmente.
   useEffect(() => {
+    if (isFirstRenderCategoria.current) {
+      isFirstRenderCategoria.current = false
+      if (modoEdicao) return  // preservar datas do banco na carga inicial
+    }
     const intervalos = INTERVALOS_CALDEIRA[categoria]
     if (!intervalos) return
     setDataProximaInspExterna(somarAnos(intervalos.externo))
     setDataProximaInspInterna(somarAnos(intervalos.interno))
     setDataProximoTesteDisp(somarAnos(1))
-  }, [categoria])
+  }, [categoria, modoEdicao])
 
   // ---------------------------------------------------------------------------
   // Auto-geração de NCs a partir dos resultados do checklist (Seções 3 e 5)
@@ -644,7 +658,15 @@ export default function FormInspecaoCaldeira({
         if (errNcs) console.warn('Aviso: erro ao inserir NCs:', errNcs.message)
       }
 
-      router.push('/laudos/nr13/caldeiras')
+      if (modoEdicao) {
+        // Edição: permanecer na página e exibir confirmação
+        setSalvoComSucesso(true)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+        setTimeout(() => setSalvoComSucesso(false), 5000)
+      } else {
+        // Criação: navegar para a página de edição do registro recém-criado
+        router.push(`/laudos/nr13/caldeiras/${inspecaoId}`)
+      }
     } catch (err: any) {
       setErro(err.message ?? 'Erro ao salvar. Tente novamente.')
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -740,6 +762,16 @@ export default function FormInspecaoCaldeira({
 
   return (
     <form onSubmit={handleSalvar} className="space-y-8 pb-32">
+
+      {/* Sucesso ao salvar */}
+      {salvoComSucesso && (
+        <div className="bg-green-50 text-green-700 p-4 rounded-xl border border-green-200 shadow-sm flex items-center gap-2">
+          <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span><strong>Salvo com sucesso!</strong> Todos os dados foram atualizados.</span>
+        </div>
+      )}
 
       {/* Erros */}
       {erro && (

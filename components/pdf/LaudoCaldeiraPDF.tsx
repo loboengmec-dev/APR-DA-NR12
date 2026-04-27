@@ -124,15 +124,18 @@ const S = StyleSheet.create({
 
   // NC
   ncRow: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    padding: 6, borderRadius: 4, marginBottom: 4,
+    flexDirection: 'column',
+    padding: 8, borderRadius: 4, marginBottom: 6,
     borderWidth: 1, borderColor: C.border,
+  },
+  ncRowHeader: {
+    flexDirection: 'row', alignItems: 'center', marginBottom: 4,
   },
   ncGrauBadge: {
     width: 56, paddingVertical: 2, borderRadius: 3, marginRight: 8,
     fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.white, textAlign: 'center',
   },
-  ncText: { fontSize: 8.5, color: C.text, flex: 1 },
+  ncText: { fontSize: 8.5, color: C.text },
 
   // Assinatura
   signBox: {
@@ -449,17 +452,23 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
             ncs.map((nc, i) => {
               const ncBg = nc.grauRisco === 'Crítico' ? '#dc2626' : nc.grauRisco === 'Moderado' ? '#d97706' : '#2563eb'
               return (
-                <View key={i} style={S.ncRow}>
-                  <Text style={[S.ncGrauBadge, { backgroundColor: ncBg }]}>{nc.grauRisco}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[S.ncText, { fontFamily: 'Helvetica-Bold', marginBottom: 2 }]}>
-                      {nc.descricao}  <Text style={{ fontFamily: 'Helvetica', color: C.muted }}>({nc.refNR13})</Text>
-                    </Text>
-                    <Text style={[S.ncText, { color: C.muted }]}>→ {nc.acaoCorretiva}</Text>
-                    <Text style={[S.ncText, { color: C.muted, marginTop: 2 }]}>
-                      Prazo: {nc.prazo} dias  ·  Resp.: {nc.responsavel || '—'}
+                <View key={i} style={S.ncRow} wrap={false}>
+                  {/* Linha de cabeçalho: badge + título */}
+                  <View style={S.ncRowHeader}>
+                    <Text style={[S.ncGrauBadge, { backgroundColor: ncBg }]}>{nc.grauRisco}</Text>
+                    <Text style={[S.ncText, { fontFamily: 'Helvetica-Bold', flex: 1 }]}>
+                      {nc.descricao}{'  '}
+                      <Text style={{ fontFamily: 'Helvetica', color: C.muted }}>({nc.refNR13})</Text>
                     </Text>
                   </View>
+                  {/* Ação corretiva */}
+                  <Text style={[S.ncText, { color: C.muted, marginBottom: 2 }]}>
+                    → {nc.acaoCorretiva}
+                  </Text>
+                  {/* Prazo e responsável */}
+                  <Text style={[S.ncText, { color: C.muted }]}>
+                    Prazo: {nc.prazo} dias  ·  Resp.: {nc.responsavel || '—'}
+                  </Text>
                 </View>
               )
             })
