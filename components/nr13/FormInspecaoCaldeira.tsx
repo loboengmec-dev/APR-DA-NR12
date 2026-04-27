@@ -6,7 +6,7 @@
  * Eficiência E dropdown, RTH, NCs, valores alinhados com banco.
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -281,7 +281,7 @@ export default function FormInspecaoCaldeira({
   // Helpers de upload de fotos
   // ---------------------------------------------------------------------------
 
-  function handleFotoChecklist(setter: (f: FotoLocal[]) => void) {
+  function handleFotoChecklist(setter: React.Dispatch<React.SetStateAction<FotoLocal[]>>) {
     return async (file: File) => {
       const url = URL.createObjectURL(file)
       setter(prev => [...prev, { url, arquivo: file }])
@@ -289,8 +289,8 @@ export default function FormInspecaoCaldeira({
     }
   }
 
-  function handleChangeFotos(setter: (f: FotoLocal[]) => void) {
-    return (fotos: any[]) => setter(fotos)
+  function handleChangeFotos(setter: React.Dispatch<React.SetStateAction<FotoLocal[]>>) {
+    return (fotos: any[]) => setter(fotos as FotoLocal[])
   }
 
   // Faz upload real de todas as fotos com arquivo pendente
