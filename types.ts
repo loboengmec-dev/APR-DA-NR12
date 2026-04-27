@@ -260,3 +260,87 @@ export interface FotoNR13 {
   tamanho_bytes: number | null
   created_at: string
 }
+
+// ============================================================
+// Tipos NR-13 — Caldeiras
+// ============================================================
+
+export interface Caldeira {
+  id: string
+  cliente_id: string
+  tag: string
+  fabricante: string | null
+  numero_serie: string | null
+  ano_fabricacao: number | null
+  categoria_caldeira: string | null
+  codigo_projeto: string | null
+  pmta_fabricante_kpa: number | null
+  created_at: string
+}
+
+export interface InspecoesCaldeiras {
+  id: string
+  caldeira_id: string | null
+  laudo_id: string | null
+  tag: string
+  fabricante: string | null
+  numero_serie: string | null
+  ano_fabricacao: number | null
+  categoria_caldeira: string | null
+  codigo_projeto: string | null
+  pmta_fabricante_kpa: number | null
+  data_inspecao: string | null
+  data_emissao_laudo: string | null
+  tipo_inspecao: string | null
+  ambiente: string | null
+  pressao_operacao_mpa: number | null
+  volume_m3: number | null
+  capacidade_producao_vapor: number | null
+  controle_nivel_intertravamento: string | null
+  distancia_instalacao: string | null
+  iluminacao_emergencia: string | null
+  manual_operacao_ptbr: string | null
+  qualidade_agua: string | null
+  certificacao_operador: string | null
+  exame_externo: string | null
+  exame_interno: string | null
+  teste_hidrostatico: string | null
+  medicoes_espessura: any | null
+  dispositivos_seguranca: any | null
+  fotos_exame: any | null
+  material_s: number | null
+  eficiencia_e: number | null
+  diametro_d: number | null
+  espessura_costado: number | null
+  espessura_espelho: number | null
+  psv_calibracao_kpa: number | null
+  pmta_asme_kpa: number | null
+  pmta_plh_kpa: number | null
+  norma_calculo: string | null
+  status_final: string | null
+  status_seguranca: string | null
+  proxima_inspecao_externa: string | null
+  proxima_inspecao_interna: string | null
+  data_proximo_teste_dispositivos: string | null
+  parecer_tecnico: string | null
+  rth_nome: string | null
+  rth_crea: string | null
+  rth_profissao: string | null
+  foto_placa_path: string | null
+  foto_manometro_path: string | null
+  created_at: string
+}
+
+export interface NcCaldeira {
+  id: string
+  inspecao_id: string
+  descricao: string
+  ref_nr13: string
+  acao_corretiva: string
+  grau_risco: string
+  prazo_dias: number | null
+  responsavel: string | null
+  foto_path: string | null
+  ordem: number
+  created_at: string
+}

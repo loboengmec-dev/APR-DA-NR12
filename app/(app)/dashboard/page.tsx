@@ -115,7 +115,7 @@ export default async function DashboardPage() {
 
           {/* NR-13 */}
           <Link
-            href="/laudos/nr13"
+            href="/laudos/nr13/vasos"
             className="group relative overflow-hidden rounded-2xl border-2 border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-slate-50 p-7 hover:border-emerald-300 hover:shadow-lg transition-all duration-200"
           >
             <div className="absolute top-5 right-5">
@@ -184,7 +184,7 @@ export default async function DashboardPage() {
           </Link>
 
           <Link
-            href="/laudos/nr13/novo-cliente"
+            href="/laudos/nr13/vasos/novo-cliente"
             className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-4 hover:border-emerald-300 hover:bg-emerald-50/40 transition-all duration-150 group shadow-sm"
           >
             <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-200 transition-colors">

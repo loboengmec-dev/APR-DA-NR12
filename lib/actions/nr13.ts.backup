@@ -1,0 +1,422 @@
+'use server';
+
+/**
+ * Server Actions para persistência de inspeções NR-13 no Supabase.
+ *
+ * Fluxo de salvamento:
+ * 1. Cria o laudo (norma = 'NR-13') em `laudos`
+ * 2. Cria a inspeção em `inspecoes_nr13`
+ * 3. Para cada NC manual → `ncs_nr13` (NCs automáticas vão direto de dados do formulário)
+ */
+import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+import type { ActionResult, InspecoesNR13 } from '@/types'
+import { z } from 'zod'
+import { calcularGrupoPV, calcularCategoria, extrairLetraClasse } from '../domain/nr13/categorization'
+import { calcularPMTACostado, calcularPMTATampo, calcularPMTAGlobal, type GeometriaCostado, type GeometriaTampo } from '../domain/nr13/pmta'
+
+// ---------------------------------------------------------------------------
+// SCHEMA — aceita rascunhos parciais (campos opcionais) para permitir
+// salvar a qualquer momento. Validação rigorosa fica no export PDF.
+// ---------------------------------------------------------------------------
+const InspecaoNR13Schema = z.object({
+  tag: z.string().default(''),
+  fabricante: z.string().default(''),
+  numeroSerie: z.string().default(''),
+  anoFabricacao: z.number().int().optional().nullable(),
+  tipoVaso: z.string().optional().nullable(),
+  codigoProjeto: z.string().optional().nullable(),
+  pmtaFabricante: z.number().optional().nullable(),
+  dataInspecao: z.string().optional().nullable(),
+  dataEmissaoLaudo: z.string().optional().nullable(),
+  tipoInspecao: z.string().optional().nullable(),
+  ambiente: z.string().optional().nullable(),
+
+  fluidoServico: z.string().optional().nullable(),
+  fluidoClasse: z.string().optional().nullable(),
+  pressaoOperacao: z.number().optional().nullable(),
+  volume: z.number().optional().nullable(),
+  grupoPV: z.number().int().optional().nullable(),
+  categoriaVaso: z.string().optional().nullable(),
+
+  prontuario: z.string().optional().nullable(),
+  registroSeguranca: z.string().optional().nullable(),
+  projetoInstalacao: z.string().optional().nullable(),
+  relatoriosAnteriores: z.string().optional().nullable(),
+  placaIdentificacao: z.string().optional().nullable(),
+  certificadosDispositivos: z.string().optional().nullable(),
+  manualOperacao: z.string().optional().nullable(),
+
+  exameExterno: z.string().optional().nullable(),
+  exameInterno: z.string().optional().nullable(),
+
+  medicoesEspessura: z.array(z.object({
+    ponto: z.string(),
+    espOriginal: z.number().nullable().optional(),
+    espMedida: z.number().nullable().optional(),
+    espMinAdm: z.number().nullable().optional(),
+    situacao: z.string().optional(),
+    fotoPath: z.string().optional().nullable(),
+  })).optional().nullable(),
+
+  dispositivosSeguranca: z.array(z.object({
+    tag: z.string(),
+    tipo: z.string().optional(),
+    pressaoAjusteKpa: z.number().optional().nullable(),
+    ultimoTeste: z.string().optional(),
+    situacao: z.string().optional(),
+    fotoPath: z.string().optional().nullable(),
+  })).optional().nullable(),
+
+  materialS: z.number().optional().nullable(),
+  eficienciaE: z.number().optional().nullable(),
+  diametroD: z.number().optional().nullable(),
+  espessuraCostado: z.number().optional().nullable(),
+  espessuraTampo: z.number().optional().nullable(),
+  psvCalibracao: z.number().optional().nullable(),
+
+  statusFinalVaso: z.string().optional().nullable(),
+  proximaInspecaoExterna: z.string().optional().nullable(),
+  proximaInspecaoInterna: z.string().optional().nullable(),
+  dataProximoTesteDispositivos: z.string().optional().nullable(),
+  parecerTecnico: z.string().optional().nullable(),
+  pmtaFixadaPLH: z.number().optional().nullable(),
+
+  naoConformidades: z.array(z.object({
+    descricao: z.string(),
+    refNR13: z.string().optional().default(''),
+    acaoCorretiva: z.string().optional().default(''),
+    grauRisco: z.string().optional().default('Moderado'),
+    prazo: z.number().int().optional().default(30),
+    responsavel: z.string().optional().default(''),
+    fotoPath: z.string().optional().nullable(),
+  })).optional().nullable(),
+
+  rthNome: z.string().optional().nullable(),
+  rthCrea: z.string().optional().nullable(),
+  rthProfissao: z.string().optional().nullable(),
+
+  // Fotos persistidas (storage paths)
+  fotoPlacaPath: z.string().optional().nullable(),
+  fotoManometroPath: z.string().optional().nullable(),
+  fotosExame: z.array(z.object({
+    tipoExame: z.string(),
+    storagePath: z.string(),
+    legenda: z.string().optional(),
+    tamanhoBytes: z.number().optional(),
+    ordem: z.number().int().optional(),
+  })).optional().nullable(),
+
+  // Extras
+  clienteId: z.string().nullable().optional(),
+  numeroDocumento: z.string().nullable().optional(),
+  art: z.string().nullable().optional(),
+});
+
+export type InspecaoNR13Data = z.infer<typeof InspecaoNR13Schema>;
+
+// ---------------------------------------------------------------------------
+// SERVER ACTION: Salvar inspeção completa
+// ---------------------------------------------------------------------------
+export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>, clienteIdParam?: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, errors: { formErrors: ['Não autenticado'], fieldErrors: {} } }
+
+  console.log('[NR13-Server] salvarInspecaoNR13 — usuario:', user.id)
+  console.log('[NR13-Server] dados:', JSON.stringify(formData, null, 2).slice(0, 500))
+  console.log('[NR13-Server] clienteIdParam:', clienteIdParam)
+
+  // Usa os dados crus — NÃO valida com Zod para permitir rascunhos parciais
+  const d: any = formData
+
+  // Double-check ASME condicional
+  let pmtaAsmeKpa: number | null = null
+  let statusSeguranca: string | null = null
+
+  if (d.materialS && d.eficienciaE && d.diametroD && d.espessuraCostado && d.espessuraTampo && d.psvCalibracao) {
+    const R = d.diametroD / 2
+    const sMpa = d.materialS / 10.197
+    const psvMpa = d.psvCalibracao / 10.197
+    const geoCostado = (d.geometriaCostado || 'cilindrico') as GeometriaCostado
+    const geoTampo = (d.geometriaTampo || 'toriesferico') as GeometriaTampo
+    const pmtaCostado = calcularPMTACostado(geoCostado, { S: sMpa, E: d.eficienciaE, t: d.espessuraCostado, R, D: d.diametroD, alpha: d.anguloConeDeg })
+    const pmtaTampo = calcularPMTATampo(geoTampo, { S: sMpa, E: d.eficienciaE, t: d.espessuraTampo, R, D: d.diametroD, L: d.raioAbaulamento, r: d.raioRebordo, alpha: d.anguloConeDeg })
+    const limitante = calcularPMTAGlobal(pmtaCostado, pmtaTampo, psvMpa)
+    pmtaAsmeKpa = limitante.pmtaLimitante * 1000
+    statusSeguranca = limitante.condena ? 'Downgrade_Necessario' : 'Conforme'
+  }
+
+  // 1. Usar clienteIdParam fornecido ou encontrar/criar cliente (necessário para RLS)
+  let clienteId: string | null = clienteIdParam
+
+  if (!clienteId) {
+    const { data: clientes } = await supabase.from('clientes').select('id').eq('usuario_id', user.id).limit(1)
+    clienteId = clientes?.[0]?.id ?? null
+
+    if (!clienteId) {
+      const tag = d.tag || 'Cliente'
+      console.log('[NR13-Server] Criando cliente com tag:', tag)
+    const { data: novoCliente, error: cliErr } = await supabase
+      .from('clientes')
+      .insert({ usuario_id: user.id, razao_social: tag })
+      .select().single()
+    if (cliErr || !novoCliente) {
+      console.error('[NR13-Server] Erro ao criar cliente:', cliErr)
+      return { success: false, errors: { formErrors: [cliErr?.message ?? 'Não foi possível criar cliente'] } }
+    }
+    clienteId = novoCliente.id
+  }
+
+  // 2. Criar vaso_pressao (necessário para RLS)
+  const vasoData: any = {
+    cliente_id: clienteId,
+    tag: d.tag || 'SEM_TAG',
+    fabricante: d.fabricante || null,
+    numero_serie: d.numeroSerie || null,
+    ano_fabricacao: d.anoFabricacao || null,
+    tipo_vaso: d.tipoVaso || null,
+    codigo_projeto: d.codigoProjeto || null,
+    pmta_fabricante_kpa: d.pmtaFabricante || null,
+  }
+  console.log('[NR13-Server] Criando vaso:', JSON.stringify(vasoData))
+  const { data: novoVaso, error: vasoErr } = await supabase
+    .from('vasos_pressao')
+    .insert(vasoData)
+    .select().single()
+
+  if (vasoErr || !novoVaso) {
+    console.error('[NR13-Server] Erro ao criar vaso:', vasoErr)
+    return { success: false, errors: { formErrors: [vasoErr?.message ?? 'Erro ao criar vaso'] } }
+  }
+
+  // 3. Criar inspeção
+  const inspecaoData: any = {
+    vaso_id: novoVaso.id,
+    tag: d.tag || null,
+    fabricante: d.fabricante || null,
+    numero_serie: d.numeroSerie || null,
+    ano_fabricacao: d.anoFabricacao || null,
+    tipo_vaso: d.tipoVaso || null,
+    codigo_projeto: d.codigoProjeto || null,
+    pmta_fabricante_kpa: d.pmtaFabricante || null,
+    data_inspecao: d.dataInspecao || null,
+    data_emissao_laudo: d.dataEmissaoLaudo || null,
+    tipo_inspecao: d.tipoInspecao || null,
+    ambiente: d.ambiente || null,
+    fluido_servico: d.fluidoServico || null,
+    fluido_classe: d.fluidoClasse || null,
+    pressao_operacao_mpa: d.pressaoOperacao || null,
+    volume_m3: d.volume || null,
+    grupo_pv: d.grupoPV || null,
+    categoria_vaso: d.categoriaVaso || null,
+    prontuario: d.prontuario || null,
+    registro_seguranca: d.registroSeguranca || null,
+    projeto_instalacao: d.projetoInstalacao || null,
+    relatorios_anteriores: d.relatoriosAnteriores || null,
+    placa_identificacao: d.placaIdentificacao || null,
+    certificados_dispositivos: d.certificadosDispositivos || null,
+    manual_operacao: d.manualOperacao || null,
+    exame_externo: d.exameExterno || null,
+    exame_interno: d.exameInterno || null,
+    medicoes_espessura: d.medicoesEspessura ? JSON.stringify(d.medicoesEspessura) : null,
+    dispositivos_seguranca: d.dispositivosSeguranca ? JSON.stringify(d.dispositivosSeguranca) : null,
+    material_s: d.materialS || null,
+    eficiencia_e: d.eficienciaE || null,
+    diametro_d: d.diametroD || null,
+    espessura_costado: d.espessuraCostado || null,
+    espessura_tampo: d.espessuraTampo || null,
+    psv_calibracao_kpa: d.psvCalibracao || null,
+    pmta_asme_kpa: pmtaAsmeKpa,
+    pmta_plh_kpa: d.pmtaFixadaPLH || null,
+    status_final: d.statusFinalVaso || null,
+    status_seguranca: statusSeguranca,
+    proxima_inspecao_externa: d.proximaInspecaoExterna || null,
+    proxima_inspecao_interna: d.proximaInspecaoInterna || null,
+    data_proximo_teste_dispositivos: d.dataProximoTesteDispositivos || null,
+    parecer_tecnico: d.parecerTecnico || null,
+    rth_nome: d.rthNome || null,
+    rth_crea: d.rthCrea || null,
+    rth_profissao: d.rthProfissao || null,
+    // Fotos
+    foto_placa_path: d.fotoPlacaPath || null,
+    foto_manometro_path: d.fotoManometroPath || null,
+    fotos_exame: d.fotosExame ? JSON.stringify(d.fotosExame) : null,
+  }
+  console.log('[NR13-Server] Criando inspeção com vaso_id:', novoVaso.id, 'tag:', d.tag)
+  const { data: inspecao, error: inspError } = await supabase
+    .from('inspecoes_nr13')
+    .insert(inspecaoData)
+    .select().single()
+
+  if (inspError || !inspecao) {
+    console.error('[NR13-Server] Erro ao criar inspeção:', inspError)
+    return { success: false, errors: { formErrors: [inspError?.message ?? 'Erro ao salvar inspeção'] } }
+  }
+
+  // 4. NCs
+  const ncs = d.naoConformidades ?? []
+  for (let i = 0; i < ncs.length; i++) {
+    await supabase.from('ncs_nr13').insert({
+      inspecao_id: inspecao.id,
+      descricao: ncs[i].descricao || '',
+      ref_nr13: ncs[i].refNR13 || '',
+      acao_corretiva: ncs[i].acaoCorretiva || '',
+      grau_risco: ncs[i].grauRisco || 'Moderado',
+      prazo_dias: ncs[i].prazo || 30,
+      responsavel: ncs[i].responsavel || '',
+      foto_path: ncs[i].fotoPath || null,
+      ordem: i,
+    })
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/laudos/nr13')
+
+  console.log('[NR13-Server] Sucesso! inspecaoId:', inspecao.id)
+  return {
+    success: true,
+    inspecaoId: inspecao.id,
+    pmtaVerificada: pmtaAsmeKpa,
+    alerta: statusSeguranca === 'Downgrade_Necessario' ? 'CRÍTICO: PMTA inferior à calibração da PSV.' : 'OK',
+  }
+}
+
+// ---------------------------------------------------------------------------
+// SERVER ACTION: Listar inspeções NR-13
+// ---------------------------------------------------------------------------
+export async function listarInspecoesNR13(): Promise<ActionResult<InspecoesNR13[]>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Não autenticado' }
+
+  const { data, error } = await supabase
+    .from('inspecoes_nr13')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) return { error: error.message }
+  return { data: data ?? [] }
+}
+
+// ---------------------------------------------------------------------------
+// SERVER ACTION: Buscar inspeção por ID
+// ---------------------------------------------------------------------------
+export async function buscarInspecaoNR13(id: string): Promise<ActionResult<InspecoesNR13 & { ncs?: any[] }>> {
+  const supabase = await createClient()
+
+  const { data: inspecao, error } = await supabase
+    .from('inspecoes_nr13')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error || !inspecao) return { error: error?.message ?? 'Inspeção não encontrada' }
+
+  // Busca NCs
+  const { data: ncs } = await supabase
+    .from('ncs_nr13')
+    .select('*')
+    .eq('inspecao_id', id)
+    .order('ordem', { ascending: true })
+
+  return { data: { ...inspecao, ncs: ncs ?? [] } }
+}
+
+// ---------------------------------------------------------------------------
+// SERVER ACTION: Atualizar inspeção (camelCase → snake_case)
+// ---------------------------------------------------------------------------
+export async function atualizarInspecaoNR13(
+  id: string,
+  form: Record<string, any>
+): Promise<ActionResult<InspecoesNR13>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Não autenticado' }
+
+  // Mapeia camelCase do form → snake_case do banco (mesmo mapeamento do insert)
+  const updateData: Record<string, any> = {
+    tag: form.tag,
+    fabricante: form.fabricante,
+    numero_serie: form.numeroSerie,
+    ano_fabricacao: form.anoFabricacao,
+    tipo_vaso: form.tipoVaso,
+    codigo_projeto: form.codigoProjeto,
+    pmta_fabricante_kpa: form.pmtaFabricante,
+    data_inspecao: form.dataInspecao,
+    data_emissao_laudo: form.dataEmissaoLaudo,
+    tipo_inspecao: form.tipoInspecao,
+    ambiente: form.ambiente,
+    fluido_servico: form.fluidoServico,
+    fluido_classe: form.fluidoClasse,
+    pressao_operacao_mpa: form.pressaoOperacao,
+    volume_m3: form.volume,
+    grupo_pv: form.grupoPV,
+    categoria_vaso: form.categoriaVaso,
+    prontuario: form.prontuario,
+    registro_seguranca: form.registroSeguranca,
+    projeto_instalacao: form.projetoInstalacao,
+    relatorios_anteriores: form.relatoriosAnteriores,
+    placa_identificacao: form.placaIdentificacao,
+    certificados_dispositivos: form.certificadosDispositivos,
+    manual_operacao: form.manualOperacao,
+    exame_externo: form.exameExterno,
+    exame_interno: form.exameInterno,
+    medicoes_espessura: form.medicoesEspessura ? JSON.stringify(form.medicoesEspessura) : undefined,
+    dispositivos_seguranca: form.dispositivosSeguranca ? JSON.stringify(form.dispositivosSeguranca) : undefined,
+    material_s: form.materialS,
+    eficiencia_e: form.eficienciaE,
+    diametro_d: form.diametroD,
+    espessura_costado: form.espessuraCostado,
+    espessura_tampo: form.espessuraTampo,
+    psv_calibracao_kpa: form.psvCalibracao,
+    pmta_plh_kpa: form.pmtaFixadaPLH,
+    status_final: form.statusFinalVaso,
+    proxima_inspecao_externa: form.proximaInspecaoExterna,
+    proxima_inspecao_interna: form.proximaInspecaoInterna,
+    data_proximo_teste_dispositivos: form.dataProximoTesteDispositivos,
+    parecer_tecnico: form.parecerTecnico,
+    rth_nome: form.rthNome,
+    rth_crea: form.rthCrea,
+    rth_profissao: form.rthProfissao,
+    // Fotos
+    foto_placa_path: form.fotoPlacaPath ?? undefined,
+    foto_manometro_path: form.fotoManometroPath ?? undefined,
+    fotos_exame: form.fotosExame ? JSON.stringify(form.fotosExame) : undefined,
+  }
+
+  // Remove campos undefined para não sobrescrever com null
+  Object.keys(updateData).forEach(k => { if (updateData[k] === undefined) delete updateData[k] })
+
+  const { data, error } = await supabase
+    .from('inspecoes_nr13')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) return { error: error.message }
+
+  // Atualiza NCs — deleta antigas e insere novas
+  const ncs = form.naoConformidades ?? []
+  await supabase.from('ncs_nr13').delete().eq('inspecao_id', id)
+  for (let i = 0; i < ncs.length; i++) {
+    const nc = ncs[i]
+    await supabase.from('ncs_nr13').insert({
+      inspecao_id: id,
+      descricao: nc.descricao,
+      ref_nr13: nc.refNR13,
+      acao_corretiva: nc.acaoCorretiva,
+      grau_risco: nc.grauRisco,
+      prazo_dias: nc.prazo,
+      responsavel: nc.responsavel,
+      foto_path: nc.fotoPath || null,
+      ordem: i,
+    })
+  }
+
+  revalidatePath('/laudos/nr13')
+  revalidatePath(`/laudos/nr13/${id}`)
+
+  return { data }
+}
