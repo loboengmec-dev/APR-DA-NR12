@@ -100,6 +100,17 @@ export default function FormInspecaoCaldeira({
   // Perfil do usuário (para PDF)
   const [perfilUsuario, setPerfilUsuario] = useState<Record<string, any>>({})
 
+  // Seleciona todo o conteúdo ao focar em inputs numéricos — evita o problema
+  // de digitar "7" e obter "07" no mobile quando o valor padrão é 0.
+  useEffect(() => {
+    const handleFocus = (e: FocusEvent) => {
+      const el = e.target as HTMLInputElement
+      if (el.type === 'number') el.select()
+    }
+    document.addEventListener('focus', handleFocus, true)
+    return () => document.removeEventListener('focus', handleFocus, true)
+  }, [])
+
   // Seleção de cliente (apenas criação)
   const [clientes, setClientes] = useState<{ id: string; razao_social: string }[]>([])
   const [clienteId, setClienteId] = useState<string>(initialData?.caldeiras?.cliente_id ?? '')
