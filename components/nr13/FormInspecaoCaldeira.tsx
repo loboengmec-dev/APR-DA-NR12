@@ -1401,7 +1401,7 @@ export default function FormInspecaoCaldeira({
       {/* ================================================================
           BARRA FLUTUANTE DE AÇÕES
       ================================================================ */}
-      <div className="fixed bottom-0 left-[256px] right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-20 flex justify-between items-center px-10">
+      <div className="fixed bottom-16 md:bottom-0 left-0 md:left-[256px] right-0 bg-white border-t border-gray-200 shadow-lg z-20 px-4 md:px-10 py-3 flex flex-col md:flex-row md:justify-between md:items-center gap-2 md:gap-0">
         <div className="flex items-center gap-3">
           <p className="text-sm font-medium text-gray-700">Status:</p>
           <span className={`px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm ${
@@ -1417,12 +1417,12 @@ export default function FormInspecaoCaldeira({
             </span>
           )}
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 md:gap-3">
           <button
             type="button"
             disabled={exportandoPDF}
             onClick={handleExportarPDF}
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-700 text-white font-bold rounded-lg hover:bg-blue-600 disabled:opacity-50 transition"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-5 py-2.5 bg-blue-700 text-white font-bold rounded-lg hover:bg-blue-600 disabled:opacity-50 transition text-sm"
           >
             {exportandoPDF ? (
               <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Gerando PDF...</>
@@ -1433,7 +1433,7 @@ export default function FormInspecaoCaldeira({
           <button
             type="submit"
             disabled={salvando || psvViolaPMTA}
-            className="px-8 py-2.5 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 disabled:opacity-50 transition shadow"
+            className="flex-1 md:flex-none px-4 md:px-8 py-2.5 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 disabled:opacity-50 transition shadow text-sm"
           >
             {salvando ? 'Salvando...' : modoEdicao ? 'Salvar Alterações' : 'Criar Inspeção'}
           </button>
