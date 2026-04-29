@@ -30,7 +30,7 @@ export default function Sidebar({ nomeUsuario }: SidebarProps) {
   const initials = getInitials(nomeUsuario)
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0">
+    <aside className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col h-screen sticky top-0">
       {/* HEADER LOGO */}
       <div className="h-16 flex items-center px-6 border-b border-gray-100 flex-shrink-0">
         <Link href="/dashboard" className="flex items-center flex-shrink-0">

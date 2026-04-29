@@ -163,7 +163,7 @@ export default function ListaInspecoesNR13Page() {
           <span className="font-semibold text-gray-800 tabular-nums">{inspecoes.length}</span>
           {' '}inspeção{inspecoes.length !== 1 ? 'ões' : ''} encontrada{inspecoes.length !== 1 ? 's' : ''}
         </p>
-        <Link href="/laudos/nr13/novo-cliente" className="btn-primary text-sm" style={{ backgroundColor: '#059669' }}>
+        <Link href="/laudos/nr13/vasos/novo-cliente" className="btn-primary text-sm" style={{ backgroundColor: '#059669' }}>
           + Nova Inspeção NR-13
         </Link>
       </div>
@@ -181,7 +181,7 @@ export default function ListaInspecoesNR13Page() {
           <p className="text-sm text-gray-500 mb-6 max-w-xs">
             Registre sua primeira inspeção de vaso de pressão com cálculo de PMTA via ASME.
           </p>
-          <Link href="/laudos/nr13/novo-cliente" className="btn-primary text-sm" style={{ backgroundColor: '#059669' }}>
+          <Link href="/laudos/nr13/vasos/novo-cliente" className="btn-primary text-sm" style={{ backgroundColor: '#059669' }}>
             Criar primeira inspeção
           </Link>
         </div>

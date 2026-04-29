@@ -164,7 +164,7 @@ export default function NovoClienteNR13Page() {
       return
     }
 
-    router.push(`/laudos/nr13/novo?cliente_id=${idCliente}`)
+    router.push(`/laudos/nr13/vasos/novo?cliente_id=${idCliente}`)
   }
 
   async function confirmarExclusao() {
