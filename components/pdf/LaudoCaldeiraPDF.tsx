@@ -31,6 +31,8 @@ const C = {
   warn:       '#b45309',
   warnBg:     '#fef3c7',
   cardBg:     '#f8fafc',
+  accent:     '#334155',
+  borderLight:'#f1f5f9',
 }
 
 // ---------------------------------------------------------------------------
@@ -151,6 +153,15 @@ const S = StyleSheet.create({
   fotoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
   fotoBox:  { width: '48%', borderRadius: 4, overflow: 'hidden', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0' },
   fotoCaption: { fontSize: 7, color: '#64748b', textAlign: 'center', padding: 3 },
+
+  // Capa — consistente com LaudoNR13PDF
+  coverRoot:     { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  coverGrid:     { width: '100%', maxWidth: 400, paddingTop: 30, borderTopWidth: 1, borderTopColor: C.borderLight },
+  coverRow:      { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
+  coverLbl:      { fontSize: 9, color: C.muted, textTransform: 'uppercase' },
+  coverValor:    { fontSize: 12, fontFamily: 'Helvetica-Bold', color: C.text },
+  coverTitle:    { fontSize: 26, fontFamily: 'Helvetica-Bold', color: C.text, textAlign: 'center', marginBottom: 14 },
+  coverSubtitle: { fontSize: 12, color: C.muted, textAlign: 'center', maxWidth: 400, marginBottom: 40, lineHeight: 1.5 },
 })
 
 // ---------------------------------------------------------------------------
@@ -184,6 +195,7 @@ interface LaudoCaldeiraPDFProps {
   fotosUrl?: Record<string, string>
   /** Dimensões reais (px) de cada imagem — chave idêntica à de fotosUrl */
   fotoDimensoes?: Record<string, { width: number; height: number }>
+  cliente?: Record<string, any>
 }
 
 // ---------------------------------------------------------------------------
@@ -239,11 +251,12 @@ function Campo3({ label, value }: { label: string; value: string | number | unde
 // ---------------------------------------------------------------------------
 // Componente principal
 // ---------------------------------------------------------------------------
-export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDimensoes = {} }: LaudoCaldeiraPDFProps) {
+export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDimensoes = {}, cliente }: LaudoCaldeiraPDFProps) {
   const d = dados
   const statusColors = badgeStatus(d.statusFinal)
   const ncs: any[] = d.naoConformidades ?? []
   const logoUrl: string | null = perfil?._logoPublicUrl ?? null
+  const fmt = (dt: string | undefined) => dt ? new Date(dt + 'T00:00:00').toLocaleDateString('pt-BR') : '—'
 
   // Fotos do exame interno
   const fotosInterno = Object.entries(fotosUrl)
@@ -251,9 +264,72 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
     .map(([k, url]) => ({ key: k, url }))
 
   return (
-    <Document>
+    <Document title={`Inspeção NR-13 — Caldeira ${d.tag ?? ''}`} author={perfil?.nome ?? d.rthNome}>
+
+      {/* ======================== CAPA ======================== */}
+      <Page size="A4" style={S.page}>
+        <View style={S.coverRoot}>
+
+          {/* Logo da empresa */}
+          {logoUrl ? (
+            <View style={{ marginBottom: 20, alignItems: 'center' }}>
+              <PDFImage src={logoUrl} style={{ maxHeight: 60, maxWidth: 200, objectFit: 'contain' }} />
+            </View>
+          ) : null}
+
+          <Text style={S.coverTitle}>Laudo Técnico NR-13</Text>
+          <Text style={S.coverSubtitle}>
+            Documento de avaliação técnica de integridade mecânica e conformidade de caldeira a vapor estacionária, em conformidade com a NR-13 e o Código ASME Sec. I.
+          </Text>
+
+          <View style={S.coverGrid}>
+            <View style={{ flexDirection: 'column', gap: 0, width: '100%' }}>
+              <View style={S.coverRow}>
+                <Text style={S.coverLbl}>TAG do Equipamento</Text>
+                <Text style={S.coverValor}>{d.tag ?? '—'}</Text>
+              </View>
+              <View style={S.coverRow}>
+                <Text style={S.coverLbl}>Fabricante</Text>
+                <Text style={S.coverValor}>{d.fabricante ?? '—'}</Text>
+              </View>
+              <View style={S.coverRow}>
+                <Text style={S.coverLbl}>Ano de Fabricação</Text>
+                <Text style={S.coverValor}>{d.anoFabricacao ?? '—'}</Text>
+              </View>
+              <View style={S.coverRow}>
+                <Text style={S.coverLbl}>Categoria NR-13</Text>
+                <Text style={S.coverValor}>Categoria {d.categoria ?? '—'}</Text>
+              </View>
+              <View style={S.coverRow}>
+                <Text style={S.coverLbl}>Empresa Inspecionada</Text>
+                <Text style={S.coverValor}>{cliente?.razao_social ?? d.empresaInspecionada ?? '—'}</Text>
+              </View>
+              <View style={S.coverRow}>
+                <Text style={S.coverLbl}>Localidade</Text>
+                <Text style={S.coverValor}>
+                  {cliente?.cidade ?? d.cidadeInspecionada ?? '—'} / {cliente?.estado ?? d.estadoInspecionado ?? '—'}
+                </Text>
+              </View>
+              <View style={S.coverRow}>
+                <Text style={S.coverLbl}>Data da Inspeção</Text>
+                <Text style={S.coverValor}>{fmt(d.dataInspecao)}</Text>
+              </View>
+              <View style={S.coverRow}>
+                <Text style={S.coverLbl}>Tipo de Inspeção</Text>
+                <Text style={S.coverValor}>{d.tipoInspecao ?? '—'}</Text>
+              </View>
+              <View style={S.coverRow}>
+                <Text style={S.coverLbl}>Responsável Técnico</Text>
+                <Text style={S.coverValor}>{d.rthNome ?? perfil?.nome ?? '—'}</Text>
+              </View>
+            </View>
+          </View>
+
+        </View>
+      </Page>
+
       {/* ================================================================
-          PÁGINA 1 — CAPA E IDENTIFICAÇÃO
+          PÁGINA 2 — IDENTIFICAÇÃO E CHECKLIST
       ================================================================ */}
       <Page size="A4" style={S.page}>
 

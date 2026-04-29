@@ -51,7 +51,7 @@ function getImageDimensions(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { dados, perfil, fotosUrl } = body
+    const { dados, perfil, fotosUrl, cliente } = body
 
     if (!dados) {
       return NextResponse.json({ error: 'Dados do formulário são obrigatórios' }, { status: 400 })
@@ -116,6 +116,7 @@ export async function POST(req: NextRequest) {
         perfil={perfilComLogo}
         fotosUrl={fotosBase64}
         fotoDimensoes={fotoDimensoes}
+        cliente={cliente}
       />
     )
 
