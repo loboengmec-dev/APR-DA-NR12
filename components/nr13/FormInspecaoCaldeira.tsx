@@ -161,9 +161,14 @@ export default function FormInspecaoCaldeira({
    * Default conservador: 200 mm (passo típico entre tubos de fogo).
    */
   const [dEspelho, setDEspelho] = useState<number>(initialData?.d_espelho_mm ?? 200)
-  const [psvCalibracao, setPsvCalibracao] = useState<number>(
-    initialData?.psv_calibracao_kpa ? +(initialData.psv_calibracao_kpa * 0.010197).toFixed(4) : 0
+  // String state para o campo PSV — evita loop de normalização do browser em
+  // inputs type="number" com valores decimais (step vs valor armazenado).
+  const [psvCalibracaoStr, setPsvCalibracaoStr] = useState<string>(
+    initialData?.psv_calibracao_kpa
+      ? String(+(initialData.psv_calibracao_kpa * 0.010197).toFixed(2))
+      : '0'
   )
+  const psvCalibracao = parseFloat(psvCalibracaoStr) || 0
 
   // --- Exame e parecer ---
   const [exameExterno, setExameExterno] = useState(initialData?.exame_externo ?? 'Conforme')
@@ -1069,10 +1074,11 @@ export default function FormInspecaoCaldeira({
                 {psvViolaPMTA && <span className="text-red-600 ml-2 font-bold">⚠️ &gt; PMTA!</span>}
               </label>
               <input
-                type="number" step="1" min="0"
+                type="text"
+                inputMode="decimal"
                 className={`w-full border rounded-lg px-3 py-2 ${psvViolaPMTA ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                value={psvCalibracao}
-                onChange={e => setPsvCalibracao(Number(e.target.value))}
+                value={psvCalibracaoStr}
+                onChange={e => setPsvCalibracaoStr(e.target.value.replace(',', '.'))}
               />
               <p className="text-xs text-gray-400 mt-1">
                 PMTA calculada: {pmtaLimitanteKgf.toFixed(2)} kgf/cm² — PSV deve ser ≤ PMTA

@@ -477,22 +477,39 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
           {/* Fotos exame interno — dimensão adaptativa */}
           {fotosInterno.length > 0 && (
             <>
-              <Text style={[S.sectionTitle, { marginTop: 16 }]}>8. EVIDÊNCIAS FOTOGRÁFICAS — EXAME INTERNO</Text>
-              <View style={S.fotoGrid}>
-                {fotosInterno.slice(0, 6).map(({ key, url }, i) => {
-                  const dims = fotoDimensoes[key]
-                  // 2 fotos por linha: container ~240pt (A4 515pt − 40 margem − 8 gap ÷ 2)
-                  const containerW = fotosInterno.length === 1 ? 475 : 235
-                  const h = calcImageHeight(dims, containerW, 320)
-                  const w = fotosInterno.length === 1 ? '100%' : '48%'
-                  return (
-                    <View key={i} style={[S.fotoBox, { width: w }]} wrap={false}>
-                      <PDFImage src={url} style={{ width: '100%', height: h, objectFit: 'contain' }} />
-                      <Text style={S.fotoCaption}>Exame Interno — Foto {i + 1}</Text>
-                    </View>
-                  )
-                })}
+              {/* Título ancorado à 1ª linha de fotos — impede quebra de página entre label e imagem */}
+              <View wrap={false}>
+                <Text style={[S.sectionTitle, { marginTop: 16 }]}>8. EVIDÊNCIAS FOTOGRÁFICAS — EXAME INTERNO</Text>
+                <View style={S.fotoGrid}>
+                  {fotosInterno.slice(0, fotosInterno.length === 1 ? 1 : 2).map(({ key, url }, i) => {
+                    const dims = fotoDimensoes[key]
+                    const containerW = fotosInterno.length === 1 ? 475 : 235
+                    const h = calcImageHeight(dims, containerW, 320)
+                    const w = fotosInterno.length === 1 ? '100%' : '48%'
+                    return (
+                      <View key={i} style={[S.fotoBox, { width: w }]} wrap={false}>
+                        <PDFImage src={url} style={{ width: '100%', height: h, objectFit: 'contain' }} />
+                        <Text style={S.fotoCaption}>Exame Interno — Foto {i + 1}</Text>
+                      </View>
+                    )
+                  })}
+                </View>
               </View>
+              {/* Fotos restantes (3ª em diante) fluem livremente entre páginas */}
+              {fotosInterno.length > 2 && (
+                <View style={S.fotoGrid}>
+                  {fotosInterno.slice(2, 6).map(({ key, url }, i) => {
+                    const dims = fotoDimensoes[key]
+                    const h = calcImageHeight(dims, 235, 320)
+                    return (
+                      <View key={i + 2} style={[S.fotoBox, { width: '48%' }]} wrap={false}>
+                        <PDFImage src={url} style={{ width: '100%', height: h, objectFit: 'contain' }} />
+                        <Text style={S.fotoCaption}>Exame Interno — Foto {i + 3}</Text>
+                      </View>
+                    )
+                  })}
+                </View>
+              )}
             </>
           )}
 
@@ -521,7 +538,7 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
               <>
                 <Text style={[S.sectionTitle, { marginTop: 16 }]}>{sectionNum}. EVIDÊNCIAS FOTOGRÁFICAS — CHECKLIST NR-13</Text>
                 {fotosPorGrupo.map((grupo, gi) => (
-                  <View key={gi} style={{ marginBottom: 10 }}>
+                  <View key={gi} wrap={false} style={{ marginBottom: 10 }}>
                     <Text style={[S.label, { marginBottom: 4, color: C.primary }]}>{grupo.label}</Text>
                     <View style={S.fotoGrid}>
                       {grupo.fotos.slice(0, 4).map(({ key, url }, i) => {
