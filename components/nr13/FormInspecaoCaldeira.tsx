@@ -466,14 +466,8 @@ export default function FormInspecaoCaldeira({
     // Validações críticas
     if (!tag.trim()) { setErro('TAG da caldeira é obrigatória.'); return }
     if (!modoEdicao && !clienteId) { setErro('Selecione o cliente vinculado à caldeira.'); return }
-    if (fotosExameInterno.length === 0) {
-      setErro('Obrigatório ao menos uma foto do Exame Interno para finalizar o laudo.')
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-      return
-    }
     if (psvViolaPMTA) {
       setErro(`⚠️ BLOQUEIO DE SEGURANÇA: PSV de calibração (${psvCalibracao.toFixed(2)} kgf/cm²) é SUPERIOR à PMTA calculada (${pmtaLimitanteKgf.toFixed(2)} kgf/cm²). Corrija antes de salvar.`)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
 
@@ -672,7 +666,6 @@ export default function FormInspecaoCaldeira({
       if (modoEdicao) {
         // Edição: permanecer na página e exibir confirmação
         setSalvoComSucesso(true)
-        window.scrollTo({ top: 0, behavior: 'smooth' })
         setTimeout(() => setSalvoComSucesso(false), 5000)
       } else {
         // Criação: navegar para a página de edição do registro recém-criado
@@ -680,7 +673,6 @@ export default function FormInspecaoCaldeira({
       }
     } catch (err: any) {
       setErro(err.message ?? 'Erro ao salvar. Tente novamente.')
-      window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
       setSalvando(false)
     }
@@ -691,6 +683,10 @@ export default function FormInspecaoCaldeira({
   // ---------------------------------------------------------------------------
 
   async function handleExportarPDF() {
+    if (!propInspecaoId) {
+      alert('Salve a inspeção antes de exportar o PDF para garantir que os dados sejam persistidos.')
+      return
+    }
     setExportandoPDF(true)
     try {
       const fotosUrlMap: Record<string, string> = {}
@@ -1401,23 +1397,35 @@ export default function FormInspecaoCaldeira({
       {/* ================================================================
           BARRA FLUTUANTE DE AÇÕES
       ================================================================ */}
-      <div className="fixed bottom-16 md:bottom-0 left-0 md:left-[256px] right-0 bg-white border-t border-gray-200 shadow-lg z-20 px-4 md:px-10 py-3 flex flex-col md:flex-row md:justify-between md:items-center gap-2 md:gap-0">
-        <div className="flex items-center gap-3">
-          <p className="text-sm font-medium text-gray-700">Status:</p>
-          <span className={`px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm ${
-            statusFinal === 'Aprovado' ? 'bg-emerald-500' :
-            statusFinal === 'Interditado' ? 'bg-red-700' :
-            statusFinal.includes('Reprovado') ? 'bg-amber-600' : 'bg-orange-500'
-          }`}>
-            {statusFinal.toUpperCase()}
-          </span>
-          {rgiAtivo && (
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white animate-pulse">
-              ⚠️ RGI ATIVO
+      <div className="fixed bottom-16 md:bottom-0 left-0 md:left-[256px] right-0 bg-white border-t border-gray-200 shadow-lg z-20 px-4 md:px-10 py-3 flex flex-col gap-2">
+        {/* Erro inline — visível sem precisar scrollar */}
+        {(erro || psvViolaPMTA) && (
+          <div className="bg-red-50 border border-red-300 text-red-700 rounded-lg px-3 py-2 text-xs font-medium">
+            {erro ?? `PSV (${psvCalibracao.toFixed(2)} kgf/cm²) > PMTA calculada. Corrija antes de salvar.`}
+          </div>
+        )}
+        {salvoComSucesso && (
+          <div className="bg-emerald-50 border border-emerald-300 text-emerald-700 rounded-lg px-3 py-2 text-xs font-medium">
+            ✓ Salvo com sucesso!
+          </div>
+        )}
+        <div className="flex md:flex-row md:justify-between md:items-center gap-2">
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-medium text-gray-700">Status:</p>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm ${
+              statusFinal === 'Aprovado' ? 'bg-emerald-500' :
+              statusFinal === 'Interditado' ? 'bg-red-700' :
+              statusFinal.includes('Reprovado') ? 'bg-amber-600' : 'bg-orange-500'
+            }`}>
+              {statusFinal.toUpperCase()}
             </span>
-          )}
-        </div>
-        <div className="flex gap-2 md:gap-3">
+            {rgiAtivo && (
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white animate-pulse">
+                ⚠️ RGI ATIVO
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 md:gap-3">
           <button
             type="button"
             disabled={exportandoPDF}
@@ -1437,6 +1445,7 @@ export default function FormInspecaoCaldeira({
           >
             {salvando ? 'Salvando...' : modoEdicao ? 'Salvar Alterações' : 'Criar Inspeção'}
           </button>
+          </div>
         </div>
       </div>
 
