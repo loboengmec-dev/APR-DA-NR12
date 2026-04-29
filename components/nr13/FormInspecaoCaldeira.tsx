@@ -100,9 +100,6 @@ export default function FormInspecaoCaldeira({
   // Perfil do usuário (para PDF)
   const [perfilUsuario, setPerfilUsuario] = useState<Record<string, any>>({})
 
-  // Dados do cliente selecionado (para PDF)
-  const [clienteData, setClienteData] = useState<Record<string, any> | null>(null)
-
   // Seleciona todo o conteúdo ao focar em inputs numéricos — evita o problema
   // de digitar "7" e obter "07" no mobile quando o valor padrão é 0.
   useEffect(() => {
@@ -399,15 +396,6 @@ export default function FormInspecaoCaldeira({
     supabase.from('clientes').select('id, razao_social').order('razao_social')
       .then(({ data }) => { if (data) setClientes(data) })
   }, [modoEdicao])
-
-  // Carrega dados do cliente ao montar (para capa do PDF)
-  useEffect(() => {
-    const cid = clienteId || initialData?.caldeiras?.cliente_id
-    if (!cid) return
-    const supabase = createClient()
-    supabase.from('clientes').select('id, razao_social, cidade, estado').eq('id', cid).single()
-      .then(({ data }) => { if (data) setClienteData(data) })
-  }, [clienteId, initialData?.caldeiras?.cliente_id])
 
   // Gera URLs assinadas para fotos existentes (modo edição)
   useEffect(() => {
@@ -708,6 +696,21 @@ export default function FormInspecaoCaldeira({
     try {
       const fotosUrlMap: Record<string, string> = {}
 
+        // Busca dados reais do cliente para a capa do PDF
+      // Fazemos isso aqui (ao invés de depender de useEffect) para garantir
+      // que os dados estejam disponíveis no momento do export
+      const resolvedClientId = clienteId || initialData?.caldeiras?.cliente_id
+      let clientePdf: Record<string, any> | undefined = undefined
+      if (resolvedClientId) {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from('clientes')
+          .select('id, razao_social, cidade, estado')
+          .eq('id', resolvedClientId)
+          .single()
+        if (data) clientePdf = data
+      }
+
       // Gera URLs assinadas para todas as fotos com path real
       const gerarUrlsGrupo = async (fotos: FotoLocal[], chave: string) => {
         for (let i = 0; i < fotos.length; i++) {
@@ -730,10 +733,6 @@ export default function FormInspecaoCaldeira({
         gerarUrlsGrupo(fotosQualidade, 'qualidadeAgua'),
         gerarUrlsGrupo(fotosCertificacao, 'certificacaoOperador'),
       ])
-
-      // Resolve client ID for PDF (works in both create and edit mode)
-      const resolvedClienteId = clienteId || initialData?.caldeiras?.cliente_id
-      const clienteAtual = clienteData ?? (resolvedClienteId ? null : null)
 
       const resposta = await fetch('/api/caldeira-pdf', {
         method: 'POST',
@@ -762,7 +761,7 @@ export default function FormInspecaoCaldeira({
           },
           perfil: perfilUsuario,
           fotosUrl: fotosUrlMap,
-          cliente: clienteAtual ?? undefined,
+          cliente: clientePdf,
         }),
       })
 
