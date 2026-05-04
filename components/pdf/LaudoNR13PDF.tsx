@@ -352,7 +352,7 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
             <Text style={S.h2}>2. Classificação e Categorização — §13.5.1.1</Text>
             <View style={S.card}>
               <Text style={{ fontSize: 9, color: THEME.textSecondary, marginBottom: 8 }}>
-                Classificação baseada na tabela do Anexo I da NR-13 (Classe do Fluido e Produto P×V).
+                Classificação baseada na Tabela 1 da NR-13 — Portaria MTP 1.846/2022 (Classe do Fluido × Grupo P×V).
               </Text>
               <View style={[S.kpiRow, { marginBottom: 12 }]}>
                 <View style={S.kpi}><Text style={{ fontSize: 7, color: THEME.textSecondary, textTransform: 'uppercase' }}>Fluido</Text>

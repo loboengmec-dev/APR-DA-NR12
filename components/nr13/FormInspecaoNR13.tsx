@@ -31,12 +31,14 @@ import { useRouter } from 'next/navigation';
 import UploadFotoNR13 from './UploadFotoNR13';
 import GaleriaFotosNR13 from './GaleriaFotosNR13';
 
-// Intervalos de inspeção periódica por classe de fluido (NR-13 Anexo I)
-const INTERVALOS_NR13: Record<string, { externo: number; interno: number; label: string }> = {
-  'A (Inflamável/Tóxico)':              { externo: 1, interno: 2,  label: 'Ext: 1 ano / Int: 2 anos' },
-  'B (Combustível/Tóxico leve)':        { externo: 2, interno: 4,  label: 'Ext: 2 anos / Int: 4 anos' },
-  'C (Vapor de Água/Gases asfixiantes)':{ externo: 3, interno: 6,  label: 'Ext: 3 anos / Int: 6 anos' },
-  'D (Água/Outros)':                    { externo: 5, interno: 10, label: 'Ext: 5 anos / Int: 10 anos' },
+// Intervalos de inspeção periódica por CATEGORIA do vaso — NR-13 Tabela 2 (Portaria MTP 1.846/2022)
+// ATENÇÃO: os intervalos são função da Categoria (I–V), não da Classe do fluido
+const INTERVALOS_CATEGORIA_NR13: Record<string, { externo: number; interno: number; label: string }> = {
+  'I':   { externo: 1, interno: 3,  label: 'Cat. I — Ext: 1 ano / Int: 3 anos' },
+  'II':  { externo: 2, interno: 4,  label: 'Cat. II — Ext: 2 anos / Int: 4 anos' },
+  'III': { externo: 3, interno: 6,  label: 'Cat. III — Ext: 3 anos / Int: 6 anos' },
+  'IV':  { externo: 4, interno: 8,  label: 'Cat. IV — Ext: 4 anos / Int: 8 anos' },
+  'V':   { externo: 5, interno: 10, label: 'Cat. V — Ext: 5 anos / Int: 10 anos' },
 };
 
 function somarAnos(dataISO: string, anos: number): string {
@@ -125,7 +127,7 @@ const FormSchema = z.object({
   // --- Seção 4: Dispositivos de Segurança §13.5.1.2 / §13.5.4.11(n) ---
   dispositivosSeguranca: z.array(z.object({
     tag: z.string().min(1, 'TAG do dispositivo obrigatória'),
-    tipo: z.enum(['VS', 'VR', 'DR']),
+    tipo: z.enum(['VS', 'VA', 'VSA', 'VPO', 'DR', 'QV']),
     pressaoAjusteKpa: z.coerce.number().positive('Pressão de ajuste obrigatória'),
     ultimoTeste: z.string().min(10, 'Data obrigatória'),
     situacao: z.enum(['OK', 'Reparo']),
@@ -171,7 +173,8 @@ const FormSchema = z.object({
   // --- Seção 5.5: RTH §13.5.4.11(m) ---
   rthNome: z.string().min(3, 'Nome do responsável é obrigatório'),
   rthCrea: z.string().min(4, 'Registro profissional é obrigatório'),
-  rthProfissao: z.enum(['Engenheiro Mecânico', 'Engenheiro de Segurança do Trabalho', 'Técnico de Segurança do Trabalho', 'Outro']),
+  // §13.3.2: PLH deve ser engenheiro habilitado — Técnico de SST não é PLH
+  rthProfissao: z.enum(['Engenheiro Mecânico', 'Engenheiro de Segurança do Trabalho', 'Engenheiro Químico', 'Outro Engenheiro Habilitado']),
 });
 
 type FormData = z.infer<typeof FormSchema>;
@@ -455,13 +458,17 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
       { key: 'relatoriosAnteriores', val: 'Disponíveis', ref: 'AUTO: §13.5.1.5(d)', desc: 'Relatórios de inspeção anteriores indisponíveis', acao: 'Localizar e arquivar relatórios de inspeções anteriores' },
       { key: 'placaIdentificacao', val: 'Fixada e Legível', ref: 'AUTO: Art. 13.5.1.3', desc: 'Placa de identificação ilegível, danificada ou inexistente', acao: 'Providenciar nova placa de identificação conforme norma' },
       { key: 'certificadosDispositivos', val: 'Disponíveis', ref: 'AUTO: §13.5.1.5(e)', desc: 'Certificados dos dispositivos de segurança indisponíveis', acao: 'Solicitar certificados atualizados dos dispositivos de segurança' },
-      { key: 'manualOperacao', val: 'Disponível em Português', ref: 'AUTO: §13.5.3.1', desc: 'Manual de Operação em Português ausente', acao: 'Providenciar tradução do manual de operação para Português' },
     ];
     for (const item of docNCs) {
       const actual = (vals as Record<string, any>)[item.key];
       if (actual && actual !== item.val && actual !== 'N/A') {
         nc.push({ descricao: item.desc, refNR13: item.ref, acaoCorretiva: item.acao, grauRisco: 'Moderado', prazo: 30, responsavel: r });
       }
+    }
+
+    // §13.5.3.1: manual de operação obrigatório apenas para Cat. I e II
+    if (['I', 'II'].includes(vals.categoriaVaso ?? '') && vals.manualOperacao && vals.manualOperacao !== 'Disponível em Português' && vals.manualOperacao !== 'N/A') {
+      nc.push({ descricao: 'Manual de Operação em Português ausente (exigido para Cat. I e II)', refNR13: 'AUTO: §13.5.3.1', acaoCorretiva: 'Providenciar tradução do manual de operação para Português', grauRisco: 'Moderado', prazo: 30, responsavel: r });
     }
 
     // Checklist de Segurança
@@ -529,7 +536,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
   }, [
     v.prontuario, v.registroSeguranca, v.projetoInstalacao,
     v.relatoriosAnteriores, v.placaIdentificacao,
-    v.certificadosDispositivos, v.manualOperacao,
+    v.certificadosDispositivos, v.manualOperacao, v.categoriaVaso,
     v.segDrenosRespirosBV, v.segDuasSaidasAmbFechado,
     v.segAcessoManutencao, v.segVentilacaoPermanente,
     v.segIluminacaoFechado, v.segIluminacaoEmergenciaFechado,
@@ -564,16 +571,16 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
     });
   }, []);
 
-  // Auto-calcula datas das próximas inspeções ao mudar classe ou data
+  // Auto-calcula datas das próximas inspeções ao mudar categoria ou data — NR-13 Tabela 2
   useEffect(() => {
-    const { fluidoClasse, dataInspecao } = v;
-    if (!fluidoClasse || !dataInspecao || dataInspecao.length < 10) return;
-    const intervalo = INTERVALOS_NR13[fluidoClasse];
+    const { categoriaVaso, dataInspecao } = v;
+    if (!categoriaVaso || !dataInspecao || dataInspecao.length < 10) return;
+    const intervalo = INTERVALOS_CATEGORIA_NR13[categoriaVaso];
     if (!intervalo) return;
     setValue('proximaInspecaoExterna', somarAnos(dataInspecao, intervalo.externo), { shouldValidate: true });
     setValue('proximaInspecaoInterna', somarAnos(dataInspecao, intervalo.interno), { shouldValidate: true });
     setValue('dataProximoTesteDispositivos', somarAnos(dataInspecao, intervalo.interno), { shouldValidate: true });
-  }, [v.fluidoClasse, v.dataInspecao, setValue]);
+  }, [v.categoriaVaso, v.dataInspecao, setValue]);
 
   // Auto-calcula PMTA em tempo real — suporta ASME e GB/T 150 + condição dual
   // materialS e psvCalibracao em kgf/cm² — converte para MPa internamente
@@ -1237,8 +1244,11 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
                 <label className="block text-xs font-medium text-slate-600 mb-1">Tipo</label>
                 <select {...register(`dispositivosSeguranca.${index}.tipo`)} className={baseSelectCls}>
                   <option value="VS">VS — Válvula de Segurança</option>
-                  <option value="VR">VR — Válvula de Alívio</option>
+                  <option value="VA">VA — Válvula de Alívio</option>
+                  <option value="VSA">VSA — Seg. e Alívio (combinada)</option>
+                  <option value="VPO">VPO — Piloto Operada</option>
                   <option value="DR">DR — Disco de Ruptura</option>
+                  <option value="QV">QV — Quebra-Vácuo</option>
                 </select>
               </div>
               <div>
@@ -1785,9 +1795,9 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
         {/* 5.3 Plano de inspeções §13.5.4.11(l) */}
         <div>
           <h3 className={subTitle}>5.3 Plano de Inspeções Periódicas — §13.5.4.11(l)</h3>
-          {v.fluidoClasse && INTERVALOS_NR13[v.fluidoClasse] && (
+          {v.categoriaVaso && INTERVALOS_CATEGORIA_NR13[v.categoriaVaso] && (
             <p className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-3 py-1.5 mb-3 inline-block">
-              NR-13 Anexo I — {v.fluidoClasse.split(' ')[0]}: {INTERVALOS_NR13[v.fluidoClasse].label}
+              NR-13 Tabela 2 — {INTERVALOS_CATEGORIA_NR13[v.categoriaVaso].label}
             </p>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1938,8 +1948,8 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
               <select {...register('rthProfissao')} className={baseSelectCls}>
                 <option value="Engenheiro Mecânico">Engenheiro Mecânico</option>
                 <option value="Engenheiro de Segurança do Trabalho">Eng. de Segurança do Trabalho</option>
-                <option value="Técnico de Segurança do Trabalho">Técnico de Segurança do Trabalho</option>
-                <option value="Outro">Outro</option>
+                <option value="Engenheiro Químico">Engenheiro Químico</option>
+                <option value="Outro Engenheiro Habilitado">Outro Engenheiro Habilitado</option>
               </select>
             </div>
             <div>
