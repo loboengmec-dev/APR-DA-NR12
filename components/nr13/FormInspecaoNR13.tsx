@@ -1029,8 +1029,8 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
             <select {...register('fluidoClasse')} className={selectCls('fluidoClasse')}>
               <option value="A (Inflamável/Tóxico)">Classe A — Inflamável ou Tóxico</option>
               <option value="B (Combustível/Tóxico leve)">Classe B — Combustível / Tóxico leve</option>
-              <option value="C (Vapor de Água/Gases asfixiantes)">Classe C — Vapor d&apos;água / Asfixiantes</option>
-              <option value="D (Água/Outros)">Classe D — Água / Outros</option>
+              <option value="C (Vapor de Água/Gases asfixiantes)">Classe C — Vapor d&apos;água / Gases asfixiantes / Ar comprimido</option>
+              <option value="D (Água/Outros)">Classe D — Outros fluidos não enquadrados em A, B ou C</option>
             </select>
           </div>
           <div>
