@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -35,50 +35,73 @@ export default function ListaInspecoesNR13Page() {
   const [inspecoes, setInspecoes] = useState<InspecaoResumo[]>([])
   const [carregando, setCarregando] = useState(true)
   const [excluindo, setExcluindo] = useState<string | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const [tentativa, setTentativa] = useState(0)
   const router = useRouter()
 
-  const carregarInspecoes = useCallback(async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('inspecoes_nr13')
-      .select(`
-        id,
-        tag,
-        tipo_vaso,
-        tipo_inspecao,
-        status_final,
-        data_inspecao,
-        created_at,
-        vasos_pressao (
-          cliente_id,
-          clientes (
-            razao_social,
-            cnpj
-          )
-        )
-      `)
-      .order('created_at', { ascending: false })
-
-    if (data) {
-      const inspecoesComCliente = data.map((inspecao: any) => ({
-        id: inspecao.id,
-        tag: inspecao.tag,
-        tipo_vaso: inspecao.tipo_vaso,
-        tipo_inspecao: inspecao.tipo_inspecao,
-        status_final: inspecao.status_final,
-        data_inspecao: inspecao.data_inspecao,
-        created_at: inspecao.created_at,
-        cliente_razao_social: inspecao.vasos_pressao?.clientes?.razao_social,
-        cliente_cnpj: inspecao.vasos_pressao?.clientes?.cnpj,
-      }))
-      setInspecoes(inspecoesComCliente)
-    }
-    setCarregando(false)
-  }, [])
-
   useEffect(() => {
+    let cancelled = false
+
+    async function carregarInspecoes() {
+      try {
+        const supabase = createClient()
+
+        const { data, error } = await supabase
+          .from('inspecoes_nr13')
+          .select(`
+            id,
+            tag,
+            tipo_vaso,
+            tipo_inspecao,
+            status_final,
+            data_inspecao,
+            created_at,
+            vaso_id,
+            vasos_pressao (
+              cliente_id,
+              clientes (
+                razao_social,
+                cnpj
+              )
+            )
+          `)
+          .order('created_at', { ascending: false })
+
+        if (cancelled) return
+
+        if (error) {
+          console.error('[NR13-Lista] Erro ao buscar inspeções:', error)
+          setErro('Erro ao carregar inspeções: ' + error.message)
+          setCarregando(false)
+          return
+        }
+
+        const inspecoesComCliente = (data ?? []).map((inspecao: any) => ({
+          id: inspecao.id,
+          tag: inspecao.tag,
+          tipo_vaso: inspecao.tipo_vaso,
+          tipo_inspecao: inspecao.tipo_inspecao,
+          status_final: inspecao.status_final,
+          data_inspecao: inspecao.data_inspecao,
+          created_at: inspecao.created_at,
+          cliente_razao_social: inspecao.vasos_pressao?.clientes?.razao_social ?? null,
+          cliente_cnpj: inspecao.vasos_pressao?.clientes?.cnpj ?? null,
+        }))
+
+        setInspecoes(inspecoesComCliente)
+        setCarregando(false)
+      } catch (err) {
+        console.error('[NR13-Lista] Exceção ao carregar inspeções:', err)
+        if (!cancelled) {
+          setErro('Erro inesperado ao carregar. Tente recarregar a página.')
+          setCarregando(false)
+        }
+      }
+    }
+
     carregarInspecoes()
-  }, [carregarInspecoes])
+    return () => { cancelled = true }
+  }, [tentativa])
 
   async function excluirInspecao(id: string) {
     if (!confirm('Deseja realmente excluir esta inspeção e todos os seus dados?')) return
@@ -91,6 +114,20 @@ export default function ListaInspecoesNR13Page() {
       setInspecoes(prev => prev.filter(i => i.id !== id))
     }
     setExcluindo(null)
+  }
+
+  if (erro) {
+    return (
+      <div className="max-w-md mx-auto mt-20 text-center">
+        <p className="text-red-600 mb-4">{erro}</p>
+        <button
+          onClick={() => { setErro(null); setCarregando(true); setTentativa(t => t + 1) }}
+          className="text-sm text-emerald-600 hover:text-emerald-800 underline"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    )
   }
 
   if (carregando) {
