@@ -91,8 +91,8 @@ export default function ListaInspecoesNR13Page() {
           status_final: inspecao.status_final,
           data_inspecao: inspecao.data_inspecao,
           created_at: inspecao.created_at,
-          cliente_razao_social: clienteMap[inspecao.vaso_id]?.razao_social ?? null,
-          cliente_cnpj: clienteMap[inspecao.vaso_id]?.cnpj ?? null,
+          cliente_razao_social: clienteMap[inspecao.vaso_id]?.razao_social ?? undefined,
+          cliente_cnpj: clienteMap[inspecao.vaso_id]?.cnpj ?? undefined,
         })))
         setCarregando(false)
       } catch (err) {
