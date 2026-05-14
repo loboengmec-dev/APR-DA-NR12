@@ -37,16 +37,18 @@ export default function ListaInspecoesNR13Page() {
   const [excluindo, setExcluindo] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [tentativa, setTentativa] = useState(0)
+  const [reconectando, setReconectando] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     let cancelled = false
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
 
-    async function carregarInspecoes() {
+    async function carregarInspecoes(isRetry = false) {
+      if (!isRetry) setCarregando(true)
       try {
         const supabase = createClient()
 
-        // Busca inspeções sem join aninhado para máxima compatibilidade com RLS
         const { data, error } = await supabase
           .from('inspecoes_nr13')
           .select('id, tag, tipo_vaso, tipo_inspecao, status_final, data_inspecao, created_at, vaso_id')
@@ -55,21 +57,31 @@ export default function ListaInspecoesNR13Page() {
         if (cancelled) return
 
         if (error) {
-          console.error('[NR13-Lista] Erro ao buscar inspeções:', error)
+          const isFetchError = error.message?.toLowerCase().includes('fetch')
+          if (isFetchError) {
+            // Servidor ainda acordando — tenta de novo em 4s automaticamente
+            setReconectando(true)
+            retryTimer = setTimeout(() => {
+              if (!cancelled) carregarInspecoes(true)
+            }, 4000)
+            return
+          }
+          console.error('[NR13-Lista] Erro:', error)
           setErro('Erro ao carregar inspeções: ' + error.message)
           setCarregando(false)
           return
         }
 
+        setReconectando(false)
         const lista = (data ?? []) as any[]
 
-        // Busca nomes de clientes em segundo plano (falha silenciosa — lista já aparece)
+        // Busca nomes de clientes separado (falha silenciosa — lista aparece mesmo assim)
         let clienteMap: Record<string, { razao_social: string | null; cnpj: string | null }> = {}
         const vasoIds = lista.map((i) => i.vaso_id).filter(Boolean)
         if (vasoIds.length > 0) {
           const { data: vasos } = await supabase
             .from('vasos_pressao')
-            .select('id, cliente_id, clientes(razao_social, cnpj)')
+            .select('id, clientes(razao_social, cnpj)')
             .in('id', vasoIds)
           if (!cancelled && vasos) {
             for (const v of vasos as any[]) {
@@ -95,17 +107,28 @@ export default function ListaInspecoesNR13Page() {
           cliente_cnpj: clienteMap[inspecao.vaso_id]?.cnpj ?? undefined,
         })))
         setCarregando(false)
-      } catch (err) {
-        console.error('[NR13-Lista] Exceção ao carregar inspeções:', err)
-        if (!cancelled) {
-          setErro('Erro inesperado ao carregar. Tente recarregar a página.')
-          setCarregando(false)
+      } catch (err: any) {
+        if (cancelled) return
+        const isFetchError = err?.message?.toLowerCase().includes('fetch')
+        if (isFetchError) {
+          // Servidor ainda acordando — tenta de novo em 4s automaticamente
+          setReconectando(true)
+          retryTimer = setTimeout(() => {
+            if (!cancelled) carregarInspecoes(true)
+          }, 4000)
+          return
         }
+        console.error('[NR13-Lista] Exceção:', err)
+        setErro('Erro inesperado ao carregar. Tente recarregar a página.')
+        setCarregando(false)
       }
     }
 
     carregarInspecoes()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
+    }
   }, [tentativa])
 
   async function excluirInspecao(id: string) {
@@ -131,6 +154,15 @@ export default function ListaInspecoesNR13Page() {
         >
           Tentar novamente
         </button>
+      </div>
+    )
+  }
+
+  if (reconectando) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-gray-500">Conectando ao servidor, aguarde...</p>
       </div>
     )
   }
