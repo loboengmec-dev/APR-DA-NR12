@@ -46,25 +46,10 @@ export default function ListaInspecoesNR13Page() {
       try {
         const supabase = createClient()
 
+        // Busca inspeções sem join aninhado para máxima compatibilidade com RLS
         const { data, error } = await supabase
           .from('inspecoes_nr13')
-          .select(`
-            id,
-            tag,
-            tipo_vaso,
-            tipo_inspecao,
-            status_final,
-            data_inspecao,
-            created_at,
-            vaso_id,
-            vasos_pressao (
-              cliente_id,
-              clientes (
-                razao_social,
-                cnpj
-              )
-            )
-          `)
+          .select('id, tag, tipo_vaso, tipo_inspecao, status_final, data_inspecao, created_at, vaso_id')
           .order('created_at', { ascending: false })
 
         if (cancelled) return
@@ -76,7 +61,29 @@ export default function ListaInspecoesNR13Page() {
           return
         }
 
-        const inspecoesComCliente = (data ?? []).map((inspecao: any) => ({
+        const lista = (data ?? []) as any[]
+
+        // Busca nomes de clientes em segundo plano (falha silenciosa — lista já aparece)
+        let clienteMap: Record<string, { razao_social: string | null; cnpj: string | null }> = {}
+        const vasoIds = lista.map((i) => i.vaso_id).filter(Boolean)
+        if (vasoIds.length > 0) {
+          const { data: vasos } = await supabase
+            .from('vasos_pressao')
+            .select('id, cliente_id, clientes(razao_social, cnpj)')
+            .in('id', vasoIds)
+          if (!cancelled && vasos) {
+            for (const v of vasos as any[]) {
+              clienteMap[v.id] = {
+                razao_social: v.clientes?.razao_social ?? null,
+                cnpj: v.clientes?.cnpj ?? null,
+              }
+            }
+          }
+        }
+
+        if (cancelled) return
+
+        setInspecoes(lista.map((inspecao) => ({
           id: inspecao.id,
           tag: inspecao.tag,
           tipo_vaso: inspecao.tipo_vaso,
@@ -84,11 +91,9 @@ export default function ListaInspecoesNR13Page() {
           status_final: inspecao.status_final,
           data_inspecao: inspecao.data_inspecao,
           created_at: inspecao.created_at,
-          cliente_razao_social: inspecao.vasos_pressao?.clientes?.razao_social ?? null,
-          cliente_cnpj: inspecao.vasos_pressao?.clientes?.cnpj ?? null,
-        }))
-
-        setInspecoes(inspecoesComCliente)
+          cliente_razao_social: clienteMap[inspecao.vaso_id]?.razao_social ?? null,
+          cliente_cnpj: clienteMap[inspecao.vaso_id]?.cnpj ?? null,
+        })))
         setCarregando(false)
       } catch (err) {
         console.error('[NR13-Lista] Exceção ao carregar inspeções:', err)
