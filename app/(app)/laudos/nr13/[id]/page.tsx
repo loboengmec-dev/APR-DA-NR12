@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -90,110 +90,123 @@ export default function EditarInspecaoNR13Page() {
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [clienteDados, setClienteDados] = useState<Record<string, any> | null>(null)
 
-  const carregarInspecao = useCallback(async () => {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setErro('Não autenticado'); setCarregando(false); return }
-
-    // Busca inspeção com vaso e dados completos do cliente
-    const { data: inspecao, error: inspErr } = await supabase
-      .from('inspecoes_nr13')
-      .select('*, vasos_pressao(cliente_id, clientes(id, razao_social, cidade, estado))')
-      .eq('id', id)
-      .single()
-
-    if (inspErr || !inspecao) {
-      setErro('Inspeção não encontrada.')
-      setCarregando(false)
-      return
-    }
-
-    // Busca NCs
-    const { data: ncs } = await supabase
-      .from('ncs_nr13')
-      .select('*')
-      .eq('inspecao_id', id)
-      .order('ordem', { ascending: true })
-
-    // Converte para formato do form
-    const formData = dbToForm(inspecao as InspecoesNR13, (ncs ?? []) as NcNR13[])
-    setInitialData(formData)
-
-    // Recupera cliente_id via join com vasos_pressao
-    const vaso = (inspecao as any)?.vasos_pressao
-    const cid: string | null = vaso?.cliente_id ?? null
-    setClienteId(cid)
-
-    // Busca dados completos do cliente — tenta via join, faz query separada como fallback
-    let clienteData = vaso?.clientes ?? null
-    if (!clienteData && cid) {
-      const { data: cli } = await supabase
-        .from('clientes')
-        .select('id, razao_social, cidade, estado')
-        .eq('id', cid)
-        .single()
-      clienteData = cli ?? null
-    }
-    if (clienteData) setClienteDados(clienteData)
-
-    // Carrega URLs de fotos (placa, manometro, exame, medições, dispositivos, NCs)
-    const urlMap: Record<string, string> = {}
-    const medicoesArr = parseJsonArray(inspecao.medicoes_espessura, [])
-    const dispArr = parseJsonArray(inspecao.dispositivos_seguranca, [])
-    const fotosExameArr = parseJsonArray(inspecao.fotos_exame, [])
-
-    // Foto da placa de identificação
-    if (inspecao.foto_placa_path) {
-      const url = await gerarUrlAssinadaNR13(inspecao.foto_placa_path)
-      if (url) urlMap['placa'] = url
-    }
-
-    // Foto do manômetro
-    if (inspecao.foto_manometro_path) {
-      const url = await gerarUrlAssinadaNR13(inspecao.foto_manometro_path)
-      if (url) urlMap['manometro'] = url
-    }
-
-    // Fotos de registro da inspeção (até 6, chave: exame_0..exame_5)
-    for (let i = 0; i < fotosExameArr.length; i++) {
-      if (fotosExameArr[i]?.storagePath) {
-        const url = await gerarUrlAssinadaNR13(fotosExameArr[i].storagePath)
-        if (url) urlMap[`exame_${i}`] = url
-      }
-    }
-
-    // Fotos de medições
-    for (let i = 0; i < medicoesArr.length; i++) {
-      if (medicoesArr[i]?.fotoPath) {
-        const url = await gerarUrlAssinadaNR13(medicoesArr[i].fotoPath)
-        if (url) urlMap[`medicao_${i}`] = url
-      }
-    }
-
-    // Fotos de dispositivos
-    for (let i = 0; i < dispArr.length; i++) {
-      if (dispArr[i]?.fotoPath) {
-        const url = await gerarUrlAssinadaNR13(dispArr[i].fotoPath)
-        if (url) urlMap[`dispositivo_${i}`] = url
-      }
-    }
-
-    // Fotos de NCs
-    for (let i = 0; i < (ncs ?? []).length; i++) {
-      const nc = (ncs ?? [])[i] as any
-      if (nc?.foto_path) {
-        const url = await gerarUrlAssinadaNR13(nc.foto_path)
-        if (url) urlMap[`nc_${i}`] = url
-      }
-    }
-
-    setFotosUrl(urlMap)
-    setCarregando(false)
-  }, [id])
-
   useEffect(() => {
+    let cancelled = false
+
+    async function carregarInspecao() {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user || cancelled) { setErro('Não autenticado'); setCarregando(false); return }
+
+        // Busca inspeção com vaso e dados completos do cliente
+        const { data: inspecao, error: inspErr } = await supabase
+          .from('inspecoes_nr13')
+          .select('*, vasos_pressao(cliente_id, clientes(id, razao_social, cidade, estado))')
+          .eq('id', id)
+          .single()
+
+        if (inspErr || !inspecao || cancelled) {
+          setErro('Inspeção não encontrada.')
+          setCarregando(false)
+          return
+        }
+
+        // Busca NCs
+        const { data: ncs } = await supabase
+          .from('ncs_nr13')
+          .select('*')
+          .eq('inspecao_id', id)
+          .order('ordem', { ascending: true })
+
+        // Converte para formato do form
+        const formData = dbToForm(inspecao as InspecoesNR13, (ncs ?? []) as NcNR13[])
+
+        // Recupera cliente_id via join com vasos_pressao
+        const vaso = (inspecao as any)?.vasos_pressao
+        const cid: string | null = vaso?.cliente_id ?? null
+
+        // Busca dados completos do cliente — tenta via join, faz query separada como fallback
+        let clienteData = vaso?.clientes ?? null
+        if (!clienteData && cid) {
+          const { data: cli } = await supabase
+            .from('clientes')
+            .select('id, razao_social, cidade, estado')
+            .eq('id', cid)
+            .single()
+          clienteData = cli ?? null
+        }
+
+        // Carrega URLs de fotos (placa, manometro, exame, medições, dispositivos, NCs)
+        const urlMap: Record<string, string> = {}
+        const medicoesArr = parseJsonArray(inspecao.medicoes_espessura, [])
+        const dispArr = parseJsonArray(inspecao.dispositivos_seguranca, [])
+        const fotosExameArr = parseJsonArray(inspecao.fotos_exame, [])
+
+        // Foto da placa de identificação
+        if (inspecao.foto_placa_path) {
+          const url = await gerarUrlAssinadaNR13(inspecao.foto_placa_path)
+          if (url) urlMap['placa'] = url
+        }
+
+        // Foto do manômetro
+        if (inspecao.foto_manometro_path) {
+          const url = await gerarUrlAssinadaNR13(inspecao.foto_manometro_path)
+          if (url) urlMap['manometro'] = url
+        }
+
+        // Fotos de registro da inspeção (até 6, chave: exame_0..exame_5)
+        for (let i = 0; i < fotosExameArr.length; i++) {
+          if (fotosExameArr[i]?.storagePath) {
+            const url = await gerarUrlAssinadaNR13(fotosExameArr[i].storagePath)
+            if (url) urlMap[`exame_${i}`] = url
+          }
+        }
+
+        // Fotos de medições
+        for (let i = 0; i < medicoesArr.length; i++) {
+          if (medicoesArr[i]?.fotoPath) {
+            const url = await gerarUrlAssinadaNR13(medicoesArr[i].fotoPath)
+            if (url) urlMap[`medicao_${i}`] = url
+          }
+        }
+
+        // Fotos de dispositivos
+        for (let i = 0; i < dispArr.length; i++) {
+          if (dispArr[i]?.fotoPath) {
+            const url = await gerarUrlAssinadaNR13(dispArr[i].fotoPath)
+            if (url) urlMap[`dispositivo_${i}`] = url
+          }
+        }
+
+        // Fotos de NCs
+        for (let i = 0; i < (ncs ?? []).length; i++) {
+          const nc = (ncs ?? [])[i] as any
+          if (nc?.foto_path) {
+            const url = await gerarUrlAssinadaNR13(nc.foto_path)
+            if (url) urlMap[`nc_${i}`] = url
+          }
+        }
+
+        if (cancelled) return
+
+        setInitialData(formData)
+        setClienteId(cid)
+        if (clienteData) setClienteDados(clienteData)
+        setFotosUrl(urlMap)
+        setCarregando(false)
+      } catch (err) {
+        console.error('Erro ao carregar inspeção NR-13:', err)
+        if (!cancelled) {
+          setErro('Erro ao carregar inspeção. Tente novamente.')
+          setCarregando(false)
+        }
+      }
+    }
+
     carregarInspecao()
-  }, [carregarInspecao])
+    return () => { cancelled = true }
+  }, [id])
 
   if (carregando) {
     return (
