@@ -9,6 +9,23 @@ import { createClient } from '@/lib/supabase/client'
 // Prefixo dentro do bucket existente — mantém tudo separado do NR-12
 const NR13_PREFIX = 'nr13'
 
+/**
+ * Remove caracteres inválidos para paths do Supabase Storage.
+ * Supabase rejeita: espaços, °, ç, acentos, /, \, e outros especiais.
+ * Mantém apenas: letras sem acento, números, hífen e underscore.
+ */
+function sanitizePath(segment: string): string {
+  return segment
+    .normalize('NFD')                    // decompõe acentos (á → a + ́)
+    .replace(/[̀-ͯ]/g, '')     // remove os diacríticos (acentos)
+    .replace(/[°º]/g, '')               // remove símbolo de grau
+    .replace(/\s+/g, '_')              // espaços → underscore
+    .replace(/[^a-zA-Z0-9_\-\.]/g, '') // remove todo o resto inválido
+    .replace(/_{2,}/g, '_')            // colapsa underscores duplos
+    .replace(/^_|_$/g, '')             // remove underscore no início/fim
+    || 'sem_tag'                        // fallback se resultar vazio
+}
+
 function bucketPath(subPath: string): string {
   return `${NR13_PREFIX}/${subPath}`
 }
@@ -21,7 +38,7 @@ export async function uploadFotoPlaca(
   file: File,
   vasoId: string
 ): Promise<{ path: string; error: string | null }> {
-  return uploadFile(file, bucketPath(`placa/${vasoId}/${Date.now()}`))
+  return uploadFile(file, bucketPath(`placa/${sanitizePath(vasoId)}/${Date.now()}`))
 }
 
 export async function uploadFotoExame(
@@ -31,7 +48,7 @@ export async function uploadFotoExame(
   tipoExame: string,
   ordem: number
 ): Promise<{ path: string; error: string | null }> {
-  return uploadFile(file, bucketPath(`exame/${inspecaoId}/registro/${ordem}_${Date.now()}`))
+  return uploadFile(file, bucketPath(`exame/${sanitizePath(inspecaoId)}/registro/${ordem}_${Date.now()}`))
 }
 
 export async function uploadFotoMedicao(
@@ -39,7 +56,7 @@ export async function uploadFotoMedicao(
   inspecaoId: string,
   ponto: string
 ): Promise<{ path: string; error: string | null }> {
-  return uploadFile(file, bucketPath(`medicao/${inspecaoId}/${ponto}_${Date.now()}`))
+  return uploadFile(file, bucketPath(`medicao/${sanitizePath(inspecaoId)}/${sanitizePath(ponto)}_${Date.now()}`))
 }
 
 export async function uploadFotoNCNr13(
@@ -47,14 +64,14 @@ export async function uploadFotoNCNr13(
   ncId: string,
   ordem: number
 ): Promise<{ path: string; error: string | null }> {
-  return uploadFile(file, bucketPath(`nc/${ncId}/${ordem}_${Date.now()}`))
+  return uploadFile(file, bucketPath(`nc/${sanitizePath(ncId)}/${ordem}_${Date.now()}`))
 }
 
 export async function uploadFotoManometro(
   file: File,
   vasoId: string
 ): Promise<{ path: string; error: string | null }> {
-  return uploadFile(file, bucketPath(`manometro/${vasoId}/${Date.now()}`))
+  return uploadFile(file, bucketPath(`manometro/${sanitizePath(vasoId)}/${Date.now()}`))
 }
 
 // --------------------------------------------------------------------------
@@ -105,7 +122,7 @@ export async function uploadFotoChecklistCaldeira(
   tipo: string,
   ordem: number
 ): Promise<{ path: string; error: string | null }> {
-  return uploadFile(file, bucketPath(`caldeiras/${inspecaoId}/${tipo}/${ordem}_${Date.now()}`))
+  return uploadFile(file, bucketPath(`caldeiras/${sanitizePath(inspecaoId)}/${sanitizePath(tipo)}/${ordem}_${Date.now()}`))
 }
 
 // Remove uma foto do storage NR-13
