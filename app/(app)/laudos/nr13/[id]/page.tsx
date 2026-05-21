@@ -99,18 +99,19 @@ export default function EditarInspecaoNR13Page() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user || cancelled) { setErro('Não autenticado'); setCarregando(false); return }
 
-        // Busca inspeção com vaso e dados completos do cliente
+        // Busca inspeção diretamente — sem join para evitar falha por RLS em vasos_pressao
         const { data: inspecao, error: inspErr } = await supabase
           .from('inspecoes_nr13')
-          .select('*, vasos_pressao(cliente_id, clientes(id, razao_social, cidade, estado))')
+          .select('*')
           .eq('id', id)
           .single()
 
-        if (inspErr || !inspecao || cancelled) {
-          setErro('Inspeção não encontrada.')
+        if (inspErr || !inspecao) {
+          setErro('Inspeção não encontrada. Verifique se ela ainda existe.')
           setCarregando(false)
           return
         }
+        if (cancelled) return
 
         // Busca NCs
         const { data: ncs } = await supabase
@@ -122,19 +123,19 @@ export default function EditarInspecaoNR13Page() {
         // Converte para formato do form
         const formData = dbToForm(inspecao as InspecoesNR13, (ncs ?? []) as NcNR13[])
 
-        // Recupera cliente_id via join com vasos_pressao
-        const vaso = (inspecao as any)?.vasos_pressao
-        const cid: string | null = vaso?.cliente_id ?? null
-
-        // Busca dados completos do cliente — tenta via join, faz query separada como fallback
-        let clienteData = vaso?.clientes ?? null
-        if (!clienteData && cid) {
-          const { data: cli } = await supabase
-            .from('clientes')
-            .select('id, razao_social, cidade, estado')
-            .eq('id', cid)
+        // Busca cliente via vaso_id (query separada — falha silenciosa, não bloqueia o form)
+        let cid: string | null = null
+        let clienteData: Record<string, any> | null = null
+        if ((inspecao as any).vaso_id) {
+          const { data: vaso } = await supabase
+            .from('vasos_pressao')
+            .select('cliente_id, clientes(id, razao_social, cidade, estado)')
+            .eq('id', (inspecao as any).vaso_id)
             .single()
-          clienteData = cli ?? null
+          if (!cancelled && vaso) {
+            cid = (vaso as any).cliente_id ?? null
+            clienteData = (vaso as any).clientes ?? null
+          }
         }
 
         // Carrega URLs de fotos (placa, manometro, exame, medições, dispositivos, NCs)

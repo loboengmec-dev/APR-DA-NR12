@@ -409,14 +409,26 @@ export async function atualizarInspecaoNR13(
   // Remove campos undefined para não sobrescrever com null
   Object.keys(updateData).forEach(k => { if (updateData[k] === undefined) delete updateData[k] })
 
-  const { data, error } = await supabase
+  // Verifica se a inspeção existe e pertence ao usuário antes de atualizar
+  const { data: existe } = await supabase
+    .from('inspecoes_nr13')
+    .select('id')
+    .eq('id', id)
+    .single()
+
+  if (!existe) return { error: 'Inspeção não encontrada ou sem permissão para editar.' }
+
+  // UPDATE sem .single() — evita PGRST116 em caso de 0 linhas afetadas
+  const { data: updated, error } = await supabase
     .from('inspecoes_nr13')
     .update(updateData)
     .eq('id', id)
     .select()
-    .single()
 
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'Nenhuma inspeção foi atualizada. Verifique as permissões.' }
+
+  const data = updated[0]
 
   // Atualiza NCs — deleta antigas e insere novas
   const ncs = form.naoConformidades ?? []
