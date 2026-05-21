@@ -176,7 +176,7 @@ export interface VasoPressao {
   tag: string
   fabricante: string | null
   numero_serie: string | null
-  ano_fabricacao: number | null
+  ano_fabricacao: string | null
   tipo_vaso: string | null
   codigo_projeto: string | null
   pmta_fabricante_kpa: number | null
@@ -190,7 +190,7 @@ export interface InspecoesNR13 {
   tag: string
   fabricante: string | null
   numero_serie: string | null
-  ano_fabricacao: number | null
+  ano_fabricacao: string | null
   tipo_vaso: string | null
   codigo_projeto: string | null
   pmta_fabricante_kpa: number | null
@@ -271,7 +271,7 @@ export interface Caldeira {
   tag: string
   fabricante: string | null
   numero_serie: string | null
-  ano_fabricacao: number | null
+  ano_fabricacao: string | null
   categoria_caldeira: string | null
   codigo_projeto: string | null
   pmta_fabricante_kpa: number | null
@@ -285,7 +285,7 @@ export interface InspecoesCaldeiras {
   tag: string
   fabricante: string | null
   numero_serie: string | null
-  ano_fabricacao: number | null
+  ano_fabricacao: string | null
   categoria_caldeira: string | null
   codigo_projeto: string | null
   pmta_fabricante_kpa: number | null

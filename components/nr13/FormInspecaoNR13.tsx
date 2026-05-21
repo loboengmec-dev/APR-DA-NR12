@@ -55,7 +55,7 @@ const FormSchema = z.object({
   tag: z.string().min(1, 'TAG é obrigatório'),
   fabricante: z.string().min(1, 'Fabricante é obrigatório'),
   numeroSerie: z.string().min(1, 'Número de Série é obrigatório'),
-  anoFabricacao: z.coerce.number().int().min(1900).max(new Date().getFullYear()),
+  anoFabricacao: z.string().optional().nullable(),
   tipoVaso: z.enum(['Coluna (Vertical)', 'Vaso Horizontal', 'Esférico']),
   codigoProjeto: z.enum(['ASME Sec. VIII Div 1', 'ASME Sec. VIII Div 2', 'PD 5500', 'GB/T 150', 'Desconhecido']),
   pmtaFabricante: z.coerce.number().positive('PMTA da placa é obrigatória'),
@@ -324,7 +324,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
     dataInspecao: new Date().toISOString().split('T')[0],
     dataEmissaoLaudo: new Date().toISOString().split('T')[0],
     codigoProjeto: 'ASME Sec. VIII Div 1',
-    anoFabricacao: new Date().getFullYear(),
+    anoFabricacao: String(new Date().getFullYear()),
     prontuario: 'Existe Integral',
     registroSeguranca: 'Atualizado',
     projetoInstalacao: 'Existe',
@@ -943,7 +943,12 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
             <label className={labelCls}>Ano de Fabricação</label>
-            <input type="number" {...register('anoFabricacao')} className={inputCls('anoFabricacao')} />
+            <input
+              type="text"
+              {...register('anoFabricacao')}
+              className={inputCls('anoFabricacao')}
+              placeholder="Ex: 2005 ou Não identificado"
+            />
             {errors.anoFabricacao && <p className={errCls}>{errors.anoFabricacao.message}</p>}
           </div>
           <div>

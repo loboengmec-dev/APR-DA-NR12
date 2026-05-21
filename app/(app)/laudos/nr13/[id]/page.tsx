@@ -14,7 +14,7 @@ function dbToForm(row: InspecoesNR13, ncs: NcNR13[]) {
     tag: row.tag ?? '',
     fabricante: row.fabricante ?? '',
     numeroSerie: row.numero_serie ?? '',
-    anoFabricacao: row.ano_fabricacao ?? new Date().getFullYear(),
+    anoFabricacao: row.ano_fabricacao ?? '',
     tipoVaso: row.tipo_vaso ?? 'Vaso Horizontal',
     codigoProjeto: row.codigo_projeto ?? 'ASME Sec. VIII Div 1',
     pmtaFabricante: row.pmta_fabricante_kpa ?? 0,

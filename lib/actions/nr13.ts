@@ -24,7 +24,7 @@ const InspecaoNR13Schema = z.object({
   tag: z.string().default(''),
   fabricante: z.string().default(''),
   numeroSerie: z.string().default(''),
-  anoFabricacao: z.number().int().optional().nullable(),
+  anoFabricacao: z.string().optional().nullable(),
   tipoVaso: z.string().optional().nullable(),
   codigoProjeto: z.string().optional().nullable(),
   pmtaFabricante: z.number().optional().nullable(),
