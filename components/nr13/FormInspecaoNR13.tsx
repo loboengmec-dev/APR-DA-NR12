@@ -784,7 +784,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
           return;
         }
         console.log('[NR13] Inspeção criada:', response.inspecaoId);
-        router.replace('/laudos/nr13');
+        router.replace('/laudos/nr13/vasos');
         return;
       }
     } catch (err: any) {
