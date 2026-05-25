@@ -240,8 +240,6 @@ interface FormInspecaoNR13Props {
 
 export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, clienteDados }: FormInspecaoNR13Props = {}) {
   const modoEdicao = !!inspecaoId;
-  // Em modo edição, pula o primeiro disparo do auto-suggest de status (valor já vem do DB)
-  const autoSuggestStatusRef = useRef(!modoEdicao);
   // clienteInfo: dados do cliente para exibição e injeção no PDF
   // Prioridade: clienteDados (pré-carregado pela página pai) > busca assíncrona por clienteId
   const [clienteInfo, setClienteInfo] = useState<Record<string, any> | null>(clienteDados ?? null);
@@ -567,16 +565,6 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
     });
   }, []);
 
-  // Auto-calcula datas das próximas inspeções ao mudar categoria ou data — NR-13 Tabela 2
-  useEffect(() => {
-    const { categoriaVaso, dataInspecao } = v;
-    if (!categoriaVaso || !dataInspecao || dataInspecao.length < 10) return;
-    const intervalo = INTERVALOS_CATEGORIA_NR13[categoriaVaso];
-    if (!intervalo) return;
-    setValue('proximaInspecaoExterna', somarAnos(dataInspecao, intervalo.externo), { shouldValidate: true });
-    setValue('proximaInspecaoInterna', somarAnos(dataInspecao, intervalo.interno), { shouldValidate: true });
-    setValue('dataProximoTesteDispositivos', somarAnos(dataInspecao, intervalo.interno), { shouldValidate: true });
-  }, [v.categoriaVaso, v.dataInspecao, setValue]);
 
   // Auto-calcula PMTA em tempo real — suporta ASME e GB/T 150 + condição dual
   // materialS e psvCalibracao em kgf/cm² — converte para MPa internamente
@@ -676,20 +664,6 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
     }
   }, [v.normaCalculo]);
 
-  // Auto-sugere status final com base no resultado ASME + exames físicos.
-  // Em modo edição, ignora o primeiro disparo (valor salvo no DB prevalece);
-  // após isso, qualquer mudança nos exames/PMTA atualiza normalmente.
-  useEffect(() => {
-    if (!detalheCalculo) return;
-    if (!autoSuggestStatusRef.current) {
-      autoSuggestStatusRef.current = true; // libera para próximas alterações
-      return;
-    }
-    let sugestao: FormData['statusFinalVaso'] = 'Aprovado';
-    if (detalheCalculo.condena) sugestao = 'Reprovado — Downgrade Necessário';
-    else if (v.exameExterno === 'Não Conforme') sugestao = 'Aprovado com Restrições';
-    setValue('statusFinalVaso', sugestao, { shouldValidate: true });
-  }, [detalheCalculo, v.exameExterno, setValue]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
