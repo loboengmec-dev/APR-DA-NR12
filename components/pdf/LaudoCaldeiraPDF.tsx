@@ -531,7 +531,6 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
             <Campo label="Próxima Inspeção Externa" value={formatDate(d.dataProximaInspExterna)} />
             <Campo label="Próxima Inspeção Interna" value={formatDate(d.dataProximaInspInterna)} />
             <Campo label="Próximo Teste de Dispositivos" value={formatDate(d.dataProximoTesteDisp)} />
-            <Campo label="Categoria (Intervalo Referência)" value={`Cat. ${d.categoria} — Ext. ${d.categoria === 'A' || d.categoria === 'C' ? '1' : '2'} ano(s) / Int. ${d.categoria === 'A' || d.categoria === 'C' ? '2' : '4'} anos`} />
           </View>
 
         </View>
