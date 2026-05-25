@@ -42,7 +42,7 @@ describe('PDF — Manômetro na seção Dispositivos de Segurança', () => {
 
   test('Foto do manômetro aparece na seção 4 (Dispositivos de Segurança)', () => {
     const inicioSecao4 = src.indexOf('Dispositivos de Segurança — §13.5.1.2')
-    const proximaSecao = src.indexOf('5. Exame Externo e Interno')
+    const proximaSecao = src.indexOf('5. Registros fotográficos da inspeção')
     const blocoManometro = src.indexOf("fotosUrl['manometro']")
 
     expect(inicioSecao4).toBeGreaterThan(-1)

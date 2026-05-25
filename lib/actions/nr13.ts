@@ -49,7 +49,6 @@ const InspecaoNR13Schema = z.object({
   manualOperacao: z.string().optional().nullable(),
 
   exameExterno: z.string().optional().nullable(),
-  exameInterno: z.string().optional().nullable(),
 
   medicoesEspessura: z.array(z.object({
     ponto: z.string(),
@@ -237,7 +236,6 @@ export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>, cl
     certificados_dispositivos: d.certificadosDispositivos || null,
     manual_operacao: d.manualOperacao || null,
     exame_externo: d.exameExterno || null,
-    exame_interno: d.exameInterno || null,
     medicoes_espessura: d.medicoesEspessura ? JSON.stringify(d.medicoesEspessura) : null,
     dispositivos_seguranca: d.dispositivosSeguranca ? JSON.stringify(d.dispositivosSeguranca) : null,
     norma_calculo: d.normaCalculo || 'ASME',
@@ -381,7 +379,6 @@ export async function atualizarInspecaoNR13(
     certificados_dispositivos: form.certificadosDispositivos,
     manual_operacao: form.manualOperacao,
     exame_externo: form.exameExterno,
-    exame_interno: form.exameInterno,
     medicoes_espessura: form.medicoesEspessura ? JSON.stringify(form.medicoesEspessura) : undefined,
     dispositivos_seguranca: form.dispositivosSeguranca ? JSON.stringify(form.dispositivosSeguranca) : undefined,
     norma_calculo: form.normaCalculo ?? undefined,

@@ -97,7 +97,6 @@ const FormSchema = z.object({
 
   // --- Seção 4: Exame Externo §13.3.4 ---
   exameExterno: z.enum(['Conforme', 'Não Conforme']),
-  exameInterno: z.enum(['Conforme', 'Não Conforme', 'Não Aplicável']),
 
   // Foto da placa de identificação
   fotoPlacaPath: z.string().optional(),
@@ -497,9 +496,6 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
     if (vals.exameExterno === 'Não Conforme') {
       nc.push({ descricao: 'Exame externo revelou não conformidades no vaso', refNR13: 'AUTO: §13.3.4', acaoCorretiva: 'Investigar e sanar não conformidades identificadas no exame externo', grauRisco: 'Crítico', prazo: 15, responsavel: r });
     }
-    if (vals.exameInterno === 'Não Conforme') {
-      nc.push({ descricao: 'Exame interno revelou não conformidades no vaso', refNR13: 'AUTO: §13.3.4', acaoCorretiva: 'Investigar e sanar não conformidades identificadas no exame interno', grauRisco: 'Crítico', prazo: 30, responsavel: r });
-    }
 
     return nc;
   }
@@ -543,7 +539,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
     v.segSaidasAmbAberto, v.segAcessoAmbAberto,
     v.segIluminacaoAberto, v.segIluminacaoEmergenciaAberto,
     v.segAspNormativosGerais,
-    v.exameExterno, v.exameInterno,
+    v.exameExterno,
     v.dispositivosSeguranca, v.medicoesEspessura,
     v.rthNome,
   ]);
@@ -691,9 +687,9 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
     }
     let sugestao: FormData['statusFinalVaso'] = 'Aprovado';
     if (detalheCalculo.condena) sugestao = 'Reprovado — Downgrade Necessário';
-    else if (v.exameExterno === 'Não Conforme' || v.exameInterno === 'Não Conforme') sugestao = 'Aprovado com Restrições';
+    else if (v.exameExterno === 'Não Conforme') sugestao = 'Aprovado com Restrições';
     setValue('statusFinalVaso', sugestao, { shouldValidate: true });
-  }, [detalheCalculo, v.exameExterno, v.exameInterno, setValue]);
+  }, [detalheCalculo, v.exameExterno, setValue]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -735,7 +731,6 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
       certificadosDispositivos: v.certificadosDispositivos ?? null,
       manualOperacao: v.manualOperacao ?? null,
       exameExterno: v.exameExterno ?? null,
-      exameInterno: v.exameInterno ?? null,
       medicoesEspessura: v.medicoesEspessura ?? null,
       dispositivosSeguranca: v.dispositivosSeguranca ?? null,
       normaCalculo: (v.normaCalculo as NormaCalculo) ?? 'ASME',
@@ -822,7 +817,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
     prontuario: 'Prontuário', registroSeguranca: 'Registro de Segurança', projetoInstalacao: 'Projeto de Instalação',
     relatoriosAnteriores: 'Relatórios Anteriores', placaIdentificacao: 'Placa de Identificação',
     certificadosDispositivos: 'Certificados Dispositivos', manualOperacao: 'Manual de Operação',
-    exameExterno: 'Exame Externo', exameInterno: 'Exame Interno', fotoManometroPath: 'Foto do Manômetro',
+    exameExterno: 'Exame Externo', fotoManometroPath: 'Foto do Manômetro',
     materialS: 'Tensão Admissível', eficienciaE: 'Eficiência de Solda',
     diametroD: 'Diâmetro Interno', espessuraCostado: 'Espessura Costado',
     espessuraTampo: 'Espessura Tampo', psvCalibracao: 'PSV Calibração', statusFinalVaso: 'Status Final',
@@ -1338,23 +1333,13 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
           />
         </div>
 
-        {/* Indicador de pressão §13.5.1.2(d) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-          <div>
-            <label className={labelCls}>Exame Externo do Vaso — §13.3.4</label>
-            <select {...register('exameExterno')} className={`${baseSelectCls} ${v.exameExterno === 'Não Conforme' ? 'border-red-400 bg-red-50' : 'border-emerald-300 bg-emerald-50'}`}>
-              <option value="Conforme">Conforme</option>
-              <option value="Não Conforme">Não Conforme</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelCls}>Exame Interno do Vaso</label>
-            <select {...register('exameInterno')} className={`${baseSelectCls} ${v.exameInterno === 'Não Conforme' ? 'border-red-400 bg-red-50' : ''}`}>
-              <option value="Conforme">Conforme</option>
-              <option value="Não Conforme">Não Conforme</option>
-              <option value="Não Aplicável">Não Aplicável</option>
-            </select>
-          </div>
+        {/* Exame Externo §13.3.4 */}
+        <div className="mt-6 max-w-xs">
+          <label className={labelCls}>Exame Externo do Vaso — §13.3.4</label>
+          <select {...register('exameExterno')} className={`${baseSelectCls} ${v.exameExterno === 'Não Conforme' ? 'border-red-400 bg-red-50' : 'border-emerald-300 bg-emerald-50'}`}>
+            <option value="Conforme">Conforme</option>
+            <option value="Não Conforme">Não Conforme</option>
+          </select>
         </div>
 
         {/* Fotos de Registro da Inspeção */}
@@ -1362,7 +1347,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className={`${subTitle} mb-0`}>Fotos — Registro da Inspeção</p>
-              <p className="text-xs text-slate-400 mt-0.5">Insira até 6 registros fotográficos do exame (externo, interno, detalhes, etc.)</p>
+              <p className="text-xs text-slate-400 mt-0.5">Insira até 6 registros fotográficos da inspeção (detalhes externos, acessórios, etc.)</p>
             </div>
             <span className="text-xs text-slate-400">{fotosExameFields.length}/6</span>
           </div>

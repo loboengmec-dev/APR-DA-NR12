@@ -531,30 +531,21 @@ export default function LaudoNR13PDF({ dados, perfil, fotosUrl = {}, fotoDimenso
             </View>
           ) : null}
 
-          {/* Exame Externo e Interno — wrap=false mantém título + conteúdo juntos */}
+          {/* Registros fotográficos da inspeção */}
           <View wrap={false}>
-            <Text style={S.h2NoPage}>5. Exame Externo e Interno — §13.3.4</Text>
+            <Text style={S.h2NoPage}>5. Registros fotográficos da inspeção</Text>
             <View style={S.eqContainer}>
-              <View style={{ flexDirection: 'row', gap: 16, marginBottom: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 8, color: THEME.textSecondary, textTransform: 'uppercase' }}>Exame Externo</Text>
-                  <View style={{ marginTop: 4, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: d.exameExterno === 'Conforme' ? THEME.emeraldLight : '#fee2e2', borderRadius: 6 }}>
-                    <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: d.exameExterno === 'Conforme' ? THEME.emerald : THEME.redMain }}>
-                      {d.exameExterno ?? '—'}
-                    </Text>
-                  </View>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 8, color: THEME.textSecondary, textTransform: 'uppercase' }}>Exame Interno</Text>
-                  <View style={{ marginTop: 4, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: d.exameInterno === 'Conforme' ? THEME.emeraldLight : d.exameInterno === 'Não Aplicável' ? THEME.greyCard : THEME.amberLight, borderRadius: 6 }}>
-                    <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: d.exameInterno === 'Conforme' ? THEME.emerald : d.exameInterno === 'Não Aplicável' ? THEME.textSecondary : THEME.amberAccent }}>
-                      {d.exameInterno ?? '—'}
-                    </Text>
-                  </View>
+              {/* Exame Externo — §13.3.4 */}
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 8, color: THEME.textSecondary, textTransform: 'uppercase' }}>Exame Externo — §13.3.4</Text>
+                <View style={{ marginTop: 4, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: d.exameExterno === 'Conforme' ? THEME.emeraldLight : '#fee2e2', borderRadius: 6, alignSelf: 'flex-start' }}>
+                  <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: d.exameExterno === 'Conforme' ? THEME.emerald : THEME.redMain }}>
+                    {d.exameExterno ?? '—'}
+                  </Text>
                 </View>
               </View>
 
-              {/* Registros fotográficos da inspeção — exame_0..exame_5 */}
+              {/* Fotos — exame_0..exame_5 */}
               {Array.from({ length: 6 }).some((_, i) => fotosUrl[`exame_${i}`]) && (
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                   {Array.from({ length: 6 }).map((_, i) => {

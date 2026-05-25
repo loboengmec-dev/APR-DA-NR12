@@ -387,8 +387,7 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
           <CheckRow label="Gestão de Qualidade da Água (§13.4.3)" valor={d.qualidadeAgua ?? '—'} />
           <CheckRow label="Certificação do Operador de Caldeira (§13.4.4)" valor={d.certificacaoOperador ?? '—'} />
           <CheckRow label="Manual de Operação em Português (§13.4.5)" valor={d.manualOperacao ?? '—'} />
-          <CheckRow label="Exame Externo" valor={d.exameExterno ?? '—'} />
-          <CheckRow label="Exame Interno" valor={d.exameInterno ?? '—'} />
+          <CheckRow label="Exame Externo — §13.3.4" valor={d.exameExterno ?? '—'} />
 
         </View>
 
