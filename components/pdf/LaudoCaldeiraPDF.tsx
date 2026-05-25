@@ -452,6 +452,48 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
             </Text>
           </View>
 
+          {/* Registros fotográficos das medições de espessura — medicao_0..medicao_N */}
+          {Object.keys(fotosUrl).some(k => k.startsWith('medicao_')) && (
+            <View wrap={false} style={{ marginTop: 12, marginBottom: 4 }}>
+              <Text style={[S.label, { marginBottom: 6, textTransform: 'uppercase' }]}>
+                Registros Fotográficos — Medições de Espessura
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {Object.entries(fotosUrl)
+                  .filter(([k]) => k.startsWith('medicao_'))
+                  .map(([k, url]) => {
+                    const idx = parseInt(k.split('_')[1], 10)
+                    const dims = fotoDimensoes[k]
+                    const totalFotos = Object.keys(fotosUrl).filter(fk => fk.startsWith('medicao_')).length
+                    const containerW = totalFotos <= 1 ? 400 : 200
+                    const h = calcImageHeight(dims, containerW, 280)
+                    return (
+                      <View
+                        key={k}
+                        style={{
+                          width: totalFotos <= 1 ? '100%' : '48%',
+                          backgroundColor: C.cardBg,
+                          borderRadius: 4,
+                          overflow: 'hidden',
+                          borderWidth: 1,
+                          borderColor: C.border,
+                        }}
+                        wrap={false}
+                      >
+                        <PDFImage
+                          src={url}
+                          style={{ width: '100%', height: h, objectFit: 'contain', backgroundColor: '#fafafa' }}
+                        />
+                        <Text style={{ fontSize: 7, color: C.muted, padding: 4, textAlign: 'center' }}>
+                          Medição {idx + 1}
+                        </Text>
+                      </View>
+                    )
+                  })}
+              </View>
+            </View>
+          )}
+
           {/* Resultados PMTA */}
           <Text style={[S.sectionTitle, { marginTop: 16 }]}>5. RESULTADO — PMTA CALCULADA</Text>
 

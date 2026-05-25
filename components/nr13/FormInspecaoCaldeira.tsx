@@ -205,6 +205,8 @@ export default function FormInspecaoCaldeira({
   const [fotosIluminacao, setFotosIluminacao] = useState<FotoLocal[]>(parseFotosIniciais('iluminacao'))
   const [fotosQualidade, setFotosQualidade] = useState<FotoLocal[]>(parseFotosIniciais('qualidadeAgua'))
   const [fotosCertificacao, setFotosCertificacao] = useState<FotoLocal[]>(parseFotosIniciais('certificacaoOperador'))
+  // Fotos das medições de espessura por ultrassom
+  const [fotosMedicao, setFotosMedicao] = useState<FotoLocal[]>(parseFotosIniciais('medicao'))
 
   // --- Não Conformidades ---
   const [ncs, setNcs] = useState<NC[]>([])
@@ -421,6 +423,7 @@ export default function FormInspecaoCaldeira({
     gerarUrls(fotosIluminacao, setFotosIluminacao)
     gerarUrls(fotosQualidade, setFotosQualidade)
     gerarUrls(fotosCertificacao, setFotosCertificacao)
+    gerarUrls(fotosMedicao, setFotosMedicao)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modoEdicao])
 
@@ -571,6 +574,7 @@ export default function FormInspecaoCaldeira({
         pathsIluminacao,
         pathsQualidade,
         pathsCertificacao,
+        pathsMedicao,
       ] = await Promise.all([
         uploadFotosPendentes(fotosExameInterno, 'interno', inspecaoId),
         uploadFotosPendentes(fotosValvulas, 'valvulas', inspecaoId),
@@ -579,6 +583,7 @@ export default function FormInspecaoCaldeira({
         uploadFotosPendentes(fotosIluminacao, 'iluminacao', inspecaoId),
         uploadFotosPendentes(fotosQualidade, 'qualidadeAgua', inspecaoId),
         uploadFotosPendentes(fotosCertificacao, 'certificacaoOperador', inspecaoId),
+        uploadFotosPendentes(fotosMedicao, 'medicao', inspecaoId),
       ])
 
       const fotosExameJson = {
@@ -589,6 +594,7 @@ export default function FormInspecaoCaldeira({
         iluminacao: pathsIluminacao,
         qualidadeAgua: pathsQualidade,
         certificacaoOperador: pathsCertificacao,
+        medicao: pathsMedicao,
       }
 
       // 4. Atualizar inspeção com fotos e demais dados (criação + edição)
@@ -732,6 +738,7 @@ export default function FormInspecaoCaldeira({
         gerarUrlsGrupo(fotosIluminacao, 'iluminacao'),
         gerarUrlsGrupo(fotosQualidade, 'qualidadeAgua'),
         gerarUrlsGrupo(fotosCertificacao, 'certificacaoOperador'),
+        gerarUrlsGrupo(fotosMedicao, 'medicao'),
       ])
 
       const resposta = await fetch('/api/caldeira-pdf', {
@@ -1180,6 +1187,26 @@ export default function FormInspecaoCaldeira({
                 </div>
                 <span className="font-mono font-black text-xl">{(pmtaCalc.pmtaLimitante * 10.197).toFixed(2)} kgf/cm²</span>
               </div>
+            </div>
+
+            {/* Fotos — Registro das Medições de Espessura */}
+            <div className="pt-3 border-t border-slate-200">
+              <p className="text-xs font-semibold text-slate-700 mb-0.5">Fotos — Registro das Medições de Espessura</p>
+              <p className="text-xs text-slate-400 mb-2">Fotografias do ultrassom, posicionamento do transdutor e leituras obtidas.</p>
+              <UploadFotoNR13
+                label="Adicionar foto da medição"
+                onUpload={handleFotoChecklist(setFotosMedicao)}
+                onPhotoUploaded={() => {}}
+                corBorda="blue"
+              />
+              {fotosMedicao.length > 0 && (
+                <div className="mt-3">
+                  <GaleriaFotosNR13
+                    fotos={fotosMedicao.map(f => ({ url: f.url, removivel: true }))}
+                    onRemove={(i) => setFotosMedicao(prev => prev.filter((_, idx) => idx !== i))}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
