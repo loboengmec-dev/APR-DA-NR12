@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pdf } from '@react-pdf/renderer'
 import LaudoNR13PDF from '@/components/pdf/LaudoNR13PDF'
+import { createClient } from '@/lib/supabase/server'
 import {
   calcularPMTACostadoPorNorma,
   calcularPMTATampoPorNorma,
@@ -18,6 +19,13 @@ import {
 import { LABEL_NORMA, type NormaCalculo } from '@/lib/domain/nr13/materiais'
 
 export async function POST(req: NextRequest) {
+  // Verificar autenticação — endpoint protegido
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+  }
+
   try {
     const body = await req.json()
     const { dados, perfil, fotosUrl, fotoDimensoes } = body

@@ -28,6 +28,12 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# arquivos de ambiente com credenciais reais — NUNCA commitar
+.env.vercel
+.env.*.vercel
+.env.production
+.env.production.local
+
 # vercel
 .vercel
 

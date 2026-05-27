@@ -11,12 +11,38 @@ Evite linguagem genérica.
 Responda APENAS com JSON válido, sem explicações, sem markdown, sem blocos de código.
 Formato exato: {"texto_identificacao": "...", "texto_recomendacao": "...", "medida_controle": "..."}`
 
+// Rate limiting simples por usuário (sem dependência externa)
+// Limite: 20 requisições por janela de 60 segundos por usuário
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT_MAX = 20
+const RATE_LIMIT_WINDOW_MS = 60_000
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(userId)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false
+  entry.count++
+  return true
+}
+
 export async function POST(request: NextRequest) {
   // Verificar autenticação
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+  }
+
+  // Rate limiting por usuário
+  if (!checkRateLimit(user.id)) {
+    return NextResponse.json(
+      { error: 'Limite de requisições atingido. Aguarde 1 minuto.' },
+      { status: 429 }
+    )
   }
 
   const { itemNR12, tituloNC, risco } = await request.json()

@@ -38,6 +38,16 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/laudos') ||
     request.nextUrl.pathname.startsWith('/perfil')
 
+  // Rotas de API que exigem autenticação — retornam 401 JSON (sem redirect)
+  const isProtectedApiRoute =
+    request.nextUrl.pathname.startsWith('/api/nr13-pdf') ||
+    request.nextUrl.pathname.startsWith('/api/caldeira-pdf') ||
+    request.nextUrl.pathname.startsWith('/api/gerar-texto')
+
+  if (!user && isProtectedApiRoute) {
+    return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+  }
+
   if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'

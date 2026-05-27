@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pdf } from '@react-pdf/renderer'
 import LaudoCaldeiraPDF from '@/components/pdf/LaudoCaldeiraPDF'
+import { createClient } from '@/lib/supabase/server'
 
 // ---------------------------------------------------------------------------
 // Detecção de dimensões de imagem a partir do buffer binário
@@ -46,9 +47,33 @@ function getImageDimensions(
 }
 
 // ---------------------------------------------------------------------------
+// Validação de URL — previne SSRF (Server-Side Request Forgery)
+// Aceita apenas URLs do próprio Supabase Storage do projeto.
+// ---------------------------------------------------------------------------
+function isSafeStorageUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    const supabaseHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname
+    return (
+      parsed.protocol === 'https:' &&
+      (parsed.hostname === supabaseHost || parsed.hostname.endsWith('.supabase.co'))
+    )
+  } catch {
+    return false
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Handler principal
 // ---------------------------------------------------------------------------
 export async function POST(req: NextRequest) {
+  // Verificar autenticação — endpoint protegido
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+  }
+
   try {
     const body = await req.json()
     const { dados, perfil, fotosUrl, cliente } = body
@@ -94,12 +119,19 @@ export async function POST(req: NextRequest) {
       await Promise.all(
         Object.entries(fotosUrl).map(async ([chave, url]) => {
           if (typeof url !== 'string') return
+          // Proteção SSRF: apenas URLs do Supabase Storage são permitidas
+          if (!isSafeStorageUrl(url)) {
+            console.warn(`[caldeira-pdf] URL bloqueada por política SSRF: ${chave}`)
+            return
+          }
           try {
             const res = await fetch(url)
             if (res.ok) {
               const arrayBuf = await res.arrayBuffer()
               const buf = Buffer.from(arrayBuf)
               const ct = res.headers.get('content-type') || 'image/jpeg'
+              // Aceitar apenas imagens — evitar outros tipos de conteúdo
+              if (!ct.startsWith('image/')) return
               fotosBase64[chave] = `data:${ct};base64,${buf.toString('base64')}`
               fotoDimensoes[chave] = getImageDimensions(buf, ct)
             }

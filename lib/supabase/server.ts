@@ -17,8 +17,13 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch {
-            // ignorar erros de cookies em Server Components
+          } catch (err) {
+            // Em Server Components somente leitura de cookies é possível.
+            // Este catch é esperado nesse contexto — não indica falha de sessão.
+            // Em Route Handlers e Server Actions cookies são graváveis normalmente.
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('[supabase/server] setAll ignorado (Server Component read-only):', err)
+            }
           }
         },
       },
