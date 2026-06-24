@@ -458,7 +458,9 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
     ];
     for (const item of docNCs) {
       const actual = (vals as Record<string, any>)[item.key];
-      if (actual && actual !== item.val && actual !== 'N/A') {
+      // 'Primeira Inspeção' (relatoriosAnteriores) é condição normal — não há relatórios
+      // anteriores a apresentar, logo não constitui não conformidade.
+      if (actual && actual !== item.val && actual !== 'N/A' && actual !== 'Primeira Inspeção') {
         nc.push({ descricao: item.desc, refNR13: item.ref, acaoCorretiva: item.acao, grauRisco: 'Moderado', prazo: 30, responsavel: r });
       }
     }

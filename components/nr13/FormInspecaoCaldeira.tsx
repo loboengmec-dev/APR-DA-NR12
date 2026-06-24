@@ -122,10 +122,15 @@ export default function FormInspecaoCaldeira({
   const [anoFabricacao, setAnoFabricacao] = useState<number>(initialData?.ano_fabricacao ?? new Date().getFullYear())
   const [categoria, setCategoria] = useState<string>(initialData?.categoria_caldeira ?? 'B')
   const [codigoProjeto, setCodigoProjeto] = useState(initialData?.codigo_projeto ?? 'ASME Sec. I')
-  // Pressões armazenadas em kgf/cm² (unidade de exibição); convertidas para MPa/kPa apenas no save
-  const [pmtaFabricante, setPmtaFabricante] = useState<number>(
-    initialData?.pmta_fabricante_kpa ? +(initialData.pmta_fabricante_kpa * 0.010197).toFixed(4) : 0
+  // Pressões armazenadas em kgf/cm² (unidade de exibição); convertidas para MPa/kPa apenas no save.
+  // String state — preserva exatamente o valor digitado, sem normalização do browser que
+  // "quebra" o número em casas decimais por arredondamento de ida-e-volta na conversão.
+  const [pmtaFabricanteStr, setPmtaFabricanteStr] = useState<string>(
+    initialData?.pmta_fabricante_kpa
+      ? String(+(initialData.pmta_fabricante_kpa * 0.010197).toFixed(2))
+      : ''
   )
+  const pmtaFabricante = parseFloat(pmtaFabricanteStr) || 0
 
   // --- Dados da inspeção ---
   const [dataInspecao, setDataInspecao] = useState(initialData?.data_inspecao ?? '')
@@ -173,10 +178,16 @@ export default function FormInspecaoCaldeira({
   // --- Exame e parecer ---
   const [exameExterno, setExameExterno] = useState(initialData?.exame_externo ?? 'Conforme')
   const [exameInterno, setExameInterno] = useState(initialData?.exame_interno ?? 'Conforme')
+  // Conformidade de calibração do manômetro (análoga ao double-check da PSV)
+  const [manometroCalibracao, setManometroCalibracao] = useState(initialData?.manometro_calibracao ?? 'Conforme')
   const [parecerTecnico, setParecerTecnico] = useState(initialData?.parecer_tecnico ?? '')
-  const [pmtaPlh, setPmtaPlh] = useState<number>(
-    initialData?.pmta_plh_kpa ? +(initialData.pmta_plh_kpa * 0.010197).toFixed(4) : 0
+  // String state — mesma motivação do PMTA de Fábrica (preserva o valor digitado)
+  const [pmtaPlhStr, setPmtaPlhStr] = useState<string>(
+    initialData?.pmta_plh_kpa
+      ? String(+(initialData.pmta_plh_kpa * 0.010197).toFixed(2))
+      : ''
   )
+  const pmtaPlh = parseFloat(pmtaPlhStr) || 0
 
   // --- RTH ---
   const [rthNome, setRthNome] = useState(initialData?.rth_nome ?? '')
@@ -207,6 +218,8 @@ export default function FormInspecaoCaldeira({
   const [fotosCertificacao, setFotosCertificacao] = useState<FotoLocal[]>(parseFotosIniciais('certificacaoOperador'))
   // Fotos das medições de espessura por ultrassom
   const [fotosMedicao, setFotosMedicao] = useState<FotoLocal[]>(parseFotosIniciais('medicao'))
+  // Fotos do manômetro (registro da leitura e do certificado de calibração)
+  const [fotosManometro, setFotosManometro] = useState<FotoLocal[]>(parseFotosIniciais('manometro'))
 
   // --- Não Conformidades ---
   const [ncs, setNcs] = useState<NC[]>([])
@@ -371,11 +384,22 @@ export default function FormInspecaoCaldeira({
       })
     }
 
+    if (manometroCalibracao === 'Não Conforme' || manometroCalibracao === 'Vencido') {
+      autoNcs.push({
+        descricao: manometroCalibracao === 'Vencido'
+          ? 'Manômetro com certificado de calibração vencido'
+          : 'Manômetro descalibrado ou inoperante',
+        refNR13: '§13.4.1.4',
+        acaoCorretiva: 'Calibrar o manômetro por laboratório rastreável (RBC/INMETRO) e arquivar o certificado válido',
+        grauRisco: 'Moderado', prazo: 30, responsavel: '', _auto: true,
+      })
+    }
+
     setNcs(prev => {
       const manuais = prev.filter(nc => !nc._auto)
       return [...manuais, ...autoNcs]
     })
-  }, [valvulaSeguranca, controleNivel, distanciaInstalacao, iluminacaoEmergencia, qualidadeAgua, certificacaoOperador, exameExterno, exameInterno])
+  }, [valvulaSeguranca, controleNivel, distanciaInstalacao, iluminacaoEmergencia, qualidadeAgua, certificacaoOperador, exameExterno, exameInterno, manometroCalibracao])
 
   // ---------------------------------------------------------------------------
   // Carregamentos iniciais
@@ -424,6 +448,7 @@ export default function FormInspecaoCaldeira({
     gerarUrls(fotosQualidade, setFotosQualidade)
     gerarUrls(fotosCertificacao, setFotosCertificacao)
     gerarUrls(fotosMedicao, setFotosMedicao)
+    gerarUrls(fotosManometro, setFotosManometro)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modoEdicao])
 
@@ -534,6 +559,7 @@ export default function FormInspecaoCaldeira({
             teste_hidrostatico: valvulaSeguranca,
             exame_externo: exameExterno,
             exame_interno: exameInterno,
+            manometro_calibracao: manometroCalibracao,
             norma_calculo: normaCalc,
             material_s: S,
             eficiencia_e: E,
@@ -575,6 +601,7 @@ export default function FormInspecaoCaldeira({
         pathsQualidade,
         pathsCertificacao,
         pathsMedicao,
+        pathsManometro,
       ] = await Promise.all([
         uploadFotosPendentes(fotosExameInterno, 'interno', inspecaoId),
         uploadFotosPendentes(fotosValvulas, 'valvulas', inspecaoId),
@@ -584,6 +611,7 @@ export default function FormInspecaoCaldeira({
         uploadFotosPendentes(fotosQualidade, 'qualidadeAgua', inspecaoId),
         uploadFotosPendentes(fotosCertificacao, 'certificacaoOperador', inspecaoId),
         uploadFotosPendentes(fotosMedicao, 'medicao', inspecaoId),
+        uploadFotosPendentes(fotosManometro, 'manometro', inspecaoId),
       ])
 
       const fotosExameJson = {
@@ -595,6 +623,7 @@ export default function FormInspecaoCaldeira({
         qualidadeAgua: pathsQualidade,
         certificacaoOperador: pathsCertificacao,
         medicao: pathsMedicao,
+        manometro: pathsManometro,
       }
 
       // 4. Atualizar inspeção com fotos e demais dados (criação + edição)
@@ -622,6 +651,7 @@ export default function FormInspecaoCaldeira({
         teste_hidrostatico: valvulaSeguranca,
         exame_externo: exameExterno,
         exame_interno: exameInterno,
+        manometro_calibracao: manometroCalibracao,
         fotos_exame: fotosExameJson,
         norma_calculo: normaCalc,
         material_s: S,
@@ -739,6 +769,7 @@ export default function FormInspecaoCaldeira({
         gerarUrlsGrupo(fotosQualidade, 'qualidadeAgua'),
         gerarUrlsGrupo(fotosCertificacao, 'certificacaoOperador'),
         gerarUrlsGrupo(fotosMedicao, 'medicao'),
+        gerarUrlsGrupo(fotosManometro, 'manometro'),
       ])
 
       const resposta = await fetch('/api/caldeira-pdf', {
@@ -760,7 +791,7 @@ export default function FormInspecaoCaldeira({
             pmtaLimitante: +pmtaLimitanteKgf.toFixed(2),
             componenteFragil: pmtaCalc.componenteFragil,
             taxaCorrosao,
-            exameExterno, exameInterno,
+            exameExterno, exameInterno, manometroCalibracao,
             parecerTecnico, pmtaPlh, statusFinal, rgiAtivo,
             rthNome, rthCrea, rthProfissao,
             dataProximaInspExterna, dataProximaInspInterna, dataProximoTesteDisp,
@@ -887,7 +918,7 @@ export default function FormInspecaoCaldeira({
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">PMTA Fabricante (kgf/cm²)</label>
-            <input type="number" step="0.01" className="w-full border border-gray-300 rounded-lg px-3 py-2" value={pmtaFabricante} onChange={e => setPmtaFabricante(Number(e.target.value))} />
+            <input type="text" inputMode="decimal" className="w-full border border-gray-300 rounded-lg px-3 py-2" value={pmtaFabricanteStr} onChange={e => setPmtaFabricanteStr(e.target.value.replace(',', '.'))} />
           </div>
         </div>
       </section>
@@ -1031,6 +1062,23 @@ export default function FormInspecaoCaldeira({
             ]}
             fotos={fotosCertificacao}
             onChangeFotos={handleChangeFotos(setFotosCertificacao)}
+          />
+
+          <ChecklistItemWithUpload
+            uid="manometro"
+            titulo="Manômetro — Conformidade de Calibração"
+            descricao="Manômetro calibrado por laboratório rastreável e dentro da validade. Anexe a leitura e o certificado. §13.4.1.4"
+            valor={manometroCalibracao}
+            onChangeValor={setManometroCalibracao}
+            opcoes={[
+              { value: 'Conforme', label: 'Conforme' },
+              { value: 'Não Conforme', label: 'Não Conforme' },
+              { value: 'Vencido', label: 'Calibração Vencida' },
+            ]}
+            fotos={fotosManometro}
+            onChangeFotos={handleChangeFotos(setFotosManometro)}
+            alertGrave={manometroCalibracao === 'Vencido' || manometroCalibracao === 'Não Conforme'}
+            alertMensagem="⚠️ Manômetro sem calibração válida — leitura de pressão não confiável"
           />
 
           <div className="flex flex-col p-4 bg-gray-50 border border-gray-100 rounded-lg">
@@ -1387,9 +1435,9 @@ export default function FormInspecaoCaldeira({
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">PMTA Fixada pelo PLH (kgf/cm²)</label>
-            <input type="number" step="0.01" className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            <input type="text" inputMode="decimal" className="w-full border border-gray-300 rounded-lg px-3 py-2"
               placeholder={`Sugestão: ${pmtaLimitanteKgf.toFixed(2)} kgf/cm²`}
-              value={pmtaPlh || ''} onChange={e => setPmtaPlh(Number(e.target.value))} />
+              value={pmtaPlhStr} onChange={e => setPmtaPlhStr(e.target.value.replace(',', '.'))} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>

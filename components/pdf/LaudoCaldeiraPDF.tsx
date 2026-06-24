@@ -387,6 +387,7 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
           <CheckRow label="Gestão de Qualidade da Água (§13.4.3)" valor={d.qualidadeAgua ?? '—'} />
           <CheckRow label="Certificação do Operador de Caldeira (§13.4.4)" valor={d.certificacaoOperador ?? '—'} />
           <CheckRow label="Manual de Operação em Português (§13.4.5)" valor={d.manualOperacao ?? '—'} />
+          <CheckRow label="Manômetro — Conformidade de Calibração (§13.4.1.4)" valor={d.manometroCalibracao ?? '—'} />
           <CheckRow label="Exame Externo — §13.3.4" valor={d.exameExterno ?? '—'} />
 
         </View>
@@ -494,35 +495,37 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
             </View>
           )}
 
-          {/* Resultados PMTA */}
-          <Text style={[S.sectionTitle, { marginTop: 16 }]}>5. RESULTADO — PMTA CALCULADA</Text>
+          {/* Resultados PMTA — bloco mantido íntegro na mesma página (sem quebra) */}
+          <View wrap={false}>
+            <Text style={[S.sectionTitle, { marginTop: 16 }]}>5. RESULTADO — PMTA CALCULADA</Text>
 
-          {/* Todos os valores chegam em kgf/cm² — exibir diretamente */}
-          <View style={S.grid2}>
-            <Campo label="PMTA Costado Cilíndrico (PG-27.2.2)" value={d.pmtaCostado !== undefined ? `${Number(d.pmtaCostado).toFixed(2)} kgf/cm²` : '—'} />
-            <Campo label="PMTA Espelho Plano (PG-31)" value={d.pmtaEspelho !== undefined ? `${Number(d.pmtaEspelho).toFixed(2)} kgf/cm²` : '—'} />
-          </View>
+            {/* Todos os valores chegam em kgf/cm² — exibir diretamente */}
+            <View style={S.grid2}>
+              <Campo label="PMTA Costado Cilíndrico (PG-27.2.2)" value={d.pmtaCostado !== undefined ? `${Number(d.pmtaCostado).toFixed(2)} kgf/cm²` : '—'} />
+              <Campo label="PMTA Espelho Plano (PG-31)" value={d.pmtaEspelho !== undefined ? `${Number(d.pmtaEspelho).toFixed(2)} kgf/cm²` : '—'} />
+            </View>
 
-          <View style={S.pmtaCard}>
-            <View>
-              <Text style={S.pmtaLabel}>PMTA EFETIVA — COMPONENTE LIMITANTE: {d.componenteFragil?.toUpperCase() ?? 'COSTADO'}</Text>
-              <Text style={{ fontSize: 8, color: C.white, marginTop: 2 }}>
-                PSV Calibração: {d.psvCalibracao ? `${Number(d.psvCalibracao).toFixed(2)} kgf/cm²` : '—'}  ·  PMTA de Fábrica: {d.pmtaFabricante ? `${Number(d.pmtaFabricante).toFixed(2)} kgf/cm²` : '—'}
+            <View style={S.pmtaCard}>
+              <View>
+                <Text style={S.pmtaLabel}>PMTA EFETIVA — COMPONENTE LIMITANTE: {d.componenteFragil?.toUpperCase() ?? 'COSTADO'}</Text>
+                <Text style={{ fontSize: 8, color: C.white, marginTop: 2 }}>
+                  PSV Calibração: {d.psvCalibracao ? `${Number(d.psvCalibracao).toFixed(2)} kgf/cm²` : '—'}  ·  PMTA de Fábrica: {d.pmtaFabricante ? `${Number(d.pmtaFabricante).toFixed(2)} kgf/cm²` : '—'}
+                </Text>
+              </View>
+              <Text style={S.pmtaValue}>
+                {d.pmtaLimitante !== undefined ? `${Number(d.pmtaLimitante).toFixed(2)} kgf/cm²` : '—'}
               </Text>
             </View>
-            <Text style={S.pmtaValue}>
-              {d.pmtaLimitante !== undefined ? `${Number(d.pmtaLimitante).toFixed(2)} kgf/cm²` : '—'}
-            </Text>
-          </View>
 
-          {/* PMTA PLH */}
-          <View style={{ marginTop: 8, padding: 8, backgroundColor: C.cardBg, borderRadius: 4, borderWidth: 1, borderColor: C.border }}>
-            <Text style={[S.label, { marginBottom: 2 }]}>PMTA Fixada pelo PLH (Profissional Legalmente Habilitado)</Text>
-            <Text style={{ fontSize: 13, fontFamily: 'Helvetica-Bold', color: C.primary }}>
-              {d.pmtaPlh
-                ? `${Number(d.pmtaPlh).toFixed(2)} kgf/cm²`
-                : `${d.pmtaLimitante !== undefined ? Number(d.pmtaLimitante).toFixed(2) : '—'} kgf/cm²`}
-            </Text>
+            {/* PMTA PLH */}
+            <View style={{ marginTop: 8, padding: 8, backgroundColor: C.cardBg, borderRadius: 4, borderWidth: 1, borderColor: C.border }}>
+              <Text style={[S.label, { marginBottom: 2 }]}>PMTA Fixada pelo PLH (Profissional Legalmente Habilitado)</Text>
+              <Text style={{ fontSize: 13, fontFamily: 'Helvetica-Bold', color: C.primary }}>
+                {d.pmtaPlh
+                  ? `${Number(d.pmtaPlh).toFixed(2)} kgf/cm²`
+                  : `${d.pmtaLimitante !== undefined ? Number(d.pmtaLimitante).toFixed(2) : '—'} kgf/cm²`}
+              </Text>
+            </View>
           </View>
 
           {/* Cronograma */}
@@ -638,6 +641,7 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
               { prefixo: 'iluminacao_',       label: 'Iluminação de Emergência' },
               { prefixo: 'qualidadeAgua_',    label: 'Qualidade da Água' },
               { prefixo: 'certificacaoOperador_', label: 'Certificação do Operador' },
+              { prefixo: 'manometro_',        label: 'Manômetro — Calibração' },
             ]
             const fotosPorGrupo = gruposChecklist
               .map(g => ({
@@ -682,7 +686,7 @@ export default function LaudoCaldeiraPDF({ dados, perfil, fotosUrl = {}, fotoDim
               let n = 8
               if (fotosInterno.length > 0) n++
               const hasChecklist = Object.keys(fotosUrl).some(k =>
-                ['valvulas_','nivel_','distanciaInstalacao_','iluminacao_','qualidadeAgua_','certificacaoOperador_']
+                ['valvulas_','nivel_','distanciaInstalacao_','iluminacao_','qualidadeAgua_','certificacaoOperador_','manometro_']
                   .some(p => k.startsWith(p))
               )
               if (hasChecklist) n++

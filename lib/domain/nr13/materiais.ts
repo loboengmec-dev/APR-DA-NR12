@@ -26,7 +26,7 @@ export const MATERIAIS_ASME: MaterialPMTA[] = [
   { nome: 'SA-285 Gr. C',  tensaoKgfCm2: 1406.1, tensaoMPa: 137.9, norma: 'ASME' },
   { nome: 'SA-36',         tensaoKgfCm2: 1167.4, tensaoMPa: 114.5, norma: 'ASME' },
   { nome: 'SA-516 Gr. 70', tensaoKgfCm2: 1406.1, tensaoMPa: 137.9, norma: 'ASME' },
-  { nome: 'AISI 304',      tensaoKgfCm2: 1172.5, tensaoMPa: 115.0, norma: 'ASME' },
+  { nome: 'AISI 304',      tensaoKgfCm2: 1407.2, tensaoMPa: 138.0, norma: 'ASME' },
 ];
 
 /**
