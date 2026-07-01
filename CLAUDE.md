@@ -59,7 +59,6 @@ SaaS chamado **APR NR-12** que automatiza geracao de laudos tecnicos de Apreciac
 - **Backend**: Supabase (Postgres + Auth + Storage)
 - **PDF**: @react-pdf/renderer
 - **Deploy**: Vercel
-- **IA**: Anthropic API (claude-sonnet-4-6)
 
 ### Autor
 Danilo Lobo Souza — engenheiro mecanico (CREA-MG). Nao tem experiencia com programacao. **Sempre explicar passos manuais com clareza antes de executa-los.**
@@ -93,9 +92,8 @@ O arquivo `Tasks.md` na raiz do projeto (`../Tasks.md`) contem 46 tarefas organi
 2. Tailwind CSS — sem CSS externo
 3. Server Components por padrao
 4. RLS sempre ativo no Supabase
-5. `ANTHROPIC_API_KEY` nunca no cliente
-6. Comentarios em portugues em componentes de dominio
-7. Mensagens de erro em portugues
-8. Sempre que fizer alteracoes, verificar impacto em arquivos relacionados
-9. Nao adicionar dependencias sem consultar antes
-10. Para o NR-13: logica de dominio SEMPRE isolada em `lib/domain/nr13/`
+5. Comentarios em portugues em componentes de dominio
+6. Mensagens de erro em portugues
+7. Sempre que fizer alteracoes, verificar impacto em arquivos relacionados
+8. Nao adicionar dependencias sem consultar antes
+9. Para o NR-13: logica de dominio SEMPRE isolada em `lib/domain/nr13/`
