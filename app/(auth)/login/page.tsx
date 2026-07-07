@@ -51,7 +51,12 @@ export default function LoginPage() {
           />
         </div>
         <div>
-          <label htmlFor="senha" className="label">Senha</label>
+          <div className="flex items-center justify-between">
+            <label htmlFor="senha" className="label">Senha</label>
+            <Link href="/recuperar-senha" className="text-xs text-blue-700 font-medium hover:underline mb-1">
+              Esqueci minha senha
+            </Link>
+          </div>
           <input
             id="senha"
             type="password"
