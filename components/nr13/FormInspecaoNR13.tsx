@@ -2100,7 +2100,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
                 }
               }
 
-              const resposta = await fetch('/api/nr13-pdf', {
+              const resposta = await fetch('/api/nr13-docx', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -2128,17 +2128,17 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
                   fotoDimensoes,
                 }),
               });
-              if (!resposta.ok) throw new Error('Erro ao gerar PDF');
+              if (!resposta.ok) throw new Error('Erro ao gerar documento');
               const blob = await resposta.blob();
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = `Inspecao_NR13_${v.tag || 'vaso'}_${v.dataInspecao}.pdf`;
+              a.download = `Inspecao_NR13_${v.tag || 'vaso'}_${v.dataInspecao}.docx`;
               a.click();
               URL.revokeObjectURL(url);
             } catch (err) {
-              console.error('Erro ao exportar PDF:', err);
-              alert('Erro ao gerar o PDF. Verifique o console.');
+              console.error('Erro ao exportar laudo:', err);
+              alert('Erro ao gerar o laudo. Verifique o console.');
             } finally {
               setExportandoPDF(false);
             }
@@ -2152,7 +2152,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
               </svg>
-              Gerando PDF...
+              Gerando documento...
             </>
           ) : (
             <>
@@ -2160,7 +2160,7 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
                 <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.23a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.905 3.134V2.75z" />
                 <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
               </svg>
-              Exportar PDF
+              Exportar Word (.docx)
             </>
           )}
         </button>

@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
 
   // Rotas de API que exigem autenticação — retornam 401 JSON (sem redirect)
   const isProtectedApiRoute =
-    request.nextUrl.pathname.startsWith('/api/nr13-pdf') ||
+    request.nextUrl.pathname.startsWith('/api/nr13-docx') ||
     request.nextUrl.pathname.startsWith('/api/caldeira-pdf') ||
     request.nextUrl.pathname.startsWith('/api/gerar-texto')
 

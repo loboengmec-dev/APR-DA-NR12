@@ -1,0 +1,540 @@
+/**
+ * Gerador do Laudo de Inspeção de Vaso de Pressão — NR-13, em .docx nativo.
+ * Substitui o antigo motor @react-pdf/renderer para este laudo: o layout do
+ * Word recalcula a altura de cada elemento antes do próximo, então o
+ * cabeçalho tabelado nunca sobrepõe o conteúdo (o bug do PDF não existe aqui
+ * por construção). Segue o padrão editorial "memória de cálculo" do
+ * escritório (Arial, cabeçalho em tabela, folha de revisão, fórmulas nativas
+ * do Word com fração de verdade).
+ */
+import {
+  Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+  Header, Footer, PageNumber, TableOfContents, ImageRun,
+  AlignmentType, BorderStyle, WidthType, VerticalAlign, ShadingType,
+  Math as DocxMath, MathRun, PageBreak, LevelFormat,
+} from 'docx'
+import { formulaCostadoPorNorma, formulaTampoPorNorma, type FormulaDef, type VarDef } from '@/lib/domain/nr13/pmtaFormulasDocx'
+import { calcularFatorM, calcularFatorK_GBT150 } from '@/lib/domain/nr13/pmta'
+
+// ---------------------------------------------------------------------------
+// Tipos
+// ---------------------------------------------------------------------------
+export interface FotoInfo {
+  buffer: Buffer
+  type: 'png' | 'jpg'
+  width: number
+  height: number
+}
+
+// ---------------------------------------------------------------------------
+// Constantes de estilo (espelham TituloMRN1/2, TextoMRN, Figura, Caption)
+// ---------------------------------------------------------------------------
+const FONT = 'Arial'
+const BLACK = '000000'
+const GRAY_BORDER = '999999'
+const GRAY_SHADE = 'F2F2F2'
+const CAPTION_COLOR = '44546A'
+
+const STYLES = {
+  paragraphStyles: [
+    {
+      id: 'TituloCap', name: 'Título Capítulo', basedOn: 'Normal', next: 'TextoCorpo',
+      run: { font: FONT, size: 26, bold: true, color: BLACK },
+      paragraph: { spacing: { before: 320, after: 160 }, border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: BLACK, space: 4 } } },
+    },
+    {
+      id: 'TituloSub', name: 'Título Subseção', basedOn: 'Normal', next: 'TextoCorpo',
+      run: { font: FONT, size: 24, bold: true, color: BLACK },
+      paragraph: { spacing: { before: 240, after: 120 } },
+    },
+    {
+      id: 'TextoCorpo', name: 'Texto Corpo', basedOn: 'Normal',
+      run: { font: FONT, size: 22, color: BLACK },
+      paragraph: { alignment: AlignmentType.JUSTIFIED, spacing: { after: 120, line: 360 } },
+    },
+    {
+      id: 'Figura', name: 'Figura', basedOn: 'Normal',
+      run: { font: FONT, size: 22 },
+      paragraph: { alignment: AlignmentType.CENTER, spacing: { after: 0, before: 120 } },
+    },
+    {
+      id: 'Legenda', name: 'Legenda', basedOn: 'Normal',
+      run: { font: FONT, size: 18, italics: true, color: CAPTION_COLOR },
+      paragraph: { alignment: AlignmentType.CENTER, spacing: { after: 200 } },
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
+// Helpers de baixo nível
+// ---------------------------------------------------------------------------
+function t1(text: string): Paragraph {
+  return new Paragraph({ style: 'TituloCap', children: [new TextRun(text.toUpperCase())] })
+}
+function t2(text: string): Paragraph {
+  return new Paragraph({ style: 'TituloSub', children: [new TextRun(text)] })
+}
+function texto(text: string): Paragraph {
+  return new Paragraph({ style: 'TextoCorpo', children: [new TextRun(text)] })
+}
+function bullet(text: string): Paragraph {
+  return new Paragraph({ style: 'TextoCorpo', bullet: { level: 0 }, children: [new TextRun(text)] })
+}
+
+const noBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' } as const
+const thinBorder = { style: BorderStyle.SINGLE, size: 4, color: BLACK } as const
+const hairline = { style: BorderStyle.SINGLE, size: 2, color: GRAY_BORDER } as const
+
+/** Caixa com borda preta fina (substitui os boxes do PDF) contendo campos rótulo/valor em grade de 2 colunas */
+function campoGrid(pairs: Array<[string, string | number | null | undefined]>): Table {
+  const rows: TableRow[] = []
+  for (let i = 0; i < pairs.length; i += 2) {
+    const par = [pairs[i], pairs[i + 1]]
+    rows.push(new TableRow({
+      children: par.map((p) => {
+        if (!p) return new TableCell({ children: [new Paragraph('')], borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } })
+        const [label, value] = p
+        return new TableCell({
+          width: { size: 50, type: WidthType.PERCENTAGE },
+          margins: { top: 80, bottom: 80, left: 100, right: 100 },
+          children: [
+            new Paragraph({ children: [new TextRun({ text: label.toUpperCase(), size: 15, color: '555555' })] }),
+            new Paragraph({ children: [new TextRun({ text: value != null && value !== '' ? String(value) : '—', bold: true, size: 21 })] }),
+          ],
+        })
+      }),
+    }))
+  }
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder, insideHorizontal: noBorder, insideVertical: noBorder },
+    rows,
+  })
+}
+
+/** Lista de checklist — rótulo à esquerda, status em negrito à direita, linha fina entre itens */
+function checklistBox(items: Array<[string, string | null | undefined]>): Table {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder, insideHorizontal: noBorder, insideVertical: noBorder },
+    rows: items.map(([label, value], i) => new TableRow({
+      children: [new TableCell({
+        margins: { top: 60, bottom: 60, left: 100, right: 100 },
+        borders: i < items.length - 1 ? { bottom: hairline, top: noBorder, left: noBorder, right: noBorder } : undefined,
+        children: [new Paragraph({
+          tabStops: [{ type: 'right' as any, position: 9000 }],
+          children: [
+            new TextRun({ text: label, size: 19 }),
+            new TextRun({ text: '\t' }),
+            new TextRun({ text: value ?? '—', bold: true, size: 19 }),
+          ],
+        })],
+      })],
+    })),
+  })
+}
+
+/** Caixa de status única (ex: APROVADO) — borda preta, texto grande em negrito */
+function statusBox(text: string): Paragraph {
+  return new Paragraph({
+    border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
+    spacing: { before: 80, after: 200 },
+    children: [new TextRun({ text: (text || '—').toUpperCase(), bold: true, size: 24 })],
+    // padding interno via indent não é suportado por borda; usamos espaço no texto
+  })
+}
+
+let figCount = 0
+/** Imagem com legenda numerada — nunca sobrepõe texto, o Word recalcula o fluxo sozinho */
+function figura(foto: FotoInfo | undefined, legenda: string, maxWidthPx = 420): (Paragraph)[] {
+  if (!foto) return []
+  figCount++
+  const ratio = foto.height / foto.width
+  const w = Math.min(maxWidthPx, 500)
+  const h = Math.round(w * ratio)
+  return [
+    new Paragraph({
+      style: 'Figura',
+      children: [new ImageRun({ type: foto.type, data: foto.buffer, transformation: { width: w, height: h } })],
+    }),
+    new Paragraph({ style: 'Legenda', children: [new TextRun(`Figura ${figCount}: ${legenda}`)] }),
+  ]
+}
+
+function tabelaDados(headers: string[], rows: string[][]): Table {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder, insideHorizontal: hairline, insideVertical: thinBorder },
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: headers.map((h) => new TableCell({
+          shading: { type: ShadingType.CLEAR, fill: GRAY_SHADE, color: 'auto' },
+          margins: { top: 60, bottom: 60, left: 80, right: 80 },
+          children: [new Paragraph({ children: [new TextRun({ text: h.toUpperCase(), bold: true, size: 16 })] })],
+        })),
+      }),
+      ...rows.map((r) => new TableRow({
+        children: r.map((c, i) => new TableCell({
+          margins: { top: 60, bottom: 60, left: 80, right: 80 },
+          children: [new Paragraph({ children: [new TextRun({ text: c, bold: i === 0, size: 18 })] })],
+        })),
+      })),
+    ],
+  })
+}
+
+/** Renderiza a fórmula + tabela de variáveis de um FormulaDef */
+function blocoFormula(f: FormulaDef): (Paragraph | Table)[] {
+  return [
+    new Paragraph({ style: 'TituloSub', spacing: { before: 200, after: 60 }, children: [new TextRun(`${f.titulo} — ${f.ref}`)] }),
+    new Paragraph({ spacing: { before: 60, after: 120 }, children: [f.math] }),
+    new Table({
+      width: { size: 90, type: WidthType.PERCENTAGE },
+      borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: hairline, insideVertical: noBorder },
+      rows: f.variaveis.map((v: VarDef) => new TableRow({
+        children: [
+          new TableCell({ width: { size: 12, type: WidthType.PERCENTAGE }, margins: { top: 60, bottom: 60 }, children: [new Paragraph({ children: [new TextRun({ text: v.simbolo, italics: true, size: 19 })] })] }),
+          new TableCell({ width: { size: 58, type: WidthType.PERCENTAGE }, margins: { top: 60, bottom: 60 }, children: [new Paragraph({ children: [new TextRun({ text: v.descricao, italics: true, size: 19 })] })] }),
+          new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, margins: { top: 60, bottom: 60 }, children: [new Paragraph({ children: [new TextRun({ text: v.valor, size: 19 })] })] }),
+        ],
+      })),
+    }),
+    new Paragraph({ text: '', spacing: { after: 160 } }),
+  ]
+}
+
+// ---------------------------------------------------------------------------
+// Cabeçalho tabelado (4 linhas) — repete em toda página das seções de conteúdo
+// ---------------------------------------------------------------------------
+function construirTabelaCabecalho(opts: {
+  logo?: FotoInfo | null
+  logoCliente?: FotoInfo | null
+  instalacao: string
+  numeroDocumento: string
+  titulo: string
+  engenheiro: string
+}): Table {
+  const logos: any[] = []
+  if (opts.logo) logos.push(new ImageRun({ type: opts.logo.type, data: opts.logo.buffer, transformation: { width: 60, height: Math.round(60 * (opts.logo.height / opts.logo.width)) } }))
+  if (opts.logoCliente) {
+    if (logos.length) logos.push(new TextRun('   '))
+    logos.push(new ImageRun({ type: opts.logoCliente.type, data: opts.logoCliente.buffer, transformation: { width: 60, height: Math.round(60 * (opts.logoCliente.height / opts.logoCliente.width)) } }))
+  }
+
+  const table = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder, insideHorizontal: thinBorder, insideVertical: thinBorder },
+    rows: [
+      new TableRow({ children: [
+        new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER, margins: { top: 60, bottom: 60 }, children: logos.length ? [new Paragraph({ alignment: AlignmentType.CENTER, children: logos })] : [new Paragraph('')] }),
+        new TableCell({ width: { size: 78, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'LAUDO DE INSPEÇÃO — NR-13', bold: true, size: 26 })] })] }),
+      ]}),
+      new TableRow({ children: [
+        new TableCell({ width: { size: 46, type: WidthType.PERCENTAGE }, margins: { top: 40, bottom: 40, left: 80 }, children: [
+          new Paragraph({ children: [new TextRun({ text: 'INSTALAÇÃO', bold: true, size: 13 })] }),
+          new Paragraph({ children: [new TextRun({ text: opts.instalacao, size: 17 })] }),
+        ]}),
+        new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, margins: { top: 40, bottom: 40, left: 80 }, children: [
+          new Paragraph({ children: [new TextRun({ text: 'Nº', bold: true, size: 13 })] }),
+          new Paragraph({ children: [new TextRun({ text: opts.numeroDocumento, size: 17 })] }),
+        ]}),
+        new TableCell({ width: { size: 12, type: WidthType.PERCENTAGE }, margins: { top: 40, bottom: 40, left: 80 }, children: [
+          new Paragraph({ children: [new TextRun({ text: 'REV.', bold: true, size: 13 })] }),
+          new Paragraph({ children: [new TextRun({ text: '0', size: 17 })] }),
+        ]}),
+        new TableCell({ width: { size: 14, type: WidthType.PERCENTAGE }, margins: { top: 40, bottom: 40, left: 80 }, children: [
+          new Paragraph({ children: [new TextRun({ text: 'FOLHA', bold: true, size: 13 })] }),
+          new Paragraph({ children: [new TextRun({ children: [PageNumber.CURRENT, new TextRun('/'), PageNumber.TOTAL_PAGES] as any, size: 17 })] }),
+        ]}),
+      ]}),
+      new TableRow({ children: [new TableCell({
+        columnSpan: 4, margins: { top: 40, bottom: 40, left: 80 },
+        children: [
+          new Paragraph({ children: [new TextRun({ text: 'TÍTULO', bold: true, size: 13 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: opts.titulo, bold: true, size: 19 })] }),
+        ],
+      })]}),
+      new TableRow({ children: [new TableCell({
+        columnSpan: 4, margins: { top: 40, bottom: 40, left: 80 },
+        children: [
+          new Paragraph({ children: [new TextRun({ text: 'ENGENHEIRO RESPONSÁVEL', bold: true, size: 13 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: opts.engenheiro, bold: true, size: 18 })] }),
+        ],
+      })]}),
+    ],
+  })
+
+  return table
+}
+
+function construirCabecalho(opts: Parameters<typeof construirTabelaCabecalho>[0]): Header {
+  return new Header({ children: [construirTabelaCabecalho(opts)] })
+}
+
+function construirRodape(): Footer {
+  return new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [
+    new TextRun({ text: 'Folha ', size: 15, color: '666666' }),
+    new TextRun({ children: [PageNumber.CURRENT] as any, size: 15, color: '666666' }),
+    new TextRun({ text: ' de ', size: 15, color: '666666' }),
+    new TextRun({ children: [PageNumber.TOTAL_PAGES] as any, size: 15, color: '666666' }),
+  ]})]})
+}
+
+// ---------------------------------------------------------------------------
+// GEOMETRIA — labels
+// ---------------------------------------------------------------------------
+const GEO_LABELS: Record<string, string> = {
+  cilindrico: 'Cilíndrico', esferico: 'Esférico', elipsoidal: 'Elipsoidal 2:1',
+  toriesferico: 'Torisférico (F&D)', semiesferico: 'Semiesférico', conico: 'Cônico',
+}
+
+function iniciais(nome: string | null | undefined): string {
+  if (!nome) return '—'
+  return nome.trim().split(/\s+/).map((p) => p[0]?.toUpperCase() ?? '').join('').slice(0, 4)
+}
+
+const fmt = (dt: string | null | undefined) => (dt ? new Date(dt + 'T00:00:00').toLocaleDateString('pt-BR') : '—')
+
+// ---------------------------------------------------------------------------
+// COMPONENTE PRINCIPAL
+// ---------------------------------------------------------------------------
+export async function gerarLaudoNR13Docx(
+  d: Record<string, any>,
+  perfil: Record<string, any> | undefined,
+  fotos: Record<string, FotoInfo>,
+  logo?: FotoInfo | null,
+  logoCliente?: FotoInfo | null,
+): Promise<Buffer> {
+  figCount = 0
+  const engNome = d.rthNome || perfil?.nome || '—'
+  const numeroDocumento = d.numeroDocumento || `RI-NR13-${new Date().getFullYear()}`
+  const tituloDocumento = `LAUDO TÉCNICO DE INSPEÇÃO DE VASO DE PRESSÃO — TAG ${d.tag ?? '—'}`
+  const instalacao = [d.empresaInspecionada, [d.cidadeInspecionada, d.estadoInspecionado].filter(Boolean).join('/')].filter(Boolean).join(' — ') || '—'
+  const isFechado = d.ambiente === 'Fechado'
+  const normaSelecionada = d._normaSelecionada ?? (d.normaCalculo === 'GBT150' ? 'GB/T 150-2011' : 'ASME Sec. VIII Div. 1')
+  const engIniciais = iniciais(engNome)
+
+  const header = construirCabecalho({ logo, logoCliente, instalacao, numeroDocumento, titulo: tituloDocumento, engenheiro: `${engNome}${d.rthCrea ? ` — CREA ${d.rthCrea}` : ''}` })
+  const footer = construirRodape()
+
+  // ---- Fórmulas do capítulo 6 ----
+  const RCostado = (d.diametroD ?? 0) / 2
+  const geoCostado = d.geometriaCostado || 'cilindrico'
+  const geoTampo = d.geometriaTampo || 'toriesferico'
+  const fCostado = formulaCostadoPorNorma(d.normaCalculo, geoCostado, { S: d.materialS ?? 0, E: d.eficienciaE ?? 0, t: d.espessuraCostado ?? 0, R: RCostado, D: d.diametroD ?? 0 })
+  const raioAbaulamento = d.raioAbaulamento ?? d.diametroD ?? 0
+  const raioRebordo = d.raioRebordo ?? 0.06 * (d.diametroD ?? 0)
+  const fTampo = formulaTampoPorNorma(d.normaCalculo, geoTampo, {
+    S: d.materialS ?? 0, E: d.eficienciaE ?? 0, t: d.espessuraTampo ?? 0, D: d.diametroD ?? 0,
+    L: raioAbaulamento,
+    M: calcularFatorM(raioAbaulamento, raioRebordo),
+    K: calcularFatorK_GBT150(d.diametroD ?? 0, raioAbaulamento, raioRebordo),
+    alphaDeg: d.anguloConeDeg ?? 30,
+  })
+
+  // =====================================================================
+  // Seção 0 — CAPA / FOLHA DE REVISÃO (sem cabeçalho repetido)
+  // =====================================================================
+  const capa: (Paragraph | Table)[] = [
+    construirTabelaCabecalho({ logo, logoCliente, instalacao, numeroDocumento, titulo: tituloDocumento, engenheiro: `${engNome}${d.rthCrea ? ` — CREA ${d.rthCrea}` : ''}` }),
+    new Paragraph({ text: '', spacing: { after: 300 } }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder, insideHorizontal: thinBorder, insideVertical: thinBorder },
+      rows: [
+        ['1. Revisão', 'ORIGINAL'],
+        ['Data', fmt(d.dataEmissaoLaudo || d.dataInspecao)],
+        ['Preparado', engIniciais],
+        ['Conferido', engIniciais],
+        ['Aprovado', engIniciais],
+      ].map(([label, value]) => new TableRow({ children: [
+        new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.CLEAR, fill: GRAY_SHADE, color: 'auto' }, margins: { top: 80, bottom: 80, left: 100 }, children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 19 })] })] }),
+        new TableCell({ width: { size: 75, type: WidthType.PERCENTAGE }, margins: { top: 80, bottom: 80, left: 100 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: value, bold: true, size: 20 })] })] }),
+      ]})),
+    }),
+    new Paragraph({ text: '', spacing: { after: 300 } }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder, insideHorizontal: hairline, insideVertical: thinBorder },
+      rows: [
+        new TableRow({ children: [
+          new TableCell({ width: { size: 12, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.CLEAR, fill: GRAY_SHADE, color: 'auto' }, margins: { top: 60, bottom: 60, left: 80 }, children: [new Paragraph({ children: [new TextRun({ text: 'REV', bold: true, size: 16 })] })] }),
+          new TableCell({ width: { size: 88, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.CLEAR, fill: GRAY_SHADE, color: 'auto' }, margins: { top: 60, bottom: 60, left: 80 }, children: [new Paragraph({ children: [new TextRun({ text: 'HISTÓRICO DE REVISÕES', bold: true, size: 16 })] })] }),
+        ]}),
+        new TableRow({ children: [
+          new TableCell({ margins: { top: 60, bottom: 60, left: 80 }, children: [new Paragraph({ children: [new TextRun('0')] })] }),
+          new TableCell({ margins: { top: 60, bottom: 60, left: 80 }, children: [new Paragraph({ children: [new TextRun('Emissão original')] })] }),
+        ]}),
+      ],
+    }),
+  ]
+
+  // =====================================================================
+  // Seção 1 — ÍNDICE + CAPÍTULOS (cabeçalho/rodapé repetem)
+  // =====================================================================
+  const conteudo: (Paragraph | Table)[] = [
+    new Paragraph({ style: 'TituloCap', children: [new TextRun('ÍNDICE')] }),
+    new TableOfContents('Índice', { hyperlink: true, headingStyleRange: '1-1' }),
+    new Paragraph({ children: [new PageBreak()] }),
+
+    // 1. OBJETIVO
+    t1('1. Objetivo'),
+    texto(`O presente laudo técnico tem como objetivo apresentar os resultados da inspeção de segurança realizada no vaso de pressão identificado pela TAG "${d.tag ?? '—'}", conforme os requisitos estabelecidos pela Norma Regulamentadora NR-13 (Portaria MTP nº 1.846/2022) e pelo código de projeto ${d.codigoProjeto ?? normaSelecionada}, verificando sua integridade estrutural, documentação obrigatória e condições de operação segura.`),
+    texto(`O cliente contratante do serviço é ${d.empresaInspecionada ?? '—'}${(d.cidadeInspecionada || d.estadoInspecionado) ? `, localizado em ${[d.cidadeInspecionada, d.estadoInspecionado].filter(Boolean).join('/')}` : ''}. A inspeção foi realizada em ${fmt(d.dataInspecao)}, na modalidade ${d.tipoInspecao?.toLowerCase() ?? 'periódica'}.`),
+
+    // 2. NORMAS
+    t1('2. Normas Utilizadas'),
+    bullet('NR-13 — Caldeiras, Vasos de Pressão e Tubulações (Portaria MTP nº 1.846/2022)'),
+    bullet(`${normaSelecionada} — Código de cálculo de PMTA`),
+    bullet(`Código de Construção da Placa: ${d.codigoProjeto ?? '—'}`),
+
+    // 3. DADOS E CLASSIFICAÇÃO
+    t1('3. Dados e Classificação do Equipamento'),
+    t2('3.1 Dados da Placa de Identificação — Art. 13.5.1.3'),
+    campoGrid([
+      ['TAG', d.tag], ['Fabricante', d.fabricante],
+      ['Nº de Série', d.numeroSerie], ['Ano de Fabricação', d.anoFabricacao],
+      ['Tipo de Vaso', d.tipoVaso], ['Código de Projeto', d.codigoProjeto],
+      ['PMTA de Fábrica', d.pmtaFabricante ? `${d.pmtaFabricante} kgf/cm²` : '—'],
+      ['Ambiente de Instalação', d.ambiente],
+    ]),
+    ...figura(fotos['placa'], `Placa de identificação — ${d.tag ?? '—'}`, 500),
+    t2('3.2 Classificação e Categorização — §13.5.1.1'),
+    campoGrid([
+      ['Fluido de Serviço', d.fluidoServico], ['Classe do Fluido', d.fluidoClasse],
+      ['Pressão de Operação', d.pressaoOperacao ? `${d.pressaoOperacao} kgf/cm²` : '—'],
+      ['Volume', d.volume ? `${d.volume} m³` : '—'],
+      ['Grupo P×V', d.grupoPV], ['Categoria do Vaso', d.categoriaVaso],
+    ]),
+
+    // 4. CHECKLIST
+    t1('4. Checklist Documental e de Segurança'),
+    t2('4.1 Checklist Documental — §13.5.1.5'),
+    checklistBox([
+      ['Prontuário do Vaso', d.prontuario],
+      ['Registro de Segurança — §13.5.1.7', d.registroSeguranca],
+      ['Projeto de Instalação', d.projetoInstalacao],
+      ['Relatórios de Inspeção Anteriores', d.relatoriosAnteriores],
+      ['Placa de Identificação', d.placaIdentificacao],
+      ['Certificados dos Dispositivos de Segurança', d.certificadosDispositivos],
+      ['Manual de Operação em Português', d.manualOperacao],
+    ]),
+    t2(`4.2 Segurança no Trabalho — Acessibilidade (${isFechado ? 'Ambiente Fechado — §13.5.2.2' : 'Ambiente Aberto — §13.5.2.3'})`),
+    checklistBox(isFechado ? [
+      ['Drenos, respiros, bocas de visita e indicadores acessíveis — Art. 13.5.2.1', d.segDrenosRespirosBV],
+      ['Adequação a normas de segurança, saúde e meio ambiente — Art. 13.5.2.4', d.segAspNormativosGerais],
+      ['Mínimo de 2 saídas amplas e seguras', d.segDuasSaidasAmbFechado],
+      ['Acesso fácil para manutenção e inspeção', d.segAcessoManutencao],
+      ['Ventilação permanente com entradas não bloqueáveis', d.segVentilacaoPermanente],
+      ['Iluminação conforme normas vigentes', d.segIluminacaoFechado],
+      ['Iluminação de emergência', d.segIluminacaoEmergenciaFechado],
+    ] : [
+      ['Drenos, respiros, bocas de visita e indicadores acessíveis — Art. 13.5.2.1', d.segDrenosRespirosBV],
+      ['Adequação a normas de segurança, saúde e meio ambiente — Art. 13.5.2.4', d.segAspNormativosGerais],
+      ['Saídas amplas, desobstruídas e sinalizadas', d.segSaidasAmbAberto],
+      ['Acesso seguro para manutenção e inspeção', d.segAcessoAmbAberto],
+      ['Iluminação conforme normas vigentes', d.segIluminacaoAberto],
+      ['Iluminação de emergência (se aplicável)', d.segIluminacaoEmergenciaAberto],
+    ]),
+
+    // 5. DISPOSITIVOS
+    t1('5. Dispositivos de Segurança — §13.5.1.2'),
+    texto('A ausência ou o bloqueio de dispositivos de segurança configura Grave e Iminente Risco, conforme Art. 13.3.1, alíneas (a) e (c) da NR-13.'),
+    ...(d.dispositivosSeguranca?.length ? [tabelaDados(
+      ['TAG', 'Tipo', 'P. Ajuste (kgf/cm²)', 'Últ. Teste', 'Situação'],
+      d.dispositivosSeguranca.map((disp: any) => [disp.tag ?? '—', disp.tipo ?? '—', String(disp.pressaoAjusteKpa ?? '—'), disp.ultimoTeste ? fmt(disp.ultimoTeste) : '—', disp.situacao ?? '—']),
+    ), new Paragraph({ text: '', spacing: { after: 160 } })] : []),
+    ...(d.dispositivosSeguranca ?? []).flatMap((disp: any, i: number) => figura(fotos[`dispositivo_${i}`], `${disp.tag ?? 'Dispositivo'} — ${disp.tipo ?? ''}`, 300)),
+    ...(fotos['manometro'] ? [t2('5.1 Indicador de Pressão — Manômetro (§13.5.1.2(d))'), ...figura(fotos['manometro'], `Manômetro — ${d.tag ?? '—'}`, 300)] : []),
+
+    // 6. MEMÓRIA DE CÁLCULO
+    new Paragraph({ children: [new PageBreak()] }),
+    t1(`6. Memória de Cálculo — PMTA (${normaSelecionada})`),
+    texto('Este item apresenta a metodologia de cálculo para verificação da Pressão Máxima de Trabalho Admissível (PMTA) do costado e do tampo do vaso, com base nos parâmetros geométricos e de material informados.'),
+    ...blocoFormula(fCostado),
+    ...blocoFormula(fTampo),
+    t2('6.1 Resultado — PMTA Calculada'),
+    campoGrid([
+      ['PMTA do Costado', d._pmtaCostado != null ? `${Number(d._pmtaCostado).toFixed(2)} kgf/cm²` : '—'],
+      ['PMTA do Tampo', d._pmtaTampo != null ? `${Number(d._pmtaTampo).toFixed(2)} kgf/cm²` : '—'],
+      ['Componente Limitante', d._componenteFragil],
+      ['PMTA Efetiva (Limitante)', d._pmtaLimitante != null ? `${Number(d._pmtaLimitante).toFixed(2)} kgf/cm²` : '—'],
+    ]),
+    texto(
+      d._pmtaLimitante != null && d.psvCalibracao != null
+        ? (d._condena
+          ? `ATENÇÃO: a PSV calibrada (${Number(d.psvCalibracao).toFixed(2)} kgf/cm²) EXCEDE a PMTA limitante — downgrade necessário conforme §13.4.1.`
+          : 'PSV calibrada dentro do limite admissível — condição conforme.')
+        : '',
+    ),
+
+    // 7. EXAME EXTERNO
+    new Paragraph({ children: [new PageBreak()] }),
+    t1('7. Exame Externo — Registros Fotográficos (§13.3.4)'),
+    texto('Resultado do Exame Externo:'),
+    statusBox(d.exameExterno ?? '—'),
+    ...Array.from({ length: 6 }).flatMap((_, i) => figura(fotos[`exame_${i}`], `Registro fotográfico da inspeção — TAG ${d.tag ?? '—'}`, 400)),
+
+    // 8. MEDIÇÕES
+    t1('8. Medições de Espessura — §13.5.4.11(d)'),
+    ...(d.medicoesEspessura?.length ? [tabelaDados(
+      ['Ponto', 'Esp. Orig. (mm)', 'Esp. Medida (mm)', 'Esp. Mín. Adm. (mm)', 'Situação'],
+      d.medicoesEspessura.map((m: any) => [m.ponto ?? '—', String(m.espOriginal ?? 'N/D'), String(m.espMedida ?? '—'), String(m.espMinAdm ?? 'N/D'), m.situacao ?? '—']),
+    ), new Paragraph({ text: '', spacing: { after: 160 } })] : []),
+    ...(d.medicoesEspessura ?? []).flatMap((m: any, i: number) => figura(fotos[`medicao_${i}`], `Medição de espessura — Ponto ${m.ponto ?? i + 1}`, 300)),
+
+    // 9. NÃO CONFORMIDADES
+    new Paragraph({ children: [new PageBreak()] }),
+    t1('9. Não Conformidades — §13.5.4.11(j)'),
+    ...((!d.naoConformidades || d.naoConformidades.length === 0)
+      ? [texto('Nenhuma não conformidade identificada durante a inspeção.')]
+      : d.naoConformidades.flatMap((nc: any, i: number) => [
+        new Paragraph({ style: 'TituloSub', spacing: { before: 160, after: 40 }, children: [new TextRun(`NC ${String(i + 1).padStart(2, '0')} — ${nc.descricao ?? 'Sem descrição'}`)] }),
+        texto(`Ref. NR-13: ${nc.refNR13 ?? '—'}   ·   Grau de Risco: ${nc.grauRisco ?? '—'}   ·   Prazo: ${nc.prazo ? `${nc.prazo} dias` : '—'}`),
+        ...(nc.acaoCorretiva ? [texto(`Ação Corretiva: ${nc.acaoCorretiva}`)] : []),
+        texto(`Responsável: ${nc.responsavel ?? '—'}`),
+        ...figura(fotos[`nc_${i}`], nc.descricao ?? `Não conformidade ${i + 1}`, 300),
+      ])),
+
+    // 10. PARECER
+    new Paragraph({ children: [new PageBreak()] }),
+    t1('10. Parecer Técnico e Conclusão — §13.5.4.11'),
+    texto('Condição do Vaso:'),
+    statusBox(d.statusFinalVaso ?? '—'),
+    campoGrid([
+      ['PMTA Fixada pelo PLH', d.pmtaFixadaPLH ? `${d.pmtaFixadaPLH} kgf/cm²` : '—'],
+      ['Próxima Inspeção Externa', fmt(d.proximaInspecaoExterna)],
+      ['Próxima Inspeção Interna', fmt(d.proximaInspecaoInterna)],
+      ['Próximo Teste de Dispositivos', fmt(d.dataProximoTesteDispositivos)],
+    ]),
+    ...(d.parecerTecnico ? [t2('Parecer do Profissional Legalmente Habilitado (PLH)'), texto(d.parecerTecnico)] : []),
+    new Paragraph({ text: '', spacing: { before: 400 } }),
+    new Paragraph({ alignment: AlignmentType.CENTER, border: { top: { style: BorderStyle.SINGLE, size: 4, color: BLACK } }, spacing: { before: 200 }, children: [new TextRun('')] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: engNome, bold: true, size: 20 })] }),
+    ...(d.rthProfissao ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: d.rthProfissao, size: 17 })] })] : []),
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `CREA: ${d.rthCrea ?? '—'}`, size: 17 })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Profissional Legalmente Habilitado — Responsável Técnico pela Inspeção NR-13', size: 16 })] }),
+  ]
+
+  const doc = new Document({
+    creator: engNome,
+    title: `Laudo NR-13 — ${d.tag ?? 'Vaso de Pressão'}`,
+    features: { updateFields: true },
+    styles: STYLES,
+    sections: [
+      {
+        properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 567, bottom: 567, left: 1418, right: 567 } } },
+        children: capa,
+      },
+      {
+        properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1843, bottom: 567, left: 1418, right: 567, header: 283, footer: 510 } } },
+        headers: { default: header },
+        footers: { default: footer },
+        children: conteudo,
+      },
+    ],
+  })
+
+  return Packer.toBuffer(doc)
+}

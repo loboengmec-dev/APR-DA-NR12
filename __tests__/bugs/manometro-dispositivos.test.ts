@@ -1,62 +1,18 @@
 /**
  * Testes de regressão — Bug fixes (2026-04-09)
  *
- * 1. Foto do manômetro deve ser exibida na seção de Dispositivos de Segurança do PDF
- *    e NÃO na seção de Identificação.
- * 2. UploadFotoNR13 exporta o componente corretamente (estrutura validada).
- * 3. excluirCliente remove o registro no Supabase (lógica server action).
+ * 1. UploadFotoNR13 exporta o componente corretamente (estrutura validada).
+ * 2. excluirCliente remove o registro no Supabase (lógica server action).
+ *
+ * Nota: os testes da posição da foto do manômetro no laudo (antigo PDF
+ * LaudoNR13PDF.tsx) foram removidos — o laudo de vaso agora é gerado em
+ * .docx nativo por components/docx/LaudoNR13Docx.ts, já validado
+ * manualmente (a foto do manômetro aparece na seção 5 "Dispositivos de
+ * Segurança", não na seção 1 "Identificação").
  */
-
-// ---------------------------------------------------------------------------
-// 1. POSIÇÃO DO MANÔMETRO NO PDF
-// ---------------------------------------------------------------------------
 
 import fs from 'fs'
 import path from 'path'
-
-describe('PDF — Manômetro na seção Dispositivos de Segurança', () => {
-  const pdfPath = path.resolve(__dirname, '../../components/pdf/LaudoNR13PDF.tsx')
-  let src: string
-
-  beforeAll(() => {
-    src = fs.readFileSync(pdfPath, 'utf-8')
-  })
-
-  test('Foto do manômetro NÃO aparece junto com a foto da placa (seção 1)', () => {
-    // A placa de identificação aparece em um bloco antes da seção 4
-    const blocoPlaca = src.indexOf("fotosUrl['placa']")
-    const blocoManometroAntigo = src.indexOf("Manômetro — {d.tag}")
-
-    // O bloco da placa deve existir
-    expect(blocoPlaca).toBeGreaterThan(-1)
-
-    // O manômetro não deve aparecer ANTES da seção 4 (dispositivos)
-    const inicioSecaoDispositivos = src.indexOf('Dispositivos de Segurança — §13.5.1.2')
-    expect(inicioSecaoDispositivos).toBeGreaterThan(-1)
-
-    if (blocoManometroAntigo !== -1) {
-      // Se existir, deve estar DEPOIS da seção de dispositivos
-      expect(blocoManometroAntigo).toBeGreaterThan(inicioSecaoDispositivos)
-    }
-  })
-
-  test('Foto do manômetro aparece na seção 4 (Dispositivos de Segurança)', () => {
-    const inicioSecao4 = src.indexOf('Dispositivos de Segurança — §13.5.1.2')
-    const proximaSecao = src.indexOf('5. Registros fotográficos da inspeção')
-    const blocoManometro = src.indexOf("fotosUrl['manometro']")
-
-    expect(inicioSecao4).toBeGreaterThan(-1)
-    expect(blocoManometro).toBeGreaterThan(-1)
-
-    // Manômetro deve estar entre seção 4 e seção 5
-    expect(blocoManometro).toBeGreaterThan(inicioSecao4)
-    expect(blocoManometro).toBeLessThan(proximaSecao)
-  })
-
-  test('Legenda do manômetro exibe referência normativa §13.5.1.2(d)', () => {
-    expect(src).toContain('§13.5.1.2(d)')
-  })
-})
 
 // ---------------------------------------------------------------------------
 // 2. FORMULÁRIO — MANÔMETRO MOVIDO PARA SEÇÃO DE DISPOSITIVOS
