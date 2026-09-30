@@ -38,28 +38,32 @@ const CAPTION_COLOR = '44546A'
 const STYLES = {
   paragraphStyles: [
     {
-      id: 'TituloCap', name: 'Título Capítulo', basedOn: 'Normal', next: 'TextoCorpo',
-      run: { font: FONT, size: 26, bold: true, color: BLACK },
-      paragraph: { spacing: { before: 320, after: 160 }, border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: BLACK, space: 4 } } },
+      // basedOn 'Heading1' + outlineLevel explícito: é o w:outlineLvl que o campo de
+      // Sumário (TableOfContents) realmente varre para montar o índice — nem o
+      // basedOn nem o "Heading1" embutido da lib definem isso sozinhos, então sem o
+      // outlineLevel aqui o sumário fica vazio ("não carrega").
+      id: 'TituloCap', name: 'Título Capítulo', basedOn: 'Heading1', next: 'TextoCorpo',
+      run: { font: FONT, size: 32, bold: true, color: BLACK },
+      paragraph: { spacing: { before: 320, after: 160 }, border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: BLACK, space: 4 } }, keepNext: true, outlineLevel: 0 },
     },
     {
       id: 'TituloSub', name: 'Título Subseção', basedOn: 'Normal', next: 'TextoCorpo',
-      run: { font: FONT, size: 24, bold: true, color: BLACK },
-      paragraph: { spacing: { before: 240, after: 120 } },
+      run: { font: FONT, size: 26, bold: true, color: BLACK },
+      paragraph: { spacing: { before: 240, after: 120 }, keepNext: true },
     },
     {
       id: 'TextoCorpo', name: 'Texto Corpo', basedOn: 'Normal',
-      run: { font: FONT, size: 22, color: BLACK },
+      run: { font: FONT, size: 24, color: BLACK },
       paragraph: { alignment: AlignmentType.JUSTIFIED, spacing: { after: 120, line: 360 } },
     },
     {
       id: 'Figura', name: 'Figura', basedOn: 'Normal',
-      run: { font: FONT, size: 22 },
-      paragraph: { alignment: AlignmentType.CENTER, spacing: { after: 0, before: 120 } },
+      run: { font: FONT, size: 24 },
+      paragraph: { alignment: AlignmentType.CENTER, spacing: { after: 0, before: 120 }, keepNext: true },
     },
     {
       id: 'Legenda', name: 'Legenda', basedOn: 'Normal',
-      run: { font: FONT, size: 18, italics: true, color: CAPTION_COLOR },
+      run: { font: FONT, size: 20, italics: true, color: CAPTION_COLOR },
       paragraph: { alignment: AlignmentType.CENTER, spacing: { after: 200 } },
     },
   ],
@@ -74,8 +78,14 @@ function t1(text: string): Paragraph {
 function t2(text: string): Paragraph {
   return new Paragraph({ style: 'TituloSub', children: [new TextRun(text)] })
 }
-function texto(text: string): Paragraph {
-  return new Paragraph({ style: 'TextoCorpo', children: [new TextRun(text)] })
+/**
+ * Parágrafo de corpo. `keepNext` gruda este parágrafo ao próximo elemento do
+ * documento (tabela, figura ou outro parágrafo) — usado nos parágrafos de
+ * "apresentação dos dados" que antecedem uma tabela/figura, para que o Word
+ * nunca quebre a página entre o texto de contexto e o conteúdo que ele apresenta.
+ */
+function texto(text: string, keepNext = false): Paragraph {
+  return new Paragraph({ style: 'TextoCorpo', keepNext, children: [new TextRun(text)] })
 }
 function bullet(text: string): Paragraph {
   return new Paragraph({ style: 'TextoCorpo', bullet: { level: 0 }, children: [new TextRun(text)] })
@@ -98,8 +108,8 @@ function campoGrid(pairs: Array<[string, string | number | null | undefined]>): 
           width: { size: 50, type: WidthType.PERCENTAGE },
           margins: { top: 80, bottom: 80, left: 100, right: 100 },
           children: [
-            new Paragraph({ children: [new TextRun({ text: label.toUpperCase(), size: 15, color: '555555' })] }),
-            new Paragraph({ children: [new TextRun({ text: value != null && value !== '' ? String(value) : '—', bold: true, size: 21 })] }),
+            new Paragraph({ children: [new TextRun({ text: label.toUpperCase(), size: 17, color: '555555' })] }),
+            new Paragraph({ children: [new TextRun({ text: value != null && value !== '' ? String(value) : '—', bold: true, size: 24 })] }),
           ],
         })
       }),
@@ -124,9 +134,9 @@ function checklistBox(items: Array<[string, string | null | undefined]>): Table 
         children: [new Paragraph({
           tabStops: [{ type: 'right' as any, position: 9000 }],
           children: [
-            new TextRun({ text: label, size: 19 }),
+            new TextRun({ text: label, size: 22 }),
             new TextRun({ text: '\t' }),
-            new TextRun({ text: value ?? '—', bold: true, size: 19 }),
+            new TextRun({ text: value ?? '—', bold: true, size: 22 }),
           ],
         })],
       })],
@@ -139,7 +149,7 @@ function statusBox(text: string): Paragraph {
   return new Paragraph({
     border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
     spacing: { before: 80, after: 200 },
-    children: [new TextRun({ text: (text || '—').toUpperCase(), bold: true, size: 24 })],
+    children: [new TextRun({ text: (text || '—').toUpperCase(), bold: true, size: 28 })],
     // padding interno via indent não é suportado por borda; usamos espaço no texto
   })
 }
@@ -171,13 +181,13 @@ function tabelaDados(headers: string[], rows: string[][]): Table {
         children: headers.map((h) => new TableCell({
           shading: { type: ShadingType.CLEAR, fill: GRAY_SHADE, color: 'auto' },
           margins: { top: 60, bottom: 60, left: 80, right: 80 },
-          children: [new Paragraph({ children: [new TextRun({ text: h.toUpperCase(), bold: true, size: 16 })] })],
+          children: [new Paragraph({ children: [new TextRun({ text: h.toUpperCase(), bold: true, size: 19 })] })],
         })),
       }),
       ...rows.map((r) => new TableRow({
         children: r.map((c, i) => new TableCell({
           margins: { top: 60, bottom: 60, left: 80, right: 80 },
-          children: [new Paragraph({ children: [new TextRun({ text: c, bold: i === 0, size: 18 })] })],
+          children: [new Paragraph({ children: [new TextRun({ text: c, bold: i === 0, size: 21 })] })],
         })),
       })),
     ],
@@ -188,15 +198,15 @@ function tabelaDados(headers: string[], rows: string[][]): Table {
 function blocoFormula(f: FormulaDef): (Paragraph | Table)[] {
   return [
     new Paragraph({ style: 'TituloSub', spacing: { before: 200, after: 60 }, children: [new TextRun(`${f.titulo} — ${f.ref}`)] }),
-    new Paragraph({ spacing: { before: 60, after: 120 }, children: [f.math] }),
+    new Paragraph({ keepNext: true, spacing: { before: 60, after: 120 }, children: [f.math] }),
     new Table({
       width: { size: 90, type: WidthType.PERCENTAGE },
       borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: hairline, insideVertical: noBorder },
       rows: f.variaveis.map((v: VarDef) => new TableRow({
         children: [
-          new TableCell({ width: { size: 12, type: WidthType.PERCENTAGE }, margins: { top: 60, bottom: 60 }, children: [new Paragraph({ children: [new TextRun({ text: v.simbolo, italics: true, size: 19 })] })] }),
-          new TableCell({ width: { size: 58, type: WidthType.PERCENTAGE }, margins: { top: 60, bottom: 60 }, children: [new Paragraph({ children: [new TextRun({ text: v.descricao, italics: true, size: 19 })] })] }),
-          new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, margins: { top: 60, bottom: 60 }, children: [new Paragraph({ children: [new TextRun({ text: v.valor, size: 19 })] })] }),
+          new TableCell({ width: { size: 12, type: WidthType.PERCENTAGE }, margins: { top: 60, bottom: 60 }, children: [new Paragraph({ children: [new TextRun({ text: v.simbolo, italics: true, size: 22 })] })] }),
+          new TableCell({ width: { size: 58, type: WidthType.PERCENTAGE }, margins: { top: 60, bottom: 60 }, children: [new Paragraph({ children: [new TextRun({ text: v.descricao, italics: true, size: 22 })] })] }),
+          new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, margins: { top: 60, bottom: 60 }, children: [new Paragraph({ children: [new TextRun({ text: v.valor, size: 22 })] })] }),
         ],
       })),
     }),
@@ -228,38 +238,38 @@ function construirTabelaCabecalho(opts: {
     rows: [
       new TableRow({ children: [
         new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER, margins: { top: 60, bottom: 60 }, children: logos.length ? [new Paragraph({ alignment: AlignmentType.CENTER, children: logos })] : [new Paragraph('')] }),
-        new TableCell({ width: { size: 78, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'LAUDO DE INSPEÇÃO — NR-13', bold: true, size: 26 })] })] }),
+        new TableCell({ width: { size: 78, type: WidthType.PERCENTAGE }, verticalAlign: VerticalAlign.CENTER, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'LAUDO DE INSPEÇÃO — NR-13', bold: true, size: 28 })] })] }),
       ]}),
       new TableRow({ children: [
         new TableCell({ width: { size: 46, type: WidthType.PERCENTAGE }, margins: { top: 40, bottom: 40, left: 80 }, children: [
-          new Paragraph({ children: [new TextRun({ text: 'INSTALAÇÃO', bold: true, size: 13 })] }),
-          new Paragraph({ children: [new TextRun({ text: opts.instalacao, size: 17 })] }),
+          new Paragraph({ children: [new TextRun({ text: 'INSTALAÇÃO', bold: true, size: 15 })] }),
+          new Paragraph({ children: [new TextRun({ text: opts.instalacao, size: 19 })] }),
         ]}),
         new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, margins: { top: 40, bottom: 40, left: 80 }, children: [
-          new Paragraph({ children: [new TextRun({ text: 'Nº', bold: true, size: 13 })] }),
-          new Paragraph({ children: [new TextRun({ text: opts.numeroDocumento, size: 17 })] }),
+          new Paragraph({ children: [new TextRun({ text: 'Nº', bold: true, size: 15 })] }),
+          new Paragraph({ children: [new TextRun({ text: opts.numeroDocumento, size: 19 })] }),
         ]}),
         new TableCell({ width: { size: 12, type: WidthType.PERCENTAGE }, margins: { top: 40, bottom: 40, left: 80 }, children: [
-          new Paragraph({ children: [new TextRun({ text: 'REV.', bold: true, size: 13 })] }),
-          new Paragraph({ children: [new TextRun({ text: '0', size: 17 })] }),
+          new Paragraph({ children: [new TextRun({ text: 'REV.', bold: true, size: 15 })] }),
+          new Paragraph({ children: [new TextRun({ text: '0', size: 19 })] }),
         ]}),
         new TableCell({ width: { size: 14, type: WidthType.PERCENTAGE }, margins: { top: 40, bottom: 40, left: 80 }, children: [
-          new Paragraph({ children: [new TextRun({ text: 'FOLHA', bold: true, size: 13 })] }),
-          new Paragraph({ children: [new TextRun({ children: [PageNumber.CURRENT, new TextRun('/'), PageNumber.TOTAL_PAGES] as any, size: 17 })] }),
+          new Paragraph({ children: [new TextRun({ text: 'FOLHA', bold: true, size: 15 })] }),
+          new Paragraph({ children: [new TextRun({ children: [PageNumber.CURRENT, new TextRun('/'), PageNumber.TOTAL_PAGES] as any, size: 19 })] }),
         ]}),
       ]}),
       new TableRow({ children: [new TableCell({
         columnSpan: 4, margins: { top: 40, bottom: 40, left: 80 },
         children: [
-          new Paragraph({ children: [new TextRun({ text: 'TÍTULO', bold: true, size: 13 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: opts.titulo, bold: true, size: 19 })] }),
+          new Paragraph({ children: [new TextRun({ text: 'TÍTULO', bold: true, size: 15 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: opts.titulo, bold: true, size: 21 })] }),
         ],
       })]}),
       new TableRow({ children: [new TableCell({
         columnSpan: 4, margins: { top: 40, bottom: 40, left: 80 },
         children: [
-          new Paragraph({ children: [new TextRun({ text: 'ENGENHEIRO RESPONSÁVEL', bold: true, size: 13 })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: opts.engenheiro, bold: true, size: 18 })] }),
+          new Paragraph({ children: [new TextRun({ text: 'ENGENHEIRO RESPONSÁVEL', bold: true, size: 15 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: opts.engenheiro, bold: true, size: 20 })] }),
         ],
       })]}),
     ],
@@ -274,10 +284,10 @@ function construirCabecalho(opts: Parameters<typeof construirTabelaCabecalho>[0]
 
 function construirRodape(): Footer {
   return new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [
-    new TextRun({ text: 'Folha ', size: 15, color: '666666' }),
-    new TextRun({ children: [PageNumber.CURRENT] as any, size: 15, color: '666666' }),
-    new TextRun({ text: ' de ', size: 15, color: '666666' }),
-    new TextRun({ children: [PageNumber.TOTAL_PAGES] as any, size: 15, color: '666666' }),
+    new TextRun({ text: 'Folha ', size: 18, color: '666666' }),
+    new TextRun({ children: [PageNumber.CURRENT] as any, size: 18, color: '666666' }),
+    new TextRun({ text: ' de ', size: 18, color: '666666' }),
+    new TextRun({ children: [PageNumber.TOTAL_PAGES] as any, size: 18, color: '666666' }),
   ]})]})
 }
 
@@ -357,8 +367,8 @@ export async function gerarLaudoNR13Docx(
         ['Conferido', engIniciais],
         ['Aprovado', engIniciais],
       ].map(([label, value]) => new TableRow({ children: [
-        new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.CLEAR, fill: GRAY_SHADE, color: 'auto' }, margins: { top: 80, bottom: 80, left: 100 }, children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 19 })] })] }),
-        new TableCell({ width: { size: 75, type: WidthType.PERCENTAGE }, margins: { top: 80, bottom: 80, left: 100 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: value, bold: true, size: 20 })] })] }),
+        new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.CLEAR, fill: GRAY_SHADE, color: 'auto' }, margins: { top: 80, bottom: 80, left: 100 }, children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 22 })] })] }),
+        new TableCell({ width: { size: 75, type: WidthType.PERCENTAGE }, margins: { top: 80, bottom: 80, left: 100 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: value, bold: true, size: 23 })] })] }),
       ]})),
     }),
     new Paragraph({ text: '', spacing: { after: 300 } }),
@@ -367,12 +377,12 @@ export async function gerarLaudoNR13Docx(
       borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder, insideHorizontal: hairline, insideVertical: thinBorder },
       rows: [
         new TableRow({ children: [
-          new TableCell({ width: { size: 12, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.CLEAR, fill: GRAY_SHADE, color: 'auto' }, margins: { top: 60, bottom: 60, left: 80 }, children: [new Paragraph({ children: [new TextRun({ text: 'REV', bold: true, size: 16 })] })] }),
-          new TableCell({ width: { size: 88, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.CLEAR, fill: GRAY_SHADE, color: 'auto' }, margins: { top: 60, bottom: 60, left: 80 }, children: [new Paragraph({ children: [new TextRun({ text: 'HISTÓRICO DE REVISÕES', bold: true, size: 16 })] })] }),
+          new TableCell({ width: { size: 12, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.CLEAR, fill: GRAY_SHADE, color: 'auto' }, margins: { top: 60, bottom: 60, left: 80 }, children: [new Paragraph({ children: [new TextRun({ text: 'REV', bold: true, size: 19 })] })] }),
+          new TableCell({ width: { size: 88, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.CLEAR, fill: GRAY_SHADE, color: 'auto' }, margins: { top: 60, bottom: 60, left: 80 }, children: [new Paragraph({ children: [new TextRun({ text: 'HISTÓRICO DE REVISÕES', bold: true, size: 19 })] })] }),
         ]}),
         new TableRow({ children: [
-          new TableCell({ margins: { top: 60, bottom: 60, left: 80 }, children: [new Paragraph({ children: [new TextRun('0')] })] }),
-          new TableCell({ margins: { top: 60, bottom: 60, left: 80 }, children: [new Paragraph({ children: [new TextRun('Emissão original')] })] }),
+          new TableCell({ margins: { top: 60, bottom: 60, left: 80 }, children: [new Paragraph({ children: [new TextRun({ text: '0', size: 22 })] })] }),
+          new TableCell({ margins: { top: 60, bottom: 60, left: 80 }, children: [new Paragraph({ children: [new TextRun({ text: 'Emissão original', size: 22 })] })] }),
         ]}),
       ],
     }),
@@ -388,18 +398,22 @@ export async function gerarLaudoNR13Docx(
 
     // 1. OBJETIVO
     t1('1. Objetivo'),
-    texto(`O presente laudo técnico tem como objetivo apresentar os resultados da inspeção de segurança realizada no vaso de pressão identificado pela TAG "${d.tag ?? '—'}", conforme os requisitos estabelecidos pela Norma Regulamentadora NR-13 (Portaria MTP nº 1.846/2022) e pelo código de projeto ${d.codigoProjeto ?? normaSelecionada}, verificando sua integridade estrutural, documentação obrigatória e condições de operação segura.`),
+    texto(`Este capítulo apresenta a finalidade e o escopo do presente laudo técnico, elaborado em atendimento à Norma Regulamentadora NR-13 (Portaria MTP nº 1.846/2022), que disciplina os requisitos mínimos para gestão da integridade estrutural de vasos de pressão ao longo de sua vida útil, com o objetivo de reduzir a probabilidade de ocorrência de acidentes.`),
+    texto(`O presente laudo técnico tem como objetivo apresentar os resultados da inspeção de segurança realizada no vaso de pressão identificado pela TAG "${d.tag ?? '—'}", conforme os requisitos estabelecidos pela NR-13 e pelo código de projeto ${d.codigoProjeto ?? normaSelecionada}, verificando sua integridade estrutural, documentação obrigatória e condições de operação segura.`),
     texto(`O cliente contratante do serviço é ${d.empresaInspecionada ?? '—'}${(d.cidadeInspecionada || d.estadoInspecionado) ? `, localizado em ${[d.cidadeInspecionada, d.estadoInspecionado].filter(Boolean).join('/')}` : ''}. A inspeção foi realizada em ${fmt(d.dataInspecao)}, na modalidade ${d.tipoInspecao?.toLowerCase() ?? 'periódica'}.`),
 
     // 2. NORMAS
     t1('2. Normas Utilizadas'),
+    texto('A NR-13, item §13.5.4.11, exige que o laudo de inspeção referencie explicitamente as normas e os códigos técnicos empregados na avaliação do equipamento, de modo a permitir a rastreabilidade da metodologia adotada. Relacionam-se a seguir os documentos normativos aplicados:', true),
     bullet('NR-13 — Caldeiras, Vasos de Pressão e Tubulações (Portaria MTP nº 1.846/2022)'),
     bullet(`${normaSelecionada} — Código de cálculo de PMTA`),
     bullet(`Código de Construção da Placa: ${d.codigoProjeto ?? '—'}`),
 
     // 3. DADOS E CLASSIFICAÇÃO
     t1('3. Dados e Classificação do Equipamento'),
+    texto('Este capítulo reúne os dados de identificação do vaso, extraídos de sua placa conforme o Art. 13.5.1.3, e a classificação quanto ao risco, determinada pelo item §13.5.1.1 a partir do Grupo de Potencial de Risco (P×V) e da Classe do fluido de serviço. Essa classificação define a Categoria do vaso, da qual decorrem os intervalos de inspeção periódica exigidos pela norma.'),
     t2('3.1 Dados da Placa de Identificação — Art. 13.5.1.3'),
+    texto('Seguem os dados coletados diretamente da placa de identificação fixada ao equipamento:', true),
     campoGrid([
       ['TAG', d.tag], ['Fabricante', d.fabricante],
       ['Nº de Série', d.numeroSerie], ['Ano de Fabricação', d.anoFabricacao],
@@ -409,6 +423,7 @@ export async function gerarLaudoNR13Docx(
     ]),
     ...figura(fotos['placa'], `Placa de identificação — ${d.tag ?? '—'}`, 500),
     t2('3.2 Classificação e Categorização — §13.5.1.1'),
+    texto('Os parâmetros de operação e a classificação de risco resultante são apresentados a seguir:', true),
     campoGrid([
       ['Fluido de Serviço', d.fluidoServico], ['Classe do Fluido', d.fluidoClasse],
       ['Pressão de Operação', d.pressaoOperacao ? `${d.pressaoOperacao} kgf/cm²` : '—'],
@@ -418,7 +433,9 @@ export async function gerarLaudoNR13Docx(
 
     // 4. CHECKLIST
     t1('4. Checklist Documental e de Segurança'),
+    texto('A NR-13 condiciona a operação regular do vaso à existência de documentação obrigatória (item §13.5.1.5) e ao atendimento de requisitos de acessibilidade e segurança no local de instalação (item §13.5.2). A ausência ou desatualização desses itens compromete a rastreabilidade do histórico do equipamento e, em alguns casos, configura risco à integridade física dos envolvidos na operação e manutenção.'),
     t2('4.1 Checklist Documental — §13.5.1.5'),
+    texto('O quadro a seguir apresenta a situação de cada documento obrigatório verificado durante a inspeção:', true),
     checklistBox([
       ['Prontuário do Vaso', d.prontuario],
       ['Registro de Segurança — §13.5.1.7', d.registroSeguranca],
@@ -429,6 +446,7 @@ export async function gerarLaudoNR13Docx(
       ['Manual de Operação em Português', d.manualOperacao],
     ]),
     t2(`4.2 Segurança no Trabalho — Acessibilidade (${isFechado ? 'Ambiente Fechado — §13.5.2.2' : 'Ambiente Aberto — §13.5.2.3'})`),
+    texto('Verificação das condições de acessibilidade e segurança do local de instalação do vaso:', true),
     checklistBox(isFechado ? [
       ['Drenos, respiros, bocas de visita e indicadores acessíveis — Art. 13.5.2.1', d.segDrenosRespirosBV],
       ['Adequação a normas de segurança, saúde e meio ambiente — Art. 13.5.2.4', d.segAspNormativosGerais],
@@ -448,21 +466,23 @@ export async function gerarLaudoNR13Docx(
 
     // 5. DISPOSITIVOS
     t1('5. Dispositivos de Segurança — §13.5.1.2'),
-    texto('A ausência ou o bloqueio de dispositivos de segurança configura Grave e Iminente Risco, conforme Art. 13.3.1, alíneas (a) e (c) da NR-13.'),
+    texto('Os dispositivos de segurança (válvulas de segurança/alívio e demais instrumentos de proteção contra sobrepressão) são o último nível de proteção do vaso contra falha estrutural. A ausência ou o bloqueio desses dispositivos configura Grave e Iminente Risco, conforme Art. 13.3.1, alíneas (a) e (c) da NR-13, exigindo interdição imediata do equipamento.'),
+    texto('Relacionam-se a seguir os dispositivos de segurança identificados e inspecionados no vaso:', true),
     ...(d.dispositivosSeguranca?.length ? [tabelaDados(
       ['TAG', 'Tipo', 'P. Ajuste (kgf/cm²)', 'Últ. Teste', 'Situação'],
       d.dispositivosSeguranca.map((disp: any) => [disp.tag ?? '—', disp.tipo ?? '—', String(disp.pressaoAjusteKpa ?? '—'), disp.ultimoTeste ? fmt(disp.ultimoTeste) : '—', disp.situacao ?? '—']),
-    ), new Paragraph({ text: '', spacing: { after: 160 } })] : []),
+    ), new Paragraph({ text: '', spacing: { after: 160 } })] : [texto('Nenhum dispositivo de segurança foi identificado no equipamento — ver Não Conformidades, capítulo 9.')]),
     ...(d.dispositivosSeguranca ?? []).flatMap((disp: any, i: number) => figura(fotos[`dispositivo_${i}`], `${disp.tag ?? 'Dispositivo'} — ${disp.tipo ?? ''}`, 300)),
     ...(fotos['manometro'] ? [t2('5.1 Indicador de Pressão — Manômetro (§13.5.1.2(d))'), ...figura(fotos['manometro'], `Manômetro — ${d.tag ?? '—'}`, 300)] : []),
 
     // 6. MEMÓRIA DE CÁLCULO
     new Paragraph({ children: [new PageBreak()] }),
     t1(`6. Memória de Cálculo — PMTA (${normaSelecionada})`),
-    texto('Este item apresenta a metodologia de cálculo para verificação da Pressão Máxima de Trabalho Admissível (PMTA) do costado e do tampo do vaso, com base nos parâmetros geométricos e de material informados.'),
+    texto(`A determinação da Pressão Máxima de Trabalho Admissível (PMTA) é o núcleo técnico da avaliação estrutural exigida pela NR-13, pois estabelece o limite seguro de operação do vaso a partir das espessuras efetivamente medidas — e não apenas das espessuras nominais de projeto. Este capítulo apresenta a metodologia de cálculo conforme ${normaSelecionada}, aplicada ao costado e ao tampo do vaso, com base nos parâmetros geométricos e de material levantados em campo.`),
     ...blocoFormula(fCostado),
     ...blocoFormula(fTampo),
     t2('6.1 Resultado — PMTA Calculada'),
+    texto('A PMTA efetiva do vaso é limitada pelo componente estruturalmente mais frágil entre o costado e o tampo, conforme resumido a seguir:', true),
     campoGrid([
       ['PMTA do Costado', d._pmtaCostado != null ? `${Number(d._pmtaCostado).toFixed(2)} kgf/cm²` : '—'],
       ['PMTA do Tampo', d._pmtaTampo != null ? `${Number(d._pmtaTampo).toFixed(2)} kgf/cm²` : '—'],
@@ -480,12 +500,14 @@ export async function gerarLaudoNR13Docx(
     // 7. EXAME EXTERNO
     new Paragraph({ children: [new PageBreak()] }),
     t1('7. Exame Externo — Registros Fotográficos (§13.3.4)'),
-    texto('Resultado do Exame Externo:'),
+    texto('O exame externo, previsto no item §13.3.4 da NR-13, consiste na inspeção visual da superfície externa do vaso, seus suportes, conexões e acessórios, em busca de indícios de corrosão, deformação, vazamento ou outra anomalia que comprometa a integridade estrutural do equipamento. O resultado consolidado e os registros fotográficos que evidenciam as condições observadas são apresentados a seguir.'),
+    texto('Resultado do Exame Externo:', true),
     statusBox(d.exameExterno ?? '—'),
     ...Array.from({ length: 6 }).flatMap((_, i) => figura(fotos[`exame_${i}`], `Registro fotográfico da inspeção — TAG ${d.tag ?? '—'}`, 400)),
 
     // 8. MEDIÇÕES
     t1('8. Medições de Espessura — §13.5.4.11(d)'),
+    texto('O monitoramento da espessura das partes pressurizadas, exigido pelo item §13.5.4.11(d) da NR-13, permite quantificar a taxa de corrosão do equipamento ao longo do tempo e é o dado de entrada essencial para o recálculo da PMTA apresentado no capítulo 6. A tabela a seguir relaciona os pontos de medição ultrassônica realizados durante a inspeção:', true),
     ...(d.medicoesEspessura?.length ? [tabelaDados(
       ['Ponto', 'Esp. Orig. (mm)', 'Esp. Medida (mm)', 'Esp. Mín. Adm. (mm)', 'Situação'],
       d.medicoesEspessura.map((m: any) => [m.ponto ?? '—', String(m.espOriginal ?? 'N/D'), String(m.espMedida ?? '—'), String(m.espMinAdm ?? 'N/D'), m.situacao ?? '—']),
@@ -495,6 +517,7 @@ export async function gerarLaudoNR13Docx(
     // 9. NÃO CONFORMIDADES
     new Paragraph({ children: [new PageBreak()] }),
     t1('9. Não Conformidades — §13.5.4.11(j)'),
+    texto('Nos termos do item §13.5.4.11(j) da NR-13, o laudo de inspeção deve relacionar as não conformidades identificadas, com a respectiva referência normativa, o grau de risco associado e o prazo para a ação corretiva. As não conformidades constatadas durante a presente inspeção são detalhadas a seguir.'),
     ...((!d.naoConformidades || d.naoConformidades.length === 0)
       ? [texto('Nenhuma não conformidade identificada durante a inspeção.')]
       : d.naoConformidades.flatMap((nc: any, i: number) => [
@@ -508,8 +531,10 @@ export async function gerarLaudoNR13Docx(
     // 10. PARECER
     new Paragraph({ children: [new PageBreak()] }),
     t1('10. Parecer Técnico e Conclusão — §13.5.4.11'),
-    texto('Condição do Vaso:'),
+    texto('Este capítulo consolida o parecer conclusivo do Profissional Legalmente Habilitado (PLH) sobre a integridade do vaso, conforme exigido pelo item §13.5.4.11 da NR-13, definindo a condição de operação do equipamento e o cronograma das próximas inspeções periódicas obrigatórias, calculado a partir da Categoria do vaso (Tabela 2 da norma).'),
+    texto('Condição do Vaso:', true),
     statusBox(d.statusFinalVaso ?? '—'),
+    texto('Dados complementares do parecer e cronograma de inspeções futuras:', true),
     campoGrid([
       ['PMTA Fixada pelo PLH', d.pmtaFixadaPLH ? `${d.pmtaFixadaPLH} kgf/cm²` : '—'],
       ['Próxima Inspeção Externa', fmt(d.proximaInspecaoExterna)],
@@ -519,10 +544,10 @@ export async function gerarLaudoNR13Docx(
     ...(d.parecerTecnico ? [t2('Parecer do Profissional Legalmente Habilitado (PLH)'), texto(d.parecerTecnico)] : []),
     new Paragraph({ text: '', spacing: { before: 400 } }),
     new Paragraph({ alignment: AlignmentType.CENTER, border: { top: { style: BorderStyle.SINGLE, size: 4, color: BLACK } }, spacing: { before: 200 }, children: [new TextRun('')] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: engNome, bold: true, size: 20 })] }),
-    ...(d.rthProfissao ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: d.rthProfissao, size: 17 })] })] : []),
-    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `CREA: ${d.rthCrea ?? '—'}`, size: 17 })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Profissional Legalmente Habilitado — Responsável Técnico pela Inspeção NR-13', size: 16 })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: engNome, bold: true, size: 23 })] }),
+    ...(d.rthProfissao ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: d.rthProfissao, size: 20 })] })] : []),
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `CREA: ${d.rthCrea ?? '—'}`, size: 20 })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Profissional Legalmente Habilitado — Responsável Técnico pela Inspeção NR-13', size: 19 })] }),
   ]
 
   const doc = new Document({
