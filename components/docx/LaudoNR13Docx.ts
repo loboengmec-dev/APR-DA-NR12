@@ -319,18 +319,26 @@ export async function gerarLaudoNR13Docx(
   const footer = construirRodape()
 
   // ---- Fórmulas do capítulo 6 ----
-  const RCostado = (d.diametroD ?? 0) / 2
+  // Campos numéricos chegam como STRING do formulário (register() sem valueAsNumber;
+  // a coerção do Zod só roda no resolver de submit, não em watch()/getValues()).
+  // Number(...) aqui evita TypeError em .toFixed() dentro de pmtaFormulasDocx.
+  const numS = Number(d.materialS) || 0
+  const numE = Number(d.eficienciaE) || 0
+  const numD = Number(d.diametroD) || 0
+  const numTCostado = Number(d.espessuraCostado) || 0
+  const numTTampo = Number(d.espessuraTampo) || 0
+  const RCostado = numD / 2
   const geoCostado = d.geometriaCostado || 'cilindrico'
   const geoTampo = d.geometriaTampo || 'toriesferico'
-  const fCostado = formulaCostadoPorNorma(d.normaCalculo, geoCostado, { S: d.materialS ?? 0, E: d.eficienciaE ?? 0, t: d.espessuraCostado ?? 0, R: RCostado, D: d.diametroD ?? 0 })
-  const raioAbaulamento = d.raioAbaulamento ?? d.diametroD ?? 0
-  const raioRebordo = d.raioRebordo ?? 0.06 * (d.diametroD ?? 0)
+  const fCostado = formulaCostadoPorNorma(d.normaCalculo, geoCostado, { S: numS, E: numE, t: numTCostado, R: RCostado, D: numD })
+  const raioAbaulamento = Number(d.raioAbaulamento) || numD
+  const raioRebordo = Number(d.raioRebordo) || 0.06 * numD
   const fTampo = formulaTampoPorNorma(d.normaCalculo, geoTampo, {
-    S: d.materialS ?? 0, E: d.eficienciaE ?? 0, t: d.espessuraTampo ?? 0, D: d.diametroD ?? 0,
+    S: numS, E: numE, t: numTTampo, D: numD,
     L: raioAbaulamento,
     M: calcularFatorM(raioAbaulamento, raioRebordo),
-    K: calcularFatorK_GBT150(d.diametroD ?? 0, raioAbaulamento, raioRebordo),
-    alphaDeg: d.anguloConeDeg ?? 30,
+    K: calcularFatorK_GBT150(numD, raioAbaulamento, raioRebordo),
+    alphaDeg: Number(d.anguloConeDeg) || 30,
   })
 
   // =====================================================================
