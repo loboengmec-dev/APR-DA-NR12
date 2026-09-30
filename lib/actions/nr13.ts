@@ -260,6 +260,7 @@ export async function salvarInspecaoNR13(formData: Partial<InspecaoNR13Data>, cl
     foto_placa_path: d.fotoPlacaPath || null,
     foto_manometro_path: d.fotoManometroPath || null,
     fotos_exame: d.fotosExame ? JSON.stringify(d.fotosExame) : null,
+    numero_documento: d.numeroDocumento || null,
   }
   console.log('[NR13-Server] Criando inspeção com vaso_id:', novoVaso.id, 'tag:', d.tag)
   const { data: inspecao, error: inspError } = await supabase
@@ -401,6 +402,7 @@ export async function atualizarInspecaoNR13(
     foto_placa_path: form.fotoPlacaPath ?? undefined,
     foto_manometro_path: form.fotoManometroPath ?? undefined,
     fotos_exame: form.fotosExame ? JSON.stringify(form.fotosExame) : undefined,
+    numero_documento: form.numeroDocumento ?? undefined,
   }
 
   // Remove campos undefined para não sobrescrever com null

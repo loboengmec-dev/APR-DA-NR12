@@ -23,9 +23,9 @@ import {
   type NormaCalculo,
 } from '../../lib/domain/nr13/materiais';
 import { calcularGrupoPV, calcularCategoria, extrairLetraClasse, LIMITES_GRUPO } from '../../lib/domain/nr13/categorization';
-import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, uploadFotoManometro, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
+import { uploadFotoPlaca, uploadFotoExame, uploadFotoMedicao, uploadFotoNCNr13, uploadFotoManometro, uploadLogoCliente, gerarUrlAssinadaNR13, removerFotoNR13 } from '../../lib/nr13/storage';
 import { salvarInspecaoNR13, atualizarInspecaoNR13, type InspecaoNR13Data } from '../../lib/actions/nr13';
-import { buscarCliente } from '../../lib/actions/clientes';
+import { buscarCliente, atualizarCliente } from '../../lib/actions/clientes';
 import { createClient } from '../../lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import UploadFotoNR13 from './UploadFotoNR13';
@@ -51,6 +51,10 @@ function somarAnos(dataISO: string, anos: number): string {
 // SCHEMA ZOD
 // ---------------------------------------------------------------------------
 const FormSchema = z.object({
+  // --- Cabeçalho do documento (padrão editorial "memória de cálculo") ---
+  /** Gerado automaticamente ao criar a inspeção, mas livremente editável pelo engenheiro. */
+  numeroDocumento: z.string().optional().nullable(),
+
   // --- Seção 1: Identificação ---
   tag: z.string().min(1, 'TAG é obrigatório'),
   fabricante: z.string().min(1, 'Fabricante é obrigatório'),
@@ -256,6 +260,37 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
       });
     }
   }, [clienteId, clienteDados]);
+
+  // Gera URL assinada da logo do cliente sempre que o registro do cliente muda/carrega
+  useEffect(() => {
+    if (clienteInfo?.logo_url) {
+      gerarUrlAssinadaNR13(clienteInfo.logo_url).then((url) => setUrlLogoCliente(url));
+    } else {
+      setUrlLogoCliente(null);
+    }
+  }, [clienteInfo?.logo_url]);
+
+  async function handleUploadLogoCliente(file: File) {
+    const cid = clienteId ?? clienteInfo?.id;
+    if (!cid) return;
+    setEnviandoLogoCliente(true);
+    try {
+      const { path, error } = await uploadLogoCliente(file, cid);
+      if (error || !path) { setEnviandoLogoCliente(false); return; }
+      const { data: atualizado } = await atualizarCliente(cid, { logo_url: path });
+      if (atualizado) setClienteInfo(atualizado);
+    } finally {
+      setEnviandoLogoCliente(false);
+    }
+  }
+
+  async function handleRemoverLogoCliente() {
+    const cid = clienteId ?? clienteInfo?.id;
+    if (!cid) return;
+    const { data: atualizado } = await atualizarCliente(cid, { logo_url: null });
+    if (atualizado) setClienteInfo(atualizado);
+    setUrlLogoCliente(null);
+  }
   const router = useRouter();
   const [alerta, setAlerta] = useState<string | null>(null);
   const [detalheCalculo, setDetalheCalculo] = useState<{
@@ -268,6 +303,9 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
 
   // ─── Estado de pré-visualização de fotos (urls assinadas temporárias) ───
   const [urlFotoPlaca, setUrlFotoPlaca] = useState<string | null>(null);
+  // Logo do cliente/parceiro — persistida em `clientes.logo_url`, reaproveitada em laudos futuros
+  const [urlLogoCliente, setUrlLogoCliente] = useState<string | null>(null);
+  const [enviandoLogoCliente, setEnviandoLogoCliente] = useState(false);
   const [urlFotoManometro, setUrlFotoManometro] = useState<string | null>(null);
   const [urlFotoManometroUploaded, setUrlFotoManometroUploaded] = useState<string | null>(null);
   const [urlsExame, setUrlsExame] = useState<string[]>([]);
@@ -305,6 +343,9 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
   const [erroSalvar, setErroSalvar] = useState<string | null>(null);
 
   const defaultsNovo = {
+    // Padrão fixo automático — gerado uma única vez na criação, editável livremente depois.
+    // Não é recalculado em useEffect para não sobrescrever edições manuais do usuário.
+    numeroDocumento: `RI-NR13-${new Date().getFullYear()}`,
     normaCalculo: 'ASME' as NormaCalculo,
     geometriaCostado: 'cilindrico',
     geometriaTampo: 'toriesferico',
@@ -891,6 +932,50 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
       ================================================================ */}
       <section>
         <h2 className={sectionTitle}>1. Identificação e Dados Gerais do Vaso</h2>
+
+        {/* 1.0 Cabeçalho do documento — nº e logo do cliente */}
+        <p className={`${subTitle} mb-2`}>1.0 Cabeçalho do Documento</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className={labelCls}>Nº do Documento</label>
+            <input type="text" {...register('numeroDocumento')} className={inputCls('numeroDocumento')} placeholder="Ex: RI-NR13-2026" />
+            <p className="text-xs text-slate-400 mt-1">Gerado automaticamente — edite livremente se precisar seguir a numeração do cliente.</p>
+          </div>
+          <div>
+            <label className={labelCls}>Logo do Cliente (opcional)</label>
+            {urlLogoCliente ? (
+              <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                <div className="w-16 h-12 rounded-lg overflow-hidden border border-green-300 flex-shrink-0 bg-white flex items-center justify-center">
+                  <img src={urlLogoCliente} alt="Logo do cliente" className="max-w-full max-h-full object-contain" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-green-800 truncate">✓ Logo do cliente registrada</p>
+                  <p className="text-xs text-green-600 truncate">Aparece no cabeçalho do laudo, ao lado da sua logo</p>
+                </div>
+                <button type="button" onClick={handleRemoverLogoCliente}
+                  className="flex-shrink-0 p-1.5 rounded-lg hover:bg-red-100 text-red-400 hover:text-red-600 transition-colors"
+                  title="Remover logo do cliente">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                    <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.519.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <label className={`flex items-center justify-center gap-2 w-full min-h-[52px] px-4 py-2 border-2 border-dashed rounded-xl cursor-pointer transition-colors text-sm font-medium
+                ${enviandoLogoCliente || !(clienteId ?? clienteInfo?.id) ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-slate-300 hover:border-slate-500 hover:bg-slate-50 text-slate-600'}`}>
+                <input type="file" accept="image/*" className="hidden"
+                  disabled={enviandoLogoCliente || !(clienteId ?? clienteInfo?.id)}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadLogoCliente(f); }} />
+                {enviandoLogoCliente ? (
+                  <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> Enviando...</>
+                ) : (
+                  <>📎 Anexar logo do cliente/parceiro</>
+                )}
+              </label>
+            )}
+            <p className="text-xs text-slate-400 mt-1">Útil em serviços prestados em parceria — a logo fica salva no cadastro do cliente e reaparece nos próximos laudos.</p>
+          </div>
+        </div>
 
         {/* 1.1 Dados da Placa */}
         <p className={`${subTitle} mb-2`}>1.1 Dados da Placa de Identificação — Art. 13.5.1.3</p>
@@ -1961,6 +2046,12 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
               if (v.fotoPlacaPath) {
                 const url = urlFotoPlaca || await gerarUrlAssinadaNR13(v.fotoPlacaPath);
                 if (url) fotosUrlMap['placa'] = url;
+              }
+
+              // Logo do cliente — exibida no cabeçalho ao lado da logo do engenheiro
+              if (clienteInfo?.logo_url) {
+                const url = urlLogoCliente || await gerarUrlAssinadaNR13(clienteInfo.logo_url);
+                if (url) fotosUrlMap['logoCliente'] = url;
               }
 
               // Foto do manômetro

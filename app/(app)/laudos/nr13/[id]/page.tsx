@@ -67,6 +67,7 @@ function dbToForm(row: InspecoesNR13, ncs: NcNR13[]) {
     fotoPlacaPath: row.foto_placa_path ?? '',
     fotoManometroPath: row.foto_manometro_path ?? '',
     fotosExame: parseJsonArray(row.fotos_exame, []),
+    numeroDocumento: row.numero_documento ?? '',
   }
 }
 

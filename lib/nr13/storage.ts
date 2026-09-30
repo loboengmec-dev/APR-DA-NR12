@@ -74,6 +74,19 @@ export async function uploadFotoManometro(
   return uploadFile(file, bucketPath(`manometro/${sanitizePath(vasoId)}/${Date.now()}`))
 }
 
+/**
+ * Upload da logo do cliente/parceiro — usada no cabeçalho do laudo quando
+ * o serviço é prestado em parceria e o relatório deve exibir a marca do
+ * contratante. Persistida em `clientes.logo_url`, reutilizada em todos os
+ * laudos futuros do mesmo cliente sem precisar reenviar.
+ */
+export async function uploadLogoCliente(
+  file: File,
+  clienteId: string
+): Promise<{ path: string; error: string | null }> {
+  return uploadFile(file, bucketPath(`logo-cliente/${sanitizePath(clienteId)}/${Date.now()}`))
+}
+
 // --------------------------------------------------------------------------
 // Helpers internos — usa o bucket existente 'fotos-nc'
 // --------------------------------------------------------------------------

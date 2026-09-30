@@ -28,6 +28,8 @@ export interface Cliente {
   endereco: string | null
   cidade: string | null
   estado: string | null
+  /** Logo do cliente/parceiro (storage path) — exibida no cabeçalho do laudo NR-13 em serviços de parceria */
+  logo_url: string | null
   created_at: string
 }
 
@@ -37,6 +39,7 @@ export interface FormCliente {
   endereco?: string | null
   cidade?: string | null
   estado?: string | null
+  logo_url?: string | null
 }
 
 // --- Laudo ---
@@ -236,6 +239,7 @@ export interface InspecoesNR13 {
   foto_manometro_path: string | null
   fotos_exame: any | null
   norma_calculo: string | null
+  numero_documento: string | null
   created_at: string
 }
 
