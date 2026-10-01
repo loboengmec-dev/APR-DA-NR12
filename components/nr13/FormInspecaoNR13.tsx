@@ -1314,7 +1314,18 @@ export default function FormInspecaoNR13({ initialData, inspecaoId, clienteId, c
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Pressão Ajuste (kgf/cm²)</label>
-                <input type="number" step="1" {...register(`dispositivosSeguranca.${index}.pressaoAjusteKpa`)} placeholder="Ex: 4200" className={baseInputCls} />
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  {...register(`dispositivosSeguranca.${index}.pressaoAjusteKpa`, {
+                    setValueAs: (v) => {
+                      const n = parseFloat(String(v).replace(',', '.'));
+                      return isNaN(n) ? 0 : n;
+                    },
+                  })}
+                  placeholder="Ex: 2,5"
+                  className={baseInputCls}
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Último Teste</label>
